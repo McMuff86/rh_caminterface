@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net7.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>false</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>RhinoCNCExporter</AssemblyName>
+    <RootNamespace>RhinoCNCExporter</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Resolve Rhino SDK path: prefer MSBuild property, then env var, then default install path -->
+    <RhinoSdkPath Condition=" '$(RhinoSdkPath)' == '' and '$(RHINO_SDK_PATH)' != '' ">$(RHINO_SDK_PATH)</RhinoSdkPath>
+    <RhinoSdkPath Condition=" '$(RhinoSdkPath)' == '' ">C:\Program Files\Rhino 8\System</RhinoSdkPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Core\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="RhinoCommon">
+      <HintPath>$(RhinoSdkPath)\RhinoCommon.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Eto">
+      <HintPath>$(RhinoSdkPath)\Eto.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Eto.Wpf">
+      <HintPath>$(RhinoSdkPath)\Eto.Wpf.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="8.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RhinoCNCExporter.Core\RhinoCNCExporter.Core.csproj" />
+  </ItemGroup>
+
+  <Target Name="CopyRhp" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(TargetDir)$(AssemblyName).rhp" />
+  </Target>
+</Project>

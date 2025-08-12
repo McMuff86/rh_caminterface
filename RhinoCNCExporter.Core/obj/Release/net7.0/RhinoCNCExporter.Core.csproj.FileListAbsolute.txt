@@ -1,0 +1,11 @@
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\bin\Release\net7.0\RhinoCNCExporter.Core.deps.json
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\bin\Release\net7.0\RhinoCNCExporter.Core.dll
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\bin\Release\net7.0\RhinoCNCExporter.Core.pdb
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\obj\Release\net7.0\RhinoCNCExporter.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\obj\Release\net7.0\RhinoCNCExporter.Core.AssemblyInfoInputs.cache
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\obj\Release\net7.0\RhinoCNCExporter.Core.AssemblyInfo.cs
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\obj\Release\net7.0\RhinoCNCExporter.Core.csproj.CoreCompileInputs.cache
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\obj\Release\net7.0\RhinoCNCExporter.Core.dll
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\obj\Release\net7.0\refint\RhinoCNCExporter.Core.dll
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\obj\Release\net7.0\RhinoCNCExporter.Core.pdb
+C:\Users\GTBMX\source\repos\RH_caminterface\RhinoCNCExporter.Core\obj\Release\net7.0\ref\RhinoCNCExporter.Core.dll

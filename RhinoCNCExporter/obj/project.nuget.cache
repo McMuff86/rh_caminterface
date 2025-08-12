@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "PnquZtCJwAg=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\GTBMX\\source\\repos\\RH_caminterface\\RhinoCNCExporter\\RhinoCNCExporter.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\GTBMX\\.nuget\\packages\\microsoft.win32.systemevents\\8.0.0\\microsoft.win32.systemevents.8.0.0.nupkg.sha512",
+    "C:\\Users\\GTBMX\\.nuget\\packages\\system.drawing.common\\8.0.8\\system.drawing.common.8.0.8.nupkg.sha512"
+  ],
+  "logs": []
+}
