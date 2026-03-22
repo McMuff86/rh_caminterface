@@ -102,23 +102,63 @@ Rhino-Geometrie → LayerParser → Specs (maschinenunabhängig)
 - Offizielle Spec: "woodWOP Formatbeschreibung" Dok-Nr. 9-080-42-7190
 - Open-Source Referenz: [prgToMPR](https://github.com/mustafayildizmuh/prgToMPR) (C#)
 
+## Build-Umgebung
+
+```bash
+# Build
+dotnet build RhinoCNCExporter/RhinoCNCExporter.csproj -c Release
+
+# Tests
+dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj
+
+# Output
+# RhinoCNCExporter/bin/Release/net7.0-windows/RhinoCNCExporter.rhp
+
+# In Rhino laden
+# _-PlugIn _Install "C:\Users\Adi.Muff\repos\RH_caminterface\RhinoCNCExporter\bin\Release\net7.0-windows\RhinoCNCExporter.rhp"
+```
+
+### Rhino 8 SDK DLL-Pfade (auf diesem Rechner verifiziert)
+- `C:\Program Files\Rhino 8\System\netcore\RhinoCommon.dll` — Core API
+- `C:\Program Files\Rhino 8\System\netcore\Rhino.UI.dll` — UI/Panels
+- `C:\Program Files\Rhino 8\System\Eto.dll` — Eto.Forms (**nicht** in netcore/, sondern im Hauptverzeichnis!)
+
+### Company / Branding
+- Organization: **Solid-ai.ai** (in AssemblyInfo.cs)
+- Plugin GUID: `2e8c8a7c-1bcb-4b0d-8a56-4b2b6f0d7f6e`
+
 ## Bekannte Fallen / Gotchas
 
+- **Eto.dll Pfad**: Liegt in `System\`, NICHT in `System\netcore\` — häufige Build-Fehlerquelle
 - **Maximale Namenslänge**: 31 Zeichen (Maestro-Limit) — NameService kürzt automatisch
 - **RNT-Makro-Signatur**: Muss exakt dem Maestro-Format entsprechen (siehe Python-Referenz)
 - **CIX ist kein XML**: Trotz "X" im Namen — es sind BEGIN/END Textblöcke
 - **MPR Konturen**: Werden als separate `]n` Blöcke definiert und von Operationen referenziert
 - **Biesse Seiten vs Homag**: Biesse nutzt SIDE=0-5, Homag nutzt Koordinatensysteme (KO)
-- **RhinoCommon SDK**: Für net7.0 müssen die DLLs aus `System\netcore\` referenziert werden
+- **System.Drawing.Common**: Wird als NuGet-Paket (v7.0.0) benötigt wegen `Icon`-Typ in `Panels.RegisterPanel`
 - **Yak Package**: manifest.yml muss im Root des dist-Ordners liegen, `.rhp` daneben
 - **Workplane**: Immer "Top", Eingaben immer in mm
+- **.gitignore**: Ist vorhanden — `bin/`, `obj/`, `*.rhp`, `*.yak` werden ignoriert
 
 ## Wie weiterarbeiten
 
+### Phase 1 — SCM/Maestro Emitter fertigstellen
 1. **Lies die Python-Referenz** (`RH_caminterface_v007.py`) — sie definiert das Soll-Verhalten
-2. **Teste gegen Referenz-Ausgaben** (`tests/test_01.xcs`, `test_02.xcs`)
-3. **Emitter zuerst** — der größte offene Posten
-4. **Dann IEmitter-Interface** — Voraussetzung für Biesse/Homag
-5. **Maestro-Handbuch** bei Detailfragen konsultieren (`maestro_editor_text.txt`)
-6. **BppLib** als Referenz für CIX-Format nutzen
-7. **woodWOP Formatbeschreibung** für MPR-Format konsultieren
+2. Implementiere die Emit*.cs Stubs mit echtem Code (Port aus Python)
+3. Implementiere GeometryUtils (Polyline-Sampling, Offsets, Groove-Konstruktion)
+4. **Teste gegen Referenz-Ausgaben** (`tests/test_01.xcs`, `test_02.xcs`)
+5. ExportService End-to-End zum Laufen bringen
+
+### Phase 2 — Multi-Maschinen-Abstraktion
+6. IEmitter-Interface extrahieren
+7. XilogEmitter darauf refactoren
+8. IMachineProfile-Interface
+
+### Phase 3+ — Biesse/Homag
+9. **BppLib** als Referenz für CIX-Format nutzen (https://github.com/viachpaliy/BppLib)
+10. **woodWOP Formatbeschreibung** für MPR-Format konsultieren (Dok-Nr. 9-080-42-7190)
+11. **Maestro-Handbuch** bei Detailfragen: `maestro_editor_text.txt`
+
+### Rhino-Kommandos zum Testen
+- `ExportXilog` — Export-Dialog öffnen
+- `RhinoCNCExporterSettings` — Settings-Panel öffnen
