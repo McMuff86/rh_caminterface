@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+*.rhp
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Yak packages
+*.yak
+
+# Python
+__pycache__/
+*.pyc

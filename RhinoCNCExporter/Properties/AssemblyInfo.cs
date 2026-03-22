@@ -3,11 +3,11 @@ using System.Runtime.InteropServices;
 using Rhino.PlugIns;
 
 [assembly: AssemblyTitle("RhinoCNCExporter")]
-[assembly: AssemblyDescription("Exports Xilog/Maestro programs from Rhino 2D geometry")] 
+[assembly: AssemblyDescription("Generates CNC programs (XCS, CIX, MPR) from Rhino 2D geometry for SCM, Biesse, and Homag machines")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("YourCompany")] 
-[assembly: AssemblyProduct("RhinoCNCExporter")] 
-[assembly: AssemblyCopyright("Copyright © 2025")] 
+[assembly: AssemblyCompany("Solid-ai.ai")]
+[assembly: AssemblyProduct("RhinoCNCExporter")]
+[assembly: AssemblyCopyright("Copyright © 2025-2026 Adi Muff")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -16,7 +16,7 @@ using Rhino.PlugIns;
 [assembly: PlugInDescription(DescriptionType.Country, "DE")]
 [assembly: PlugInDescription(DescriptionType.Email, "support@example.com")]
 [assembly: PlugInDescription(DescriptionType.Phone, "")]
-[assembly: PlugInDescription(DescriptionType.Organization, "YourCompany")]
+[assembly: PlugInDescription(DescriptionType.Organization, "Solid-ai.ai")]
 [assembly: PlugInDescription(DescriptionType.UpdateUrl, "")]
 [assembly: PlugInDescription(DescriptionType.WebSite, "")]
 

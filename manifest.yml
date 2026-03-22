@@ -1,0 +1,18 @@
+name: rhinocncexporter
+version: 0.1.0
+authors:
+  - Adi Muff
+description: >
+  Generates CNC programs from Rhino 2D geometry and layer conventions.
+  Supports SCM/Maestro (XCS), Biesse (CIX), and Homag/woodWOP (MPR).
+url: "https://github.com/AdiMuff/RH_caminterface"
+keywords:
+  - cnc
+  - cam
+  - woodworking
+  - scm
+  - biesse
+  - homag
+  - maestro
+  - xilog
+  - woodwop
