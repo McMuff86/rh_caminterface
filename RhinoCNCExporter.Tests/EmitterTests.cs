@@ -25,7 +25,7 @@ public class EmitterTests
         Assert.Contains("SetMachiningParameters(\"IJ\",1,10,196608,false);", header);
         Assert.Contains("CreateFinishedWorkpieceBox(\"test_01\", 2240.000, 300.000, 19.000);", header);
         Assert.Contains("double DZ = 19.000;", header);
-        Assert.Contains("SetWorkpieceSetupPosition(2.5,2.5,0,0);", header);
+        Assert.Contains("SetWorkpieceSetupPosition(2.5,2.5,0.0,0.0);", header);
     }
 
     [Fact]

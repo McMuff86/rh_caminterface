@@ -29,7 +29,9 @@ public sealed class XilogEmitter
         sb.AppendLine("SetMachiningParameters(\"IJ\",1,10,196608,false);");
         sb.AppendLine(F($"CreateFinishedWorkpieceBox(\"{programName}\", {dx:F3}, {dy:F3}, {dz:F3});"));
         sb.AppendLine(F($"double DZ = {dz:F3};"));
-        sb.AppendLine(F($"SetWorkpieceSetupPosition({Defaults.SetupOffsetX},{Defaults.SetupOffsetY},{Defaults.SetupOffsetZ},{Defaults.SetupOffsetRot});"));
+        // Python uses Python's default float repr: 2.5 → "2.5", 0.0 → "0.0"
+        // Match exactly using custom formatting
+        sb.AppendLine($"SetWorkpieceSetupPosition({FormatSetup(Defaults.SetupOffsetX)},{FormatSetup(Defaults.SetupOffsetY)},{FormatSetup(Defaults.SetupOffsetZ)},{FormatSetup(Defaults.SetupOffsetRot)});");
         return sb.ToString();
     }
 
@@ -107,4 +109,13 @@ public sealed class XilogEmitter
 
     /// <summary>Format helper — ensures invariant culture for decimal formatting.</summary>
     private static string F(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>Format setup offset value like Python's default float repr (2.5→"2.5", 0.0→"0.0").</summary>
+    private static string FormatSetup(double v)
+    {
+        var s = v.ToString(CultureInfo.InvariantCulture);
+        // Python's repr always includes at least one decimal for floats
+        if (!s.Contains('.')) s += ".0";
+        return s;
+    }
 }
