@@ -22,15 +22,10 @@ public sealed class RhinoCNCExporterPlugIn : PlugIn
 
     protected override LoadReturnCode OnLoad(ref string errorMessage)
     {
-        // Register Settings panel (Eto)
-        try
-        {
-            Panels.RegisterPanel(this, typeof(SettingsPanel), SettingsPanel.PanelDisplayName, null);
-        }
-        catch (Exception ex)
-        {
-            RhinoApp.WriteLine($"[RhinoCNCExporter] Failed to register panel: {ex.Message}");
-        }
+        // Panel registration moved to Command constructors (Rhino 8 best practice).
+        // ExportPanel → RhinoCNCExporterCommand constructor
+        // SettingsPanel → SettingsCommand constructor
+        RhinoApp.WriteLine("[RhinoCNCExporter] Plugin loaded (v0.2.0)");
         return LoadReturnCode.Success;
     }
 

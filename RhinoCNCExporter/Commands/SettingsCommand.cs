@@ -8,13 +8,36 @@ namespace RhinoCNCExporter.Commands;
 
 public sealed class SettingsCommand : Command
 {
+    private static bool _panelRegistered;
+
     public override string EnglishName => "RhinoCNCExporterSettings";
+
+    public SettingsCommand()
+    {
+        // Register panel in Command constructor (Rhino 8 best practice)
+        if (!_panelRegistered)
+        {
+            try
+            {
+                Panels.RegisterPanel(
+                    RhinoCNCExporterPlugIn.Instance,
+                    typeof(SettingsPanel),
+                    SettingsPanel.PanelDisplayName,
+                    null
+                );
+                _panelRegistered = true;
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[RhinoCNCExporter] Settings panel registration failed: {ex.Message}");
+            }
+        }
+    }
 
     protected override Result RunCommand(RhinoDoc doc, RunMode mode)
     {
         try
         {
-            // Open the settings panel; if already visible, bring to front
             Panels.OpenPanel(typeof(SettingsPanel).GUID);
             return Result.Success;
         }
