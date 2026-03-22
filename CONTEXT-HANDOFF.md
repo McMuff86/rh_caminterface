@@ -13,7 +13,18 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-22)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-22, Research-Update Nacht 22./23.03.)
+
+### Deep Research abgeschlossen
+- **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
+  - SCM XCS/MSL-Format: Vollständige Spezifikation, Beispiele aus Python-Referenz
+  - Biesse CIX/BPP-Format: Detaillierte Spezifikation, BppLib (C# NuGet!) analysiert
+  - Homag MPR-Format: Offizielle Formatbeschreibung (75 Seiten) ausgewertet
+  - CAM-Software-Vergleich: woodWOP, bSolid, Maestro, RhinoCAM, Mastercam
+  - Open-Source Libraries: BppLib als direkt nutzbare NuGet-Dependency identifiziert
+  - Praxis-Workflows: Typische Operationen, Werkzeuge, Nesting
+- **Wichtigste Erkenntnis:** BppLib (NuGet) kann direkt für den Biesse-Emitter genutzt werden
+- **Marktlücke bestätigt:** Kein existierendes Rhino-Plugin erzeugt CIX/MPR/XCS
 
 ### Was existiert und funktioniert
 - **Python-Referenz** (`RH_caminterface_v007.py`): Vollständig funktional, kann .xcs-Dateien erzeugen

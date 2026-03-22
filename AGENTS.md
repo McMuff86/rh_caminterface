@@ -14,10 +14,13 @@
 | Homag (woodWOP) | MPR | `.mpr` | `HomagEmitter` (geplant) |
 | Homag (woodWOP 6+) | MPRX | `.mprx` | `HomagEmitter` (geplant, optional) |
 
-### Quelle der Wahrheit
+### Quellen (nach Priorität)
 
-- **Python-Referenz**: `RH_caminterface_v007.py` — funktionale Spezifikation aller Regeln, Mappings, Geometrie-Logik
+- **Research-Dokument**: `docs/RESEARCH-CAM-FORMATS.md` — umfassende Format-Spezifikationen, CAM-Analyse, Praxis-Workflows
+- **Python-Referenz** (Entwurf): `RH_caminterface_v007.py` — funktionaler Entwurf für XCS-Emitter, NICHT mehr "Quelle der Wahrheit" für alle Formate
 - **Maestro-Handbuch**: `maestro_editor_text.txt` + `maestro_editor_outline.json` (extrahiert aus `Maestro Editor.pdf`)
+- **BppLib (NuGet)**: Externe C#-Library für Biesse CIX/BPP-Erzeugung — als Dependency evaluieren
+- **woodWOP Formatbeschreibung**: Dok-Nr. 9-080-42-7190 (über Research-Dokument referenziert)
 - **C#-Plugin**: `RhinoCNCExporter/` — produktive Implementierung
 
 ## Architektur
