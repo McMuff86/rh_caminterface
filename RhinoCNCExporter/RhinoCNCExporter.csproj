@@ -19,7 +19,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Core logic is compiled in RhinoCNCExporter.Core project (no RhinoCommon dependency).
+         GeometryUtils needs RhinoCommon so it stays in the main plugin. -->
     <Compile Remove="Core\**\*.cs" />
+    <Compile Include="Core\Geometry\GeometryUtils.cs" />
   </ItemGroup>
 
   <!-- Rhino 8 references -->

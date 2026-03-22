@@ -15,4 +15,14 @@ public static class Defaults
 {
     public const double DefaultDz = 19.0;
     public const double DefaultToolDiameter = 9.5;
+    public const double DefaultPocketStepover = 0.7; // * ToolØ
+    public const double GrooveOvertravel = 5.0;      // mm
+    public const double PolyTolerance = 0.05;        // mm
+    public const double SetupOffsetX = 2.5;
+    public const double SetupOffsetY = 2.5;
+    public const double SetupOffsetZ = 0.0;
+    public const double SetupOffsetRot = 0.0;
+    public const bool UseCornerRounding = false;
+    public const bool UseRntMacro = true;
+    public const string DefaultGrooveTech = "E010";
 }

@@ -77,7 +77,7 @@ public static class LayerRegex
     }
 
     private static readonly Regex GrooveChRegex = new(
-        pattern: @"^RBNUT_CH_(?<axis>X|Y)_W(?<w>\d+(?:\.\d+)?)(?:_Z(?<depth>\d+(?:\.\d+)?))?(?:_S(?<sd>\d+(?:\.\d+)?))?(?:_E(?<tech>\d{2,3}))?_(?<place>M|P)$",
+        pattern: @"^RBNUT_CH_(?<axis>X|Y)_W(?<w>\d+(?:\.\d+)?)(?:_Z(?<depth>\d+(?:\.\d+)?))?(?:_S(?<sd>\d+(?:\.\d+)?))?(?:_E(?<tech>\d{2,3}))?(?:_(?<place>M|P))?$",
         options: RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     public static bool TryParseGrooveChannel(string layerName, out GrooveChannelSpec? spec)
@@ -89,13 +89,14 @@ public static class LayerRegex
         double depth = m.Groups["depth"].Success ? double.Parse(m.Groups["depth"].Value) : Defaults.DefaultDz;
         double? sd = m.Groups["sd"].Success ? double.Parse(m.Groups["sd"].Value) : (double?)null;
         string? tech = m.Groups["tech"].Success ? "E" + m.Groups["tech"].Value.PadLeft(3, '0') : null;
-        var place = m.Groups["place"].Value.ToUpperInvariant() == "M" ? Place.Center : Place.Positive;
+        var place = m.Groups["place"].Success && m.Groups["place"].Value.ToUpperInvariant() == "P"
+            ? Place.Positive : Place.Center;  // Default M (center) like Python
         spec = new GrooveChannelSpec(axis, width, depth, sd, tech, place);
         return true;
     }
 
     private static readonly Regex GrooveRntRegex = new(
-        pattern: @"^RBNUT_RNT_(?<axis>X|Y)_W(?<w>\d+(?:\.\d+)?)(?:_Z(?<depth>\d+(?:\.\d+)?))?_C(?<code>\d+)?_(?<place>M|P)$",
+        pattern: @"^RBNUT_RNT_(?<axis>X|Y)_W(?<w>\d+(?:\.\d+)?)(?:_Z(?<depth>\d+(?:\.\d+)?))?_C(?<code>\d{3})(?:_(?<place>M|P))?$",
         options: RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     public static bool TryParseGrooveRnt(string layerName, out GrooveRntSpec? spec)
@@ -106,7 +107,8 @@ public static class LayerRegex
         double width = double.Parse(m.Groups["w"].Value);
         double depth = m.Groups["depth"].Success ? double.Parse(m.Groups["depth"].Value) : Defaults.DefaultDz;
         string code = m.Groups["code"].Success ? m.Groups["code"].Value : "";
-        var place = m.Groups["place"].Value.ToUpperInvariant() == "M" ? Place.Center : Place.Positive;
+        var place = m.Groups["place"].Success && m.Groups["place"].Value.ToUpperInvariant() == "P"
+            ? Place.Positive : Place.Center;  // Default M (center) like Python
         spec = new GrooveRntSpec(axis, width, depth, code, place);
         return true;
     }

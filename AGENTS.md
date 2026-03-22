@@ -77,11 +77,17 @@ Alle Angaben in mm. Workplane Top. Maximale Namenslänge: 31 Zeichen.
 - Fehler klar kommunizieren (Dialog + Log)
 - SemVer (MAJOR.MINOR.PATCH)
 
-### Testphilosophie
+### Testphilosophie — PFLICHT!
+- **Unit Tests sind PFLICHT bei JEDEM Commit** — kein Code ohne Tests
 - Pure Logik testbar ohne Rhino-UI
-- xUnit für alle Tests
+- xUnit für alle Tests in `RhinoCNCExporter.Tests/`
 - Kategorien: Parser, Naming, Geometry, Emitter, Profile
 - `dotnet test` zum Ausführen
+- **Emitter-Tests:** Ausgabe gegen Referenz-Dateien (`tests/test_01.xcs`, `test_02.xcs`) vergleichen
+- **Parser-Tests:** Jeden Layer-Pattern testen (CUT, POCKET, DRILL, DRILLROW, RBNUT_CH, RBNUT_RNT)
+- **GeometryUtils-Tests:** Polyline-Sampling, Offset, Groove-Konstruktion
+- **NameService-Tests:** 31-Zeichen-Limit, Duplikate, Sonderzeichen
+- **Ziel:** 80%+ Code Coverage auf Core/
 
 ### Wichtige Regeln
 1. `RH_caminterface_v007.py` ist die Referenz — C# spiegelt das Verhalten 1:1

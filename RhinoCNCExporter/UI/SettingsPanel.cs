@@ -75,7 +75,7 @@ public sealed class SettingsPanel : Panel
         if (dlg.ShowDialog(this) != DialogResult.Ok || string.IsNullOrWhiteSpace(dlg.FileName))
             return;
 
-        var ok = Services.ExportService.ExportXilog(doc, onlySelection:false, filePath: dlg.FileName);
+        var ok = Services.ExportService.ExportXilog(doc, onlySelection:false, filePath: dlg.FileName, layerStepdown: false);
         if (!ok)
         {
             MessageBox.Show(this, "Export failed", MessageBoxType.Error);

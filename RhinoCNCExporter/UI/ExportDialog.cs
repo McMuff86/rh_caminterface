@@ -9,7 +9,12 @@ public sealed class ExportDialog : Dialog<bool>
     private readonly RadioButton zTechStepdown;
     private readonly RadioButton zLayerStepdown;
     private readonly CheckBox onlySelection;
-    private readonly Button exportButton;
+
+    /// <summary>True = layer-defined stepdown (_Sxx), false = technology stepdown.</summary>
+    public bool UseLayerStepdown => zLayerStepdown.Checked;
+
+    /// <summary>True = export only selected objects.</summary>
+    public bool OnlySelected => onlySelection.Checked ?? false;
 
     public ExportDialog()
     {
@@ -17,14 +22,14 @@ public sealed class ExportDialog : Dialog<bool>
         Resizable = false;
         Padding = new Padding(12);
 
-        zTechStepdown = new RadioButton { Text = "Z strategy: Technology stepdown", Checked = true };
-        zLayerStepdown = new RadioButton(zTechStepdown) { Text = "Z strategy: Layer stepdown" };
-        onlySelection = new CheckBox { Text = "Only selected geometry", Checked = false };
+        zTechStepdown = new RadioButton { Text = "A: Technologie-Stepdown (Standard)", Checked = true };
+        zLayerStepdown = new RadioButton(zTechStepdown) { Text = "B: Layer-Stepdown (_Sxx)" };
+        onlySelection = new CheckBox { Text = "Nur selektierte Geometrie", Checked = false };
 
-        exportButton = new Button { Text = "Export" };
+        var exportButton = new Button { Text = "Export" };
         exportButton.Click += (_, _) => { Result = true; Close(); };
 
-        var cancelButton = new Button { Text = "Cancel" };
+        var cancelButton = new Button { Text = "Abbrechen" };
         cancelButton.Click += (_, _) => { Result = false; Close(); };
 
         Content = new StackLayout
@@ -32,7 +37,7 @@ public sealed class ExportDialog : Dialog<bool>
             Spacing = 8,
             Items =
             {
-                new Label { Text = "Choose options:", Font = new Font(SystemFont.Bold, 11) },
+                new Label { Text = "Zustellstrategie wählen:", Font = new Font(SystemFont.Bold, 11) },
                 zTechStepdown,
                 zLayerStepdown,
                 onlySelection,

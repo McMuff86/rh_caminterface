@@ -1,9 +1,19 @@
+using RhinoCNCExporter.Core.LayerParser;
+using RhinoCNCExporter.Core.Naming;
+
 namespace RhinoCNCExporter.Core.Emitters;
 
+/// <summary>
+/// Emits single DRILL operations.
+/// Matches emit_drill() from Python reference.
+/// </summary>
 public static class EmitDrill
 {
-    public static string Emit(string name)
+    public static string Emit(XilogEmitter emitter, NameService names, string baseName,
+        double x, double y, DrillSpec spec)
     {
-        return $"// DRILL: {name}\n";
+        string unique = names.CreateUnique(baseName);
+        return emitter.EmitDrill(unique, x, y, spec.Depth, spec.Diameter, "Top",
+            spec.Side.ToString());
     }
 }
