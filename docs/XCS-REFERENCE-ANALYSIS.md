@@ -1,8 +1,15 @@
 # XCS Referenz-Analyse für RhinoCNCExporter
 
 **Datum:** 23. März 2026  
-**Analysierte Dateien:** 36 echte Produktions-XCS-Dateien  
+**Analysierte Dateien:** 55 echte Produktions-XCS-Dateien (36 bestehende + 19 neue)  
 **Quelle:** `~/projects/rh_caminterface/tests/references/`
+
+## Update März 2026
+
+**Neue Dateien hinzugefügt:**
+- 19 neue XCS-Dateien mit Prefix `NEW_`
+- Besonderheiten: Schubladen-Bearbeitung (Legrabox), Revisionstüren, geneigte Schnitte
+- **Neue MSL-Befehle entdeckt:** CreateBladeCut, CreateSectioningMillingStrategy, CreateSegment, CreateHelicMillingStrategy
 
 ## Executive Summary
 
@@ -17,36 +24,44 @@ Die Analyse der 36 Produktionsdateien zeigt erhebliche Unterschiede zu unserem a
 
 ## 1. Befehls-Inventar
 
-### Häufigkeitsverteilung (Top 20)
+### Häufigkeitsverteilung (Top 25 - UPDATE)
 ```
-SelectWorkplane                 459 (alle Dateien)
-CreateDrill                     399 (Bohrungen)
-ResetPattern                    399 (nach jedem Drill)
-AddSegmentToPolyline            217 (Konturzüge)
+SelectWorkplane                 618 (alle Dateien)
+CreateDrill                     493 (Bohrungen)
+ResetPattern                    493 (nach jedem Drill)
+AddSegmentToPolyline            363 (Konturzüge)
 CreatePattern                   122 (Bohrmuster - FEHLT bei uns!)
-CreateMacro                     103 (Makros)
-SetApproachStrategy              52
-SetRetractStrategy               52
-SetPneumaticHoodPosition         50
-ResetRetractStrategy             49
-ResetApproachStrategy            48
-CreatePolyline                   47
-SetCompensationMode              46
-CreateRoughFinish                46
-SetWorkpieceSetupPosition        42
-CreateWorkplane                  40 (Freie Ebenen - TEILWEISE bei uns)
-SetMachiningParameters           36 (Header)
-CreateFinishedWorkpieceBox       36 (Header)
-AddArc2PointCenterToPolyline     12 (Bögen - FEHLT bei uns!)
+CreateMacro                     109 (Makros)
+SetPneumaticHoodPosition        109 (Haube)
+SetApproachStrategy              88
+SetRetractStrategy               88
+ResetRetractStrategy             77
+ResetApproachStrategy            77
+CreateRoughFinish                69
+SetCompensationMode              69
+CreatePolyline                   63
+SetWorkpieceSetupPosition        55
+CreateWorkplane                  48 (Freie Ebenen - TEILWEISE bei uns)
+SetMachiningParameters           51 (Header)
+CreateFinishedWorkpieceBox       51 (Header)
+CreateSectioningMillingStrategy  36 (NEU! - Schneidstrategie)
+CreateBladeCut                   36 (NEU! - Geneigte Schnitte)
+CreateSegment                    32 (NEU! - Segment-Definition)
+AddArc2PointCenterToPolyline     16 (Bögen - FEHLT bei uns!)
 CreateWorkplan                    6 (Workplanes)
+CreateHelicMillingStrategy        2 (NEU! - Spiralbearbeitung)
 ```
 
 ### Befehle die wir NICHT implementiert haben
 1. **`CreatePattern()`** - Für Bohrmuster/Arrays (122 Vorkommen!)
-2. **`AddArc2PointCenterToPolyline()`** - Bögen in Konturen (12 Vorkommen)
-3. **`CreateWorkplane("Freie Ebene_XXX", ...)`** - Horizontale Bohrungen
-4. **`CreateMacro(..., "SawCut_Lamello", ...)`** - CLAMEX-Verbinder
-5. **`CreateWorkplan()`** - Arbeitsebenen-Definition
+2. **`CreateBladeCut()`** - Geneigte Schnitte/Fase-Bearbeitungen (36 Vorkommen!)
+3. **`CreateSectioningMillingStrategy()`** - Schneidstrategie-Definition (36 Vorkommen!)
+4. **`CreateSegment()`** - Segment-Definition für Schnitte (32 Vorkommen!)
+5. **`AddArc2PointCenterToPolyline()`** - Bögen in Konturen (16 Vorkommen)
+6. **`CreateWorkplane("Freie Ebene_XXX", ...)`** - Horizontale Bohrungen (48 Vorkommen)
+7. **`CreateMacro(..., "SawCut_Lamello", ...)`** - CLAMEX-Verbinder
+8. **`CreateHelicMillingStrategy()`** - Spiralbearbeitung (2 Vorkommen)
+9. **`CreateWorkplan()`** - Arbeitsebenen-Definition
 
 ## 2. Pattern-Analyse
 
@@ -207,6 +222,96 @@ AddArc2PointCenterToPolyline(883.5, 300, 883.5, 280, false);
 
 **Format:** `AddArc2PointCenterToPolyline(endX, endY, centerX, centerY, clockwise)`
 
+## 6.5. Neue MSL-Befehle (März 2026)
+
+### CreateBladeCut() - Geneigte Schnitte
+```xcs
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_1", 19, 354, 19, -187.5);
+CreateBladeCut("Geneigter Schnitt in X/Y_1", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1", 45.00, 2, -1, -1, -1, 2, true, true, 0, 15);
+```
+
+**Verwendung:**
+- Schubladen-Bearbeitung (Fasen für Legrabox-System)
+- 45° geneigte Schnitte
+- Immer in Kombination mit CreateSectioningMillingStrategy + CreateSegment
+
+**Parameter-Struktur:**
+1. Name
+2. "Blade Cut" (fix)
+3. TypeOfProcess.GeneralRouting
+4. Technologie: "E015"
+5. "-1" (Standard)
+6. Winkel: 45.00 (Grad)
+7-10. Weitere Parameter
+11-12. true, true (Flags)
+13-14. 0, 15 (Tiefe/Offset?)
+
+### CreateSectioningMillingStrategy() - Schneidstrategie
+```xcs
+CreateSectioningMillingStrategy(5, 0, 0);
+```
+
+**Parameter:**
+- P1: 5 (Strategie-Typ?)
+- P2: 0 (X-Offset?)
+- P3: 0 (Y-Offset?)
+
+**Verwendung:** Immer vor CreateBladeCut() und CreateSegment()
+
+### CreateSegment() - Segment-Definition
+```xcs
+CreateSegment("Cut segment_1", 19, 354, 19, -187.5);
+CreateSegment("Cut segment_2", 628, -187.5, 628, 354);
+CreateSegment("Cut segment_3", -187.5, 19, 834.5, 19);
+```
+
+**Parameter-Struktur:**
+1. Name: "Cut segment_X"
+2-3. Start X, Y
+4-5. End X, Y
+
+**Pattern:** Definiert Liniensegmente für geneigte Schnitte
+
+### CreateHelicMillingStrategy() + Rectangle-Makro
+```xcs
+CreateHelicMillingStrategy(8.5,true,17);
+CreateMacro("Rechteckausschnitt_527","Rectangle",314,923,436,408,17,14,0,8.5,1,false,null,null,1,null,"E009","-1","Top");
+```
+
+**CreateHelicMillingStrategy Parameter:**
+- P1: 8.5 (Spiralradius?)
+- P2: true (Richtung?)
+- P3: 17 (Tiefe?)
+
+**Rectangle-Makro Parameter:**
+1. Name
+2. "Rectangle" (Makro-Typ)
+3-4. Center X, Y (314, 923)
+5-6. Width, Height (436, 408)
+7. Tiefe: 17
+8. ?: 14
+9-10. 0, 8.5
+11. 1
+12. false
+13-14. null, null
+15. 1
+16. null
+17. Technologie: "E009"
+18. "-1"
+19. "Top" (Workplane)
+
+### SetMachiningParameters Varianten
+**Neue Parameter-Typen gefunden:**
+```xcs
+SetMachiningParameters("IJ",1,10,196608,false);  // Standard
+SetMachiningParameters("IL",1,10,196608,false);  // 2x in neuen Dateien
+SetMachiningParameters("EH",1,10,196608,false);  // 1x
+SetMachiningParameters("EF",1,10,196608,false);  // 1x (Sichtrückwand)
+```
+
 ## 7. Vergleich mit unserem XilogEmitter
 
 ### ✅ Was unser Emitter richtig macht
@@ -241,7 +346,7 @@ AddArc2PointCenterToPolyline(883.5, 300, 883.5, 280, false);
 - **DZ-Format:** `19` statt `19.000`
 - **Footer:** Fehlende Kommentar-Blöcke
 
-## 8. Prioritierte Action Items
+## 8. Prioritierte Action Items (UPDATE März 2026)
 
 ### 🔥 KRITISCH (Sofort implementieren)
 1. **CreatePattern()** Support
@@ -249,32 +354,45 @@ AddArc2PointCenterToPolyline(883.5, 300, 883.5, 280, false);
    - Pattern: `CreatePattern(xCount, yCount, xSpacing, ySpacing, angle, direction)`
    - Nach CreateDrill, vor ResetPattern()
 
-2. **Header-Kommentare verbessern**
+2. **CreateBladeCut()** - Geneigte Schnitte
+   - 36 neue Vorkommen! (Schubladen-Bearbeitung)
+   - Pattern: `CreateBladeCut(name, "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1", 45.00, ...)`
+   - Für Fasen und geneigte Schnitte an Schubladen
+
+3. **CreateSectioningMillingStrategy()** + CreateSegment()
+   - 36 + 32 Vorkommen (immer zusammen verwendet)
+   - Definiert Schneidstrategie vor CreateBladeCut
+   - Pattern: `CreateSectioningMillingStrategy(5, 0, 0)` → `CreateSegment(...)`
+
+4. **Header-Kommentare verbessern**
    - Kommentar-Blöcke mit `//***...***`
    - Projekt-Info als auskommentierte CreateMessage
-   - Professionellerer Look
 
 ### 🟡 WICHTIG (Nächste Iteration)
-3. **AddArc2PointCenterToPolyline()** für Bögen
-   - 12 Vorkommen in Produktion
-   - Für gerundete Ecken in Konturen
+5. **AddArc2PointCenterToPolyline()** für Bögen
+   - 16 Vorkommen in Produktion (erweitert!)
+   - Für gerundete Ecken in Konturen (10mm Radius in Revisionstüren)
 
-4. **CreateWorkplane() für Horizontalbohrungen**
-   - 40 freie Ebenen-Definitionen
+6. **CreateWorkplane() für Horizontalbohrungen**
+   - 48 freie Ebenen-Definitionen (erweitert!)
    - Seitenbearbeitung ermöglichen
 
-### 🔵 ERWÜNSCHT (Backlog)
-5. **SawCut_Lamello-Makros** (CLAMEX)
-   - Spezielles Verbindersystem
-   - Komplexe Parameterliste
+7. **CreateHelicMillingStrategy()** + Rectangle-Makro
+   - 2 Vorkommen für große Rechteck-Ausschnitte
+   - Spiralbearbeitung für Ausschnitte
 
-6. **CreateWorkplan()** Support
+### 🔵 ERWÜNSCHT (Backlog)
+8. **SawCut_Lamello-Makros** (CLAMEX)
+   - Spezielles Verbindersystem
+   - Komplexe Parameterliste (~48 Parameter)
+
+9. **CreateWorkplan()** Support
    - Arbeitsebenen-Definition
    - 6 Vorkommen in Produktion
 
-7. **E-Code Expansion**
-   - Aktuell nur E010, E015, E032
-   - Produktion nutzt: E004, E005, E009, E013, E019, E021, E022, E025
+10. **E-Code Expansion**
+    - Aktuell nur E010, E015, E032
+    - Produktion nutzt: E004, E005, E009, E013, E019, E021, E022, E025, E150
 
 ## 9. Konkrete Empfehlungen
 

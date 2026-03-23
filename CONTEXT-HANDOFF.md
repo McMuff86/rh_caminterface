@@ -13,10 +13,21 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Phase 2.5 Complete)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Nach 55-XCS-Analyse)
 
-### Deep Research abgeschlossen
+### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
+- **`docs/XCS-REFERENCE-ANALYSIS.md`** — Vollständige Analyse von 55 Produktions-XCS-Dateien:
+  - 36 bestehende + 19 neue Dateien (März 2026)
+  - Neue MSL-Befehle: CreateBladeCut, CreateSectioningMillingStrategy, CreateSegment, CreateHelicMillingStrategy
+  - CLAMEX SawCut_Lamello-Makros mit ~48 Parametern
+  - Production-Quality Header/Footer-Format analysiert
+  - Detaillierte Befehlshäufigkeiten und Feature-Gap-Analyse
+- **`docs/CLAMEX-CONCEPT.md`** — Vollständiges Konzept für 3D-Block-basierten CLAMEX-Workflow:
+  - Block-Detection statt Layer-Konventionen (Adis Vision!)
+  - 3D-to-CNC Pipeline Vision: Aus 3D-Korpus pro Platte CNC-Programme ableiten
+  - CAD+T-ähnlicher Workflow: 3D zeichnen → CNC automatisch ableiten
+  - Implementation Roadmap: Phase 1-3 (Blocks) → Phase 9+ (vollständige 3D-Pipeline)
   - SCM XCS/MSL-Format: Vollständige Spezifikation, Beispiele aus Python-Referenz
   - Biesse CIX/BPP-Format: Detaillierte Spezifikation, BppLib (C# NuGet!) analysiert
   - Homag MPR-Format: Offizielle Formatbeschreibung (75 Seiten) ausgewertet
@@ -60,14 +71,23 @@ Based on analysis of 36 real production XCS files:
 - All 80+ tests green ✅
 
 ### Was fehlt / nächste Schritte (Phase 3+)
-1. **GeometryUtils Arc Detection** — `ToPolySegments()` that detects ArcCurve segments from Rhino curves (requires RhinoCommon, plugin project)
-2. **BppLib Integration** — BppLib NuGet Package evaluieren und ggf. als Abhängigkeit einbinden
-3. **Biesse-Emitter erweitern** — Pocket, komplexe Geometrien, Makros verfeinern
-4. **Homag-Emitter** (.mpr) — Noch nicht begonnen, aber Research vorhanden
-5. **UI Improvements** — Maschinenformat-Auswahl, Profile-Konfiguration
-6. **Yak Package Build** — Finaler Package-Build und Test-Installation
-7. **SawCut_Lamello/CLAMEX** — Verbinder-Makros (gefunden in Produktion, noch nicht implementiert)
-8. **Error Handling** — Robustness für fehlerhafte Geometrie
+1. **CLAMEX-System** — 3D-Block-basierter Workflow für Lamello-Verbinder:
+   - Block-Detection: CLAMEX-Blöcke in 3D-Modell erkennen
+   - SawCut_Lamello-Makro: ~48-Parameter Makro für CLAMEX-Verbinder
+   - 3D-Pipeline Vision: Aus 3D-Modell pro Platte CNC-Programme ableiten
+   - **Referenz:** docs/CLAMEX-CONCEPT.md (vollständiges Konzept)
+
+2. **Neue MSL-Befehle** (aus 55-XCS-Analyse):
+   - CreateBladeCut: Geneigte Schnitte/Fasen (36 Vorkommen)
+   - CreateSectioningMillingStrategy + CreateSegment: Schneidstrategien (68 Vorkommen)
+   - CreateHelicMillingStrategy: Spiralbearbeitung für Ausschnitte
+   - Erweiterte SetMachiningParameters: "EF", "IL", "EH" zusätzlich zu "IJ"
+
+3. **GeometryUtils Arc Detection** — `ToPolySegments()` für RhinoCommon ArcCurve-Erkennung
+4. **BppLib Integration** — BppLib NuGet Package als Biesse-Abhängigkeit
+5. **Homag-Emitter** (.mpr) — Noch nicht begonnen, aber Research vorhanden
+6. **UI Improvements** — Maschinenformat-Auswahl, Profile-Konfiguration
+7. **Yak Package Build** — Finaler Package-Build und Test-Installation
 
 ## Schlüsseldateien
 
@@ -84,6 +104,9 @@ Based on analysis of 36 real production XCS files:
 | `RhinoCNCExporter/Core/Emitters/XilogEmitter.cs` | SCM XCS-Ausgabe (vollständig) |
 | `RhinoCNCExporter/Core/Emitters/BiesseEmitter.cs` | Biesse CIX-Ausgabe (Grundoperationen) |
 | `RhinoCNCExporter/Core/Emitters/Emit*.cs` | Operationen-Emitter (CUT, POCKET, DRILL, ROW, GrooveCH, GrooveRNT, DrillPattern, HorizontalDrill) |
+| `docs/XCS-REFERENCE-ANALYSIS.md` | Vollständige Analyse von 55 Produktions-XCS-Dateien |
+| `docs/CLAMEX-CONCEPT.md` | 3D-Block-basiertes CLAMEX-Konzept + 3D-Pipeline Vision |
+| `tests/references/NEW_*.xcs` | 19 neue Produktions-XCS-Dateien (Schubladen, Revisionstüren, etc.) |
 | `RhinoCNCExporter/Core/Profiles/IMachineProfile.cs` | Interface für Maschinenprofile |
 | `RhinoCNCExporter/Core/Profiles/MachineProfile.cs` | Maschinenprofil-Basisklasse |
 | `RhinoCNCExporter/Core/Profiles/BiesseProfile.cs` | Biesse-spezifische Konfiguration |

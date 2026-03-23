@@ -1,0 +1,97 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IL",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Rueckwand", 2192, 473, 10);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","Schrank_Garderobe_Kappel-Kappeli_26_0093_201_003",false,false);
+//CreateMessage("Datei","2_2_7_Rueckwand_u.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 10;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 1096.000+10,473.000);
+AddSegmentToPolyline(0,473.000);
+AddSegmentToPolyline(0,0);
+AddSegmentToPolyline(2192.000,0);
+AddSegmentToPolyline(2192.000,473.000);
+AddSegmentToPolyline(1096.000-10,473.000);
+//
+//Aussenkonturmakro
+//E013
+//CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2.0,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_3",13.000,"", TypeOfProcess.GeneralRouting ,"E013","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NVersatz NR
+
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(2192.000,0.000);
+//AddSegmentToPolyline(2192.000,473.000);
+//AddSegmentToPolyline(0.000,473.000);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",13.000,"", TypeOfProcess.GeneralRouting ,"E013","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+// *** Konturzug Vertikal ***
+SelectWorkplane("Top");
+CreatePolyline("Polylinie_2", 13, 473);
+AddSegmentToPolyline(13.000,13.000);
+AddSegmentToPolyline(2179.000,13.000);
+AddSegmentToPolyline(2179.000,460.000);
+AddSegmentToPolyline(0.000,460.000);
+//
+// *** Fraesung ***
+SetCompensationMode(false);
+SetApproachStrategy(true,true,2);
+SetRetractStrategy(true,true,2,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",5.400,"", TypeOfProcess.GeneralRouting ,"E150","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NSTRAIGHTVersatz NR
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

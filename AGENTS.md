@@ -70,6 +70,9 @@ Alle Angaben in mm. Workplane Top. Maximale Namenslänge: 31 Zeichen.
 | Lochreihe | `DRILLROW_D<Ø>_Z<t>_P<pitch>[_N<n>]` | `DRILLROW_D5_Z17_P32` |
 | Rückwandnut (Fräsen) | `RBNUT_CH_{X\|Y}_W<w>[_Z<t>][_S<s>][_E<nnn>]_{M\|P}` | `RBNUT_CH_X_W6_Z8_P` |
 | Rückwandnut (Makro) | `RBNUT_RNT_{X\|Y}_W<w>[_Z<t>]_C<code>_{M\|P}` | `RBNUT_RNT_X_W5.5_Z8.3_C066_P` |
+| **Pattern-Bohrung (NEU!)** | `DRILLPAT_D<Ø>_X<xCnt>_Y<yCnt>_P<pitch>[_Z<t>]` | `DRILLPAT_D5_X3_Y4_P32_Z13` |
+| **Horizontal-Bohrung (NEU!)** | `HDRILL_D<Ø>[_Z<tiefe>][_SIDE L\|R]` | `HDRILL_D8_Z30_SIDE_L` |
+| **CLAMEX-Block (Vision!)** | 3D-Block: `CLAMEX_P14`, `CLAMEX_P15` | Block-Platzierung in 3D |
 
 ## Konventionen für Agents / KI-Assistenten
 
@@ -92,13 +95,16 @@ Alle Angaben in mm. Workplane Top. Maximale Namenslänge: 31 Zeichen.
 - **NameService-Tests:** 31-Zeichen-Limit, Duplikate, Sonderzeichen
 - **Ziel:** 80%+ Code Coverage auf Core/
 
-### Wichtige Regeln
-1. `RH_caminterface_v007.py` ist die Referenz — C# spiegelt das Verhalten 1:1
-2. Abweichungen dokumentieren in `docs/IMPLEMENTATION.md`
-3. Emitter sind austauschbar — neue Maschinenformate als eigene Klassen
-4. Layer-Parsing ist maschinenunabhängig
-5. Geometrie-Berechnung ist maschinenunabhängig
-6. Nur die Ausgabe (Emitter + Profile) ist maschinenspezifisch
+### Wichtige Regeln (März 2026)
+1. **55 Produktions-XCS-Dateien** sind die neue Referenz — nicht mehr Python!
+2. `docs/XCS-REFERENCE-ANALYSIS.md` enthält vollständige Produktions-Spezifikation
+3. Neue MSL-Befehle implementieren: CreateBladeCut, CreateSectioningMillingStrategy, CreateHelicMillingStrategy
+4. **CLAMEX-Vision:** 3D-Block-basierter Workflow — siehe `docs/CLAMEX-CONCEPT.md`
+5. Emitter sind austauschbar — neue Maschinenformate als eigene Klassen
+6. Layer-Parsing ist maschinenunabhängig
+7. Geometrie-Berechnung ist maschinenunabhängig  
+8. Nur die Ausgabe (Emitter + Profile) ist maschinenspezifisch
+9. **3D-Pipeline Zukunft:** Aus 3D-Korpus pro Platte CNC-Programme ableiten
 
 ### Build & Run
 ```bash

@@ -1,6 +1,14 @@
-## RH_caminterface — Rhino 2D → Xilog/Maestro Generator
+## RH_caminterface — Rhino CNC-Exporter (XCS/CIX/MPR)
 
-Professioneller Leitfaden für die Python-Referenzimplementierung sowie die geplante C#-Portierung (Rhino 8). Ziel ist die reproduzierbare Erzeugung robuster Xilog (.xcs) Programme aus 2D-Geometrien in Rhino auf Basis klarer Layerregeln, inklusive Technologien, Z-Strategien, Makros, Maschinenprofilen und Vorschau.
+**Rhino 8 C# Plugin** zur Erzeugung professioneller CNC-Fräsprogramme aus 2D+3D-Geometrien:
+
+- **SCM** (Maestro/CAD+T) → `.xcs` (Xilog-Format) ✅ **KOMPLETT**
+- **Biesse** (bSolid/BiesseWorks) → `.cix` (BEGIN/END Blöcke) ✅ **GRUNDFUNKTIONEN**  
+- **Homag** (woodWOP) → `.mpr` (ASCII-Sektionen) 🔄 **GEPLANT**
+
+**Status März 2026:** Production-Ready für SCM/XCS. 55 Produktions-XCS-Dateien analysiert. CLAMEX-3D-Pipeline konzipiert.
+
+**Einsatzgebiet:** Holzbearbeitung/Möbelindustrie — Platten fräsen, bohren, Nuten schneiden, Verbinder setzen.
 
 ### Status auf einen Blick
 - **Referenz-Codebasis (Python)**: `RH_caminterface_v007.py` (Quelle der Wahrheit für Regeln/Mappings)
@@ -41,7 +49,27 @@ RH_caminterface/
   - Dient als funktionale Spezifikation (Regeln, Geometrie, Emitter, Namensgebung)
   - Kann unmittelbar als Codebasis genutzt werden; Umbenennung/Modularisierung ist später möglich
 
-## Layerkonventionen (Spezifikation)
+## Aktuelle Features (März 2026)
+
+### ✅ SCM/XCS-Export (Production-Ready)
+- **Alle Standardoperationen:** CUT, POCKET, DRILL, DRILLROW, RBNUT
+- **Pattern-Bohrungen:** `DRILLPAT_D5_X3_Y4_P32` → CreatePattern() 
+- **Horizontal-Bohrungen:** `HDRILL_D8_Z30` → CreateWorkplane()
+- **Bogen-Konturen:** AddArc2PointCenterToPolyline() für Rundungen
+- **Production Header:** Kommentierte Header wie CAD+T-Ausgabe
+- **Setup-Offsets:** Zugabe X/Y konfigurierbar
+
+### 🔄 CLAMEX-System (In Entwicklung)
+- **3D-Block-Workflow:** CLAMEX-Blöcke in 3D platzieren statt 2D-Layer
+- **SawCut_Lamello-Makros:** ~48-Parameter Lamello-Verbinder  
+- **3D-Pipeline Vision:** Aus 3D-Korpus pro Platte CNC-Programme ableiten
+
+### 📊 Analysierte Produktionsdaten
+- **55 echte XCS-Dateien** aus Schreinerei-Produktion analysiert
+- **Neue MSL-Befehle entdeckt:** CreateBladeCut, CreateSectioningMillingStrategy, CreateHelicMillingStrategy
+- **Feature-Gap geschlossen:** Production-Quality Headers, Pattern-Support, Bogen-Support
+
+## Layerkonventionen (2D-Workflow)
 Alle Angaben in Millimeter. Workplane „Top“. Empfohlenes DXF: ASCII 2004.
 
 ### Werkstück
@@ -60,6 +88,15 @@ Alle Angaben in Millimeter. Workplane „Top“. Empfohlenes DXF: ASCII 2004.
 - **Muster**: `DRILL_D<Ø>[_Z<t>][_C P|L]`
 - **Geometrie**: Punkt / Kreis / `ArcCurve.IsCircle()`
 - **Seite**: `P` = Top/Positiv, `L` = Bottom/Negativ
+
+### Pattern-Bohrungen (DRILLPAT) — NEU!
+- **Muster**: `DRILLPAT_D<Ø>_X<xCount>_Y<yCount>_P<pitch>[_Z<t>]`
+- **Beispiel**: `DRILLPAT_D5_X3_Y4_P32_Z13` → 3×4 Matrix, 32mm Abstand
+- **Geometrie**: Startpunkt des Patterns
+
+### Horizontal-Bohrungen (HDRILL) — NEU!  
+- **Muster**: `HDRILL_D<Ø>[_Z<tiefe>][_SIDE L|R]`
+- **Geometrie**: Punkt auf Plattenoberfläche → Bohrung von der Seite
 
 ### Lochreihen (DRILLROW)
 - **Muster**: `DRILLROW_D<Ø>_Z<t>_P<pitch>[_N<count>]`

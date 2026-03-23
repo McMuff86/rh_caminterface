@@ -1,0 +1,229 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Seite_links", 340, 418.5, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","Nachttischli_Nachttischl-Kappeli_26_0093_201_001",false,false);
+//CreateMessage("Datei","1_1_4_Seite_links_u.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 170.000+10,418.500);
+AddSegmentToPolyline(-2,418.500);
+AddSegmentToPolyline(-2,-2);
+AddSegmentToPolyline(342.000,-2);
+AddSegmentToPolyline(342.000,418.500);
+AddSegmentToPolyline(170.000-10,418.500);
+//
+//Aussenkonturmakro
+//E025
+//CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2.0,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",24.000,"", TypeOfProcess.GeneralRouting ,"E025","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NVersatz NR
+
+SetApproachStrategy(true,true,1.5);
+SetRetractStrategy(true,true,1.5,0);
+// *** Geneigter Schnitt in X/Y ***
+SetPneumaticHoodPosition(null);
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_1",  321, -187.5, 321, 606);
+CreateBladeCut("Geneigter Schnitt in X/Y_1", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1",45.00, 2, -1, -1, -1, 2, true, true, 0, 15);//WERT45
+// *** Geneigter Schnitt in X/Y ***
+SetPneumaticHoodPosition(null);
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_201",  321, -187.5, 321, 606);
+CreateBladeCut("Geneigter Schnitt in X/Y_201", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1",45.00, 2, -1, -1, -1, 0, true, true, 0, 15);
+//WERT45
+// *** Geneigter Schnitt in X/Y ***
+SetPneumaticHoodPosition(null);
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_2",  19, 606, 19, -187.5);
+CreateBladeCut("Geneigter Schnitt in X/Y_2", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1",45.00, 2, -1, -1, -1, 2, true, true, 0, 15);//WERT45
+// *** Geneigter Schnitt in X/Y ***
+SetPneumaticHoodPosition(null);
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_202",  19, 606, 19, -187.5);
+CreateBladeCut("Geneigter Schnitt in X/Y_202", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1",45.00, 2, -1, -1, -1, 0, true, true, 0, 15);
+//WERT45
+// *** Geneigter Schnitt in X/Y ***
+SetPneumaticHoodPosition(null);
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_3",  -187.5, 19, 527.5, 19);
+CreateBladeCut("Geneigter Schnitt in X/Y_3", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1",45.00, 2, -1, -1, -1, 2, true, true, 0, 15);//WERT45
+// *** Geneigter Schnitt in X/Y ***
+SetPneumaticHoodPosition(null);
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_203",  -187.5, 19, 527.5, 19);
+CreateBladeCut("Geneigter Schnitt in X/Y_203", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1",45.00, 2, -1, -1, -1, 0, true, true, 0, 15);
+//WERT45
+ResetApproachStrategy();
+ResetRetractStrategy();
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_1",128,48,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_2",128,57,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_3",128,89,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_4",281,89,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_5",281,57,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_6",281,48,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_7",281,249,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_8",281,281,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_9",128,281,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_10",128,249,12.000,5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_11",152,124,2.000,2.5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_12",152,120,2.000,2.5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_13",136,83,2.000,2.5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_14",136,48,2.000,2.5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_15",289,48,2.000,2.5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_16",289,83,2.000,2.5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_17",305,120,2.000,2.5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_18",305,124,2.000,2.5,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(340.000,0.000);
+//AddSegmentToPolyline(340.000,418.500);
+//AddSegmentToPolyline(0.000,418.500);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",24.000,"", TypeOfProcess.GeneralRouting ,"E025","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+// *** Vertikale Nut in X/Y ***
+SelectWorkplane("Top");
+CreateMacro("Nut in X-Richtung_316","RNT",-70,400,5.5,-1,-1,-1,410,5,true,"066","-1",false,false,true,400,null,null,null,null,true);
+//
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

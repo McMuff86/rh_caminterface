@@ -1,0 +1,104 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Revisionsture", 428, 400, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","Empfang_Dorfzentrum_Empfan-Stutz___Weibel_Immobilien_AG_25_0995_201_004",false,false);
+//CreateMessage("Datei","4_51_5_Revisionsture.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+//SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 214.000+10,400.000);
+//AddSegmentToPolyline(0,400.000);
+//AddSegmentToPolyline(0,0);
+//AddSegmentToPolyline(428.000,0);
+//AddSegmentToPolyline(428.000,400.000);
+AddSegmentToPolyline(214.000-10,400.000);
+//
+//Aussenkonturmakro
+//E010
+////CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2.0,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_3",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NVersatz NR
+
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(428.000,0.000);
+//AddSegmentToPolyline(428.000,400.000);
+//AddSegmentToPolyline(0.000,400.000);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+// *** Konturzug Vertikal ***
+SelectWorkplane("Top");
+CreatePolyline("Polylinie_2", 222.74, -4.32);
+AddArc2PointCenterToPolyline(214, 0, 214, -11, false);
+AddSegmentToPolyline(10.000,0.000);
+AddArc2PointCenterToPolyline(0, 10, 10, 10, true);
+AddSegmentToPolyline(0.000,390.000);
+AddArc2PointCenterToPolyline(10, 400, 10, 390, true);
+AddSegmentToPolyline(418.000,400.000);
+AddArc2PointCenterToPolyline(428, 390, 418, 390, true);
+AddSegmentToPolyline(428.000,10.000);
+AddArc2PointCenterToPolyline(418, 0, 418, 10, true);
+AddSegmentToPolyline(214.000,0.000);
+AddArc2PointCenterToPolyline(205.26, -4.32, 214, -11, false);
+//
+// *** Fraesung ***
+SetCompensationMode(false);
+SetApproachStrategy(true,false,4);
+SetRetractStrategy(true,false,2,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",21.000,"", TypeOfProcess.GeneralRouting ,"E009","-1",1,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NON_POINTVersatz NL
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***
