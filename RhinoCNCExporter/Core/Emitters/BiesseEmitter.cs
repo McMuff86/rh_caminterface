@@ -9,12 +9,13 @@ namespace RhinoCNCExporter.Core.Emitters;
 /// <summary>
 /// Biesse CIX format emitter.
 /// Generates Biesse CIX files compatible with BiesseWorks and bSolid.
-/// Implements basic operations: Header (MAINDATA), Drill (BG), Cut (ROUTG+GEO).
+/// Implements: Header (MAINDATA), Drill (BG), DrillPattern (BG+RTY), Cut (ROUTG+GEO),
+/// Arc polylines (ARC_EPCE), Workplane/Side drilling.
 /// </summary>
 public sealed class BiesseEmitter : IEmitter
 {
     private readonly NameService _names;
-    private int _geoIdCounter = 1001; // Start ID for geometry objects
+    private int _geoIdCounter = 1001;
 
     public BiesseEmitter(NameService names)
     {
@@ -22,7 +23,9 @@ public sealed class BiesseEmitter : IEmitter
     }
 
     /// <summary>CIX file header: ID block and MAINDATA with workpiece dimensions.</summary>
-    public string EmitHeader(string programName, double dx, double dy, double dz)
+    public string EmitHeader(string programName, double dx, double dy, double dz,
+        double setupOffsetX = 2.5, double setupOffsetY = 2.5,
+        double setupOffsetZ = 0, double setupOffsetRot = 0)
     {
         var lines = new List<string>
         {
@@ -46,7 +49,7 @@ public sealed class BiesseEmitter : IEmitter
             "END MAINDATA",
             ""
         };
-        return string.Join("\r\n", lines); // CIX uses Windows line endings
+        return string.Join("\r\n", lines);
     }
 
     /// <summary>CIX file footer: empty for basic CIX files.</summary>
@@ -55,22 +58,19 @@ public sealed class BiesseEmitter : IEmitter
         return "";
     }
 
-    /// <summary>
-    /// Emit a polyline-based routing pass using ROUTG + GEO macros.
-    /// Creates geometry definition and routing operation.
-    /// </summary>
+    /// <summary>Emit a polyline-based routing pass using ROUTG + GEO macros (straight segments only).</summary>
     public string EmitPolylinePass(string polyName, string opName, IReadOnlyList<(double X, double Y)> pts,
         string tech, double depth, double toolDia, string plane = "Top")
     {
         var geoId = F($"G1003.{_geoIdCounter++}");
         var lines = new List<string>();
 
-        // GEO macro - defines the polyline geometry
+        // GEO macro
         lines.Add("BEGIN MACRO");
         lines.Add("\tNAME=GEO");
         lines.Add(F($"\tPARAM,NAME=ID,VALUE=\"{geoId}\""));
-        lines.Add("\tPARAM,NAME=SIDE,VALUE=0"); // Top face
-        lines.Add("\tPARAM,NAME=CRN,VALUE=\"1\""); // Corner 1
+        lines.Add("\tPARAM,NAME=SIDE,VALUE=0");
+        lines.Add("\tPARAM,NAME=CRN,VALUE=\"1\"");
         lines.Add(F($"\tPARAM,NAME=DP,VALUE={depth:F1}"));
         lines.Add("END MACRO");
         lines.Add("");
@@ -96,13 +96,12 @@ public sealed class BiesseEmitter : IEmitter
             lines.Add("");
         }
 
-        // End geometry definition
         lines.Add("BEGIN MACRO");
         lines.Add("\tNAME=ENDPATH");
         lines.Add("END MACRO");
         lines.Add("");
 
-        // ROUTG macro - routing operation that uses the geometry
+        // ROUTG macro
         lines.Add("BEGIN MACRO");
         lines.Add("\tNAME=ROUTG");
         lines.Add(F($"\tPARAM,NAME=ID,VALUE=\"{polyName}\""));
@@ -112,8 +111,8 @@ public sealed class BiesseEmitter : IEmitter
         lines.Add(F($"\tPARAM,NAME=DP,VALUE={depth:F1}"));
         lines.Add(F($"\tPARAM,NAME=DIA,VALUE={toolDia:F1}"));
         lines.Add(F($"\tPARAM,NAME=TNM,VALUE=\"{tech}\""));
-        lines.Add("\tPARAM,NAME=CRC,VALUE=2"); // Compensation right
-        lines.Add("\tPARAM,NAME=DIR,VALUE=dirCCW"); // Counter-clockwise
+        lines.Add("\tPARAM,NAME=CRC,VALUE=2");
+        lines.Add("\tPARAM,NAME=DIR,VALUE=dirCCW");
         lines.Add(F($"\tPARAM,NAME=GID,VALUE=\"{geoId}\""));
         lines.Add("END MACRO");
         lines.Add("");
@@ -121,7 +120,85 @@ public sealed class BiesseEmitter : IEmitter
         return string.Join("\r\n", lines);
     }
 
-    /// <summary>Emit a single drill operation using BG macro (universal drill).</summary>
+    /// <summary>Emit a polyline-based routing pass with mixed line/arc segments (LINE_EP + ARC_EPCE).</summary>
+    public string EmitPolylinePassWithArcs(string polyName, string opName,
+        double startX, double startY, IReadOnlyList<PolySegment> segments,
+        string tech, double depth, double toolDia, string plane = "Top")
+    {
+        var geoId = F($"G1003.{_geoIdCounter++}");
+        var lines = new List<string>();
+
+        // GEO macro
+        lines.Add("BEGIN MACRO");
+        lines.Add("\tNAME=GEO");
+        lines.Add(F($"\tPARAM,NAME=ID,VALUE=\"{geoId}\""));
+        lines.Add("\tPARAM,NAME=SIDE,VALUE=0");
+        lines.Add("\tPARAM,NAME=CRN,VALUE=\"1\"");
+        lines.Add(F($"\tPARAM,NAME=DP,VALUE={depth:F1}"));
+        lines.Add("END MACRO");
+        lines.Add("");
+
+        // Start point
+        lines.Add("BEGIN MACRO");
+        lines.Add("\tNAME=START_POINT");
+        lines.Add(F($"\tPARAM,NAME=X,VALUE={startX:F1}"));
+        lines.Add(F($"\tPARAM,NAME=Y,VALUE={startY:F1}"));
+        lines.Add("\tPARAM,NAME=Z,VALUE=0");
+        lines.Add("END MACRO");
+        lines.Add("");
+
+        foreach (var seg in segments)
+        {
+            if (seg.IsArc)
+            {
+                lines.Add("BEGIN MACRO");
+                lines.Add("\tNAME=ARC_EPCE");
+                lines.Add(F($"\tPARAM,NAME=XE,VALUE={seg.EndX:F1}"));
+                lines.Add(F($"\tPARAM,NAME=YE,VALUE={seg.EndY:F1}"));
+                lines.Add("\tPARAM,NAME=ZE,VALUE=0");
+                lines.Add(F($"\tPARAM,NAME=XC,VALUE={seg.CenterX:F1}"));
+                lines.Add(F($"\tPARAM,NAME=YC,VALUE={seg.CenterY:F1}"));
+                lines.Add(F($"\tPARAM,NAME=DIR,VALUE={(seg.Clockwise ? "dirCW" : "dirCCW")}"));
+                lines.Add("END MACRO");
+                lines.Add("");
+            }
+            else
+            {
+                lines.Add("BEGIN MACRO");
+                lines.Add("\tNAME=LINE_EP");
+                lines.Add(F($"\tPARAM,NAME=XE,VALUE={seg.EndX:F1}"));
+                lines.Add(F($"\tPARAM,NAME=YE,VALUE={seg.EndY:F1}"));
+                lines.Add("\tPARAM,NAME=ZE,VALUE=0");
+                lines.Add("END MACRO");
+                lines.Add("");
+            }
+        }
+
+        lines.Add("BEGIN MACRO");
+        lines.Add("\tNAME=ENDPATH");
+        lines.Add("END MACRO");
+        lines.Add("");
+
+        // ROUTG macro
+        lines.Add("BEGIN MACRO");
+        lines.Add("\tNAME=ROUTG");
+        lines.Add(F($"\tPARAM,NAME=ID,VALUE=\"{polyName}\""));
+        lines.Add("\tPARAM,NAME=SIDE,VALUE=0");
+        lines.Add("\tPARAM,NAME=CRN,VALUE=\"1\"");
+        lines.Add(F($"\tPARAM,NAME=Z,VALUE=0"));
+        lines.Add(F($"\tPARAM,NAME=DP,VALUE={depth:F1}"));
+        lines.Add(F($"\tPARAM,NAME=DIA,VALUE={toolDia:F1}"));
+        lines.Add(F($"\tPARAM,NAME=TNM,VALUE=\"{tech}\""));
+        lines.Add("\tPARAM,NAME=CRC,VALUE=2");
+        lines.Add("\tPARAM,NAME=DIR,VALUE=dirCCW");
+        lines.Add(F($"\tPARAM,NAME=GID,VALUE=\"{geoId}\""));
+        lines.Add("END MACRO");
+        lines.Add("");
+
+        return string.Join("\r\n", lines);
+    }
+
+    /// <summary>Emit a single drill operation using BG macro.</summary>
     public string EmitDrill(string name, double x, double y, double depth, double dia,
         string plane = "Top", string side = "P")
     {
@@ -130,55 +207,96 @@ public sealed class BiesseEmitter : IEmitter
             "BEGIN MACRO",
             "\tNAME=BG",
             F($"\tPARAM,NAME=ID,VALUE=\"{name}\""),
-            "\tPARAM,NAME=SIDE,VALUE=0", // Top face
-            "\tPARAM,NAME=CRN,VALUE=\"1\"", // Corner 1
+            "\tPARAM,NAME=SIDE,VALUE=0",
+            "\tPARAM,NAME=CRN,VALUE=\"1\"",
             F($"\tPARAM,NAME=X,VALUE={x:F1}"),
             F($"\tPARAM,NAME=Y,VALUE={y:F1}"),
             "\tPARAM,NAME=Z,VALUE=0",
             F($"\tPARAM,NAME=DP,VALUE={depth:F1}"),
             F($"\tPARAM,NAME=DIA,VALUE={dia:F1}"),
-            "\tPARAM,NAME=THR,VALUE=YES", // Through drilling
-            "\tPARAM,NAME=RTY,VALUE=rpNO", // No repetition
+            "\tPARAM,NAME=THR,VALUE=YES",
+            "\tPARAM,NAME=RTY,VALUE=rpNO",
             "END MACRO",
             ""
         };
         return string.Join("\r\n", lines);
     }
 
-    /// <summary>Biesse doesn't use RNT macros like SCM - convert to routing operation.</summary>
+    /// <summary>
+    /// Emit a drill pattern using BG macro with RTY repeat.
+    /// Biesse uses RTY=rpGRD for grid patterns with DX/DY spacing and NRX/NRY counts.
+    /// </summary>
+    public string EmitDrillPattern(string name, double x, double y, double depth, double dia,
+        int xCount, int yCount, double xSpacing, double ySpacing,
+        string plane = "Top", string side = "P")
+    {
+        var lines = new List<string>
+        {
+            "BEGIN MACRO",
+            "\tNAME=BG",
+            F($"\tPARAM,NAME=ID,VALUE=\"{name}\""),
+            "\tPARAM,NAME=SIDE,VALUE=0",
+            "\tPARAM,NAME=CRN,VALUE=\"1\"",
+            F($"\tPARAM,NAME=X,VALUE={x:F1}"),
+            F($"\tPARAM,NAME=Y,VALUE={y:F1}"),
+            "\tPARAM,NAME=Z,VALUE=0",
+            F($"\tPARAM,NAME=DP,VALUE={depth:F1}"),
+            F($"\tPARAM,NAME=DIA,VALUE={dia:F1}"),
+            "\tPARAM,NAME=THR,VALUE=YES",
+            "\tPARAM,NAME=RTY,VALUE=rpGRD",
+            F($"\tPARAM,NAME=DX,VALUE={xSpacing:F1}"),
+            F($"\tPARAM,NAME=DY,VALUE={ySpacing:F1}"),
+            F($"\tPARAM,NAME=NRX,VALUE={xCount}"),
+            F($"\tPARAM,NAME=NRY,VALUE={yCount}"),
+            "END MACRO",
+            ""
+        };
+        return string.Join("\r\n", lines);
+    }
+
+    /// <summary>Biesse doesn't use RNT macros like SCM — convert to routing operation.</summary>
     public string EmitRntX(string name, double xStart, double yCenter, double width,
         double xLen, double depth, string code)
     {
-        // Create a rectangular groove profile
         var pts = new List<(double X, double Y)>
         {
             (xStart, yCenter - width / 2),
             (xStart + xLen, yCenter - width / 2),
             (xStart + xLen, yCenter + width / 2),
             (xStart, yCenter + width / 2),
-            (xStart, yCenter - width / 2) // Close the loop
+            (xStart, yCenter - width / 2)
         };
-
         return EmitPolylinePass($"{name}_groove", $"{name}_op", pts, code, depth, width, "Top");
     }
 
-    /// <summary>Biesse doesn't use RNT macros like SCM - convert to routing operation.</summary>
+    /// <summary>Biesse doesn't use RNT macros like SCM — convert to routing operation.</summary>
     public string EmitRntY(string name, double xCenter, double yStart, double width,
         double yLen, double depth, string code)
     {
-        // Create a rectangular groove profile
         var pts = new List<(double X, double Y)>
         {
             (xCenter - width / 2, yStart),
             (xCenter + width / 2, yStart),
             (xCenter + width / 2, yStart + yLen),
             (xCenter - width / 2, yStart + yLen),
-            (xCenter - width / 2, yStart) // Close the loop
+            (xCenter - width / 2, yStart)
         };
-
         return EmitPolylinePass($"{name}_groove", $"{name}_op", pts, code, depth, width, "Top");
     }
 
-    /// <summary>Format helper — ensures invariant culture for decimal formatting.</summary>
+    /// <summary>Biesse workplane — not directly supported, maps to SIDE parameter.</summary>
+    public string EmitWorkplane(string name, double x, double y, double z, double rotX, double rotY)
+    {
+        // Biesse uses SIDE parameter (2=left, 3=right, 4=front, 5=back)
+        // For now, emit a comment placeholder
+        return $"// Workplane \"{name}\" at ({x},{y},{z}) rot({rotX},{rotY})\r\n";
+    }
+
+    /// <summary>Biesse workplane selection — uses SIDE parameter on subsequent operations.</summary>
+    public string EmitSelectWorkplane(string name)
+    {
+        return $"// SelectWorkplane \"{name}\"\r\n";
+    }
+
     private static string F(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
 }

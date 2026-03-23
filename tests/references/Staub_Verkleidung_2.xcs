@@ -1,0 +1,101 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Verkleidung_", 1032, 190, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","zusatz_schrank_Putz_Schran-Staub_Wolf_25_0428_201_006",false,false);
+//CreateMessage("Datei","1_1_1_Verkleidung_.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 516.000+10,192.000);
+AddSegmentToPolyline(0,192.000);
+AddSegmentToPolyline(0,0);
+AddSegmentToPolyline(1032.000,0);
+AddSegmentToPolyline(1032.000,192.000);
+AddSegmentToPolyline(516.000-10,192.000);
+//
+//Aussenkonturmakro
+//E025
+//CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2.0,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",24.000,"", TypeOfProcess.GeneralRouting ,"E025","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NVersatz NR
+
+SetApproachStrategy(true,true,1.5);
+SetRetractStrategy(true,true,1.5,0);
+// *** Geneigter Schnitt in X/Y ***
+SetPneumaticHoodPosition(null);
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_1",  1219.5, 171, -187.5, 171);
+CreateBladeCut("Geneigter Schnitt in X/Y_1", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1",45.00, 2, -1, -1, -1, 2, true, true, 0, 15);//WERT45
+// *** Geneigter Schnitt in X/Y ***
+SetPneumaticHoodPosition(null);
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5, 0, 0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_201",  1219.5, 171, -187.5, 171);
+CreateBladeCut("Geneigter Schnitt in X/Y_201", "Blade Cut", TypeOfProcess.GeneralRouting, "E015", "-1",45.00, 2, -1, -1, -1, 0, true, true, 0, 15);
+//WERT45
+ResetApproachStrategy();
+ResetRetractStrategy();
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(1032.000,0.000);
+//AddSegmentToPolyline(1032.000,190.000);
+//AddSegmentToPolyline(0.000,190.000);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",24.000,"", TypeOfProcess.GeneralRouting ,"E025","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

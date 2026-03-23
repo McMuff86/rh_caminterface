@@ -29,6 +29,8 @@ public sealed class ExportPanel : Panel
     private readonly TextBox _stepdownTextBox;
     private readonly TextBox _toleranceTextBox;
     private readonly TextBox _toolDiaTextBox;
+    private readonly TextBox _zugabeXTextBox;
+    private readonly TextBox _zugabeYTextBox;
     private readonly CheckBox _layerStepdownCheckBox;
     private readonly CheckBox _onlySelectionCheckBox;
     private readonly TextArea _logArea;
@@ -91,6 +93,8 @@ public sealed class ExportPanel : Panel
         _stepdownTextBox = new TextBox { PlaceholderText = "Stepdown (mm)", Text = "3.0" };
         _toleranceTextBox = new TextBox { PlaceholderText = "Toleranz (mm)", Text = "0.05" };
         _toolDiaTextBox = new TextBox { PlaceholderText = "Tool Ø (mm)", Text = "9.5" };
+        _zugabeXTextBox = new TextBox { PlaceholderText = "Zugabe X (mm)", Text = "2.5" };
+        _zugabeYTextBox = new TextBox { PlaceholderText = "Zugabe Y (mm)", Text = "2.5" };
         _layerStepdownCheckBox = new CheckBox { Text = "Layer-Stepdown (_Sxx)", Checked = false, TextColor = FgText };
         _onlySelectionCheckBox = new CheckBox { Text = "Nur selektierte Geometrie", Checked = false, TextColor = FgText };
 
@@ -102,6 +106,8 @@ public sealed class ExportPanel : Panel
                 new TableRow(CreateLabel("Stepdown (mm):", 9, false), new TableCell(_stepdownTextBox, true)),
                 new TableRow(CreateLabel("Toleranz (mm):", 9, false), new TableCell(_toleranceTextBox, true)),
                 new TableRow(CreateLabel("Tool Ø (mm):", 9, false), new TableCell(_toolDiaTextBox, true)),
+                new TableRow(CreateLabel("Zugabe X (mm):", 9, false), new TableCell(_zugabeXTextBox, true)),
+                new TableRow(CreateLabel("Zugabe Y (mm):", 9, false), new TableCell(_zugabeYTextBox, true)),
                 new TableRow(new TableCell(_layerStepdownCheckBox) { ScaleWidth = true }),
                 new TableRow(new TableCell(_onlySelectionCheckBox) { ScaleWidth = true }),
             }
@@ -378,9 +384,13 @@ public sealed class ExportPanel : Panel
             bool layerStepdown = _layerStepdownCheckBox.Checked ?? false;
             bool onlySelection = _onlySelectionCheckBox.Checked ?? false;
 
-            Log($"Exportiere → {Path.GetFileName(path)} ...");
+            double zugabeX = 2.5, zugabeY = 2.5;
+            if (double.TryParse(_zugabeXTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var zx)) zugabeX = zx;
+            if (double.TryParse(_zugabeYTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var zy)) zugabeY = zy;
 
-            bool ok = Services.ExportService.ExportXilog(doc, onlySelection, path, layerStepdown);
+            Log($"Exportiere → {Path.GetFileName(path)} (Zugabe {zugabeX}/{zugabeY}mm) ...");
+
+            bool ok = Services.ExportService.ExportXilog(doc, onlySelection, path, layerStepdown, zugabeX, zugabeY);
 
             if (ok)
             {

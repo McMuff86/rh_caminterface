@@ -1,0 +1,152 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Boden", 813.5, 380, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","zusatz_schrank_Putz_Schran-Staub_Wolf_25_0428_201_006",false,false);
+//CreateMessage("Datei","1_2_16_Boden_u.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 406.750+10,380.000);
+AddSegmentToPolyline(0,380.000);
+AddSegmentToPolyline(0,0);
+AddSegmentToPolyline(813.500,0);
+AddSegmentToPolyline(813.500,380.000);
+AddSegmentToPolyline(406.750-10,380.000);
+//
+//Aussenkonturmakro
+//E010
+//CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2.0,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NVersatz NR
+
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(813.500,0.000);
+//AddSegmentToPolyline(813.500,380.000);
+//AddSegmentToPolyline(0.000,380.000);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_803",0,43,-9.5+DZ,-90.000,90);
+SelectWorkplane("Freie Ebene_803");
+CreateDrill("Horizontal freie Bohrung_1_L",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_805",0,75,-9.5+DZ,-90.000,90);
+SelectWorkplane("Freie Ebene_805");
+CreateDrill("Horizontal freie Bohrung_2_L",0 ,0 ,20,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_807",0,305,-9.5+DZ,-90.000,90);
+SelectWorkplane("Freie Ebene_807");
+CreateDrill("Horizontal freie Bohrung_3_L",0 ,0 ,20,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_809",0,337,-9.5+DZ,-90.000,90);
+SelectWorkplane("Freie Ebene_809");
+CreateDrill("Horizontal freie Bohrung_4_L",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_812",813.5,43,-9.5+DZ,90.000,90);
+SelectWorkplane("Freie Ebene_812");
+CreateDrill("Horizontal freie Bohrung_1_R",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_814",813.5,75,-9.5+DZ,90.000,90);
+SelectWorkplane("Freie Ebene_814");
+CreateDrill("Horizontal freie Bohrung_2_R",0 ,0 ,20,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_816",813.5,305,-9.5+DZ,90.000,90);
+SelectWorkplane("Freie Ebene_816");
+CreateDrill("Horizontal freie Bohrung_3_R",0 ,0 ,20,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_818",813.5,337,-9.5+DZ,90.000,90);
+SelectWorkplane("Freie Ebene_818");
+CreateDrill("Horizontal freie Bohrung_4_R",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Vertikale Nut in X/Y ***
+SelectWorkplane("Top");
+CreateMacro("Nut in X-Richtung_821","RNT",-70,361.5,5.5,-1,-1,-1,883.5,5,true,"066","-1",false,false,true,361.5,null,null,null,null,true);
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_1",24,75,14.000,15,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_2",24,305,14.000,15,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_3",789.5,305,14.000,15,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_4",789.5,75,14.000,15,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

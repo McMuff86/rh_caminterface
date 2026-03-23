@@ -35,4 +35,16 @@ public interface IMachineProfile
     
     /// <summary>File extension for this machine format.</summary>
     string FileExtension { get; }
+
+    /// <summary>Setup offset X — Zugabe vom Anschlag in X-Richtung (mm). Default 2.5.</summary>
+    double SetupOffsetX { get; }
+
+    /// <summary>Setup offset Y — Zugabe vom Anschlag in Y-Richtung (mm). Default 2.5.</summary>
+    double SetupOffsetY { get; }
+
+    /// <summary>Setup offset Z (mm). Default 0.</summary>
+    double SetupOffsetZ { get; }
+
+    /// <summary>Setup rotation offset (degrees). Default 0.</summary>
+    double SetupOffsetRot { get; }
 }

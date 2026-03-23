@@ -44,10 +44,10 @@ public class SpecsTests
     [Fact]
     public void SetupOffsets_MatchPython()
     {
-        Assert.Equal(2.5, Defaults.SetupOffsetX);
-        Assert.Equal(2.5, Defaults.SetupOffsetY);
-        Assert.Equal(0.0, Defaults.SetupOffsetZ);
-        Assert.Equal(0.0, Defaults.SetupOffsetRot);
+        Assert.Equal(2.5, Defaults.DefaultSetupOffsetX);
+        Assert.Equal(2.5, Defaults.DefaultSetupOffsetY);
+        Assert.Equal(0.0, Defaults.DefaultSetupOffsetZ);
+        Assert.Equal(0.0, Defaults.DefaultSetupOffsetRot);
     }
 
     [Fact]

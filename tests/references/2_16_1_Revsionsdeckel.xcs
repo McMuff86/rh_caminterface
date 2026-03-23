@@ -1,0 +1,146 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Revsionsdeckel", 903.5, 300, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","Ankleide_Ankleide_Angepass-Mitrovic___Burkhalter_25_0790_201_001",false,false);
+//CreateMessage("Datei","2_16_1_Revsionsdeckel.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 451.750+10,300.000);
+AddSegmentToPolyline(0,300.000);
+AddSegmentToPolyline(0,0);
+AddSegmentToPolyline(903.500,0);
+AddSegmentToPolyline(903.500,300.000);
+AddSegmentToPolyline(451.750-10,300.000);
+//
+//Aussenkonturmakro
+//E010
+//CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2.0,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_5",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+ResetRetractStrategy();
+////Fahrweg NVersatz NR
+
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(903.500,0.000);
+//AddSegmentToPolyline(903.500,300.000);
+//AddSegmentToPolyline(0.000,300.000);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+// *** Konturzug Vertikal ***
+SelectWorkplane("Top");
+CreatePolyline("Polylinie_2", 451.75, 0);
+AddSegmentToPolyline(883.500,0.000);
+AddArc2PointCenterToPolyline(903.5, 20, 883.5, 20, false);
+AddSegmentToPolyline(903.500,280.000);
+AddArc2PointCenterToPolyline(883.5, 300, 883.5, 280, false);
+AddSegmentToPolyline(20.000,300.000);
+AddArc2PointCenterToPolyline(0, 280, 20, 280, false);
+AddSegmentToPolyline(0.000,20.000);
+AddArc2PointCenterToPolyline(20, 0, 20, 20, false);
+AddSegmentToPolyline(451.750,0.000);
+//
+// *** Fraesung ***
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",9.500,"", TypeOfProcess.GeneralRouting ,"E110","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NARCVersatz NR
+// *** Konturzug Vertikal ***
+SelectWorkplane("Top");
+CreatePolyline("Polylinie_3", 451.75, 0);
+AddSegmentToPolyline(883.500,0.000);
+AddArc2PointCenterToPolyline(903.5, 20, 883.5, 20, false);
+AddSegmentToPolyline(903.500,280.000);
+AddArc2PointCenterToPolyline(883.5, 300, 883.5, 280, false);
+AddSegmentToPolyline(20.000,300.000);
+AddArc2PointCenterToPolyline(0, 280, 20, 280, false);
+AddSegmentToPolyline(0.000,20.000);
+AddArc2PointCenterToPolyline(20, 0, 20, 20, false);
+AddSegmentToPolyline(451.750,0.000);
+//
+// *** Fraesung ***
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_3",5.000,"", TypeOfProcess.GeneralRouting ,"E150","-1",2,-1,-1,-1,-10);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NARCVersatz NR
+// *** Konturzug Vertikal ***
+SelectWorkplane("Top");
+CreatePolyline("Polylinie_4", 451.75, 0);
+AddSegmentToPolyline(883.500,0.000);
+AddArc2PointCenterToPolyline(903.5, 20, 883.5, 20, false);
+AddSegmentToPolyline(903.500,280.000);
+AddArc2PointCenterToPolyline(883.5, 300, 883.5, 280, false);
+AddSegmentToPolyline(20.000,300.000);
+AddArc2PointCenterToPolyline(0, 280, 20, 280, false);
+AddSegmentToPolyline(0.000,20.000);
+AddArc2PointCenterToPolyline(20, 0, 20, 20, false);
+AddSegmentToPolyline(451.750,0.000);
+//
+// *** Fraesung ***
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_4",9.900,"", TypeOfProcess.GeneralRouting ,"E150","-1",2,-1,-1,-1,-10);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NARCVersatz NR
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

@@ -9,56 +9,57 @@ namespace RhinoCNCExporter.Tests;
 
 /// <summary>
 /// End-to-end tests comparing C# emitter output against reference XCS files.
-/// Validates that our C# implementation matches the Python reference exactly.
+/// Validates that our C# implementation matches production format.
 /// </summary>
 public class E2ETests
 {
     private readonly string _testDataPath = Path.Combine(Environment.CurrentDirectory, "..", "..", "..", "..", "tests");
 
     [Fact]
-    public void XilogEmitter_Header_Matches_Test01_Reference()
+    public void XilogEmitter_Header_Matches_Production_Format()
     {
         var nameService = new NameService(31);
         var emitter = new XilogEmitter(nameService);
         
-        // Extract header from test_01.xcs for comparison
-        var referenceContent = File.ReadAllText(Path.Combine(_testDataPath, "test_01.xcs"));
-        var referenceLines = referenceContent.Split('\n').Take(6).ToArray();
+        var header = emitter.EmitHeader("Seite_rechts", 300, 280, 19);
         
-        var header = emitter.EmitHeader("test_01", 2240.0, 300.0, 19.0);
-        var headerLines = header.Split('\n');
-        
-        // Check key elements match
-        Assert.Contains("// *** Programm created by Rhino→Maestro Generator ***", header);
-        Assert.Contains("CreateFinishedWorkpieceBox(\"test_01\", 2240.000, 300.000, 19.000);", header);
-        Assert.Contains("double DZ = 19.000;", header);
-        Assert.Contains("SetWorkpieceSetupPosition(2.5,2.5,0.0,0.0);", header);
+        // Production format checks
+        Assert.Contains("// *** Programm created by RhinoCNCExporter ***", header);
+        Assert.Contains("//**********************************************************", header);
+        Assert.Contains("// *** Programmparameter setzen ***", header);
+        Assert.Contains("SetMachiningParameters(\"IJ\",1,10,196608,false);", header);
+        Assert.Contains("// *** Bauteil erstellen ***", header);
+        Assert.Contains("CreateFinishedWorkpieceBox(\"Seite_rechts\", 300, 280, 19);", header);
+        Assert.Contains("// *** Bauteil Infos ***", header);
+        Assert.Contains("//CreateMessage(\"Projekt\"", header);
+        Assert.Contains("//CreateMessage(\"Datei\",\"Seite_rechts.xcs\"", header);
+        Assert.Contains("double DZ = 19;", header);
+        Assert.Contains("// *** Bauteil Offsets ***", header);
+        Assert.Contains("SetWorkpieceSetupPosition(2.5,2.5,0,0);", header);
     }
 
     [Fact]
-    public void XilogEmitter_Footer_Matches_Reference()
+    public void XilogEmitter_Footer_Matches_Production_Format()
     {
         var nameService = new NameService(31);
         var emitter = new XilogEmitter(nameService);
         
-        var referenceContent = File.ReadAllText(Path.Combine(_testDataPath, "test_01.xcs"));
-        var footerLine = referenceContent.Trim().Split('\n').Last();
+        var footer = emitter.EmitFooter();
         
-        var footer = emitter.EmitFooter().Trim();
-        
-        Assert.Equal("CreateMacro(\"Wegfahrschritt\",\"XPARK\");", footer);
-        Assert.Equal(footerLine, footer);
+        Assert.Contains("// Macro RNT", footer);
+        Assert.Contains("CreateMacro(\"Wegfahrschritt\",\"XPARK\");", footer);
+        Assert.Contains("// *** Programm Ende ***", footer);
+        Assert.Contains("//**********************************************************", footer);
     }
 
     [Fact]
-    public void XilogEmitter_Drill_Pattern_Matches_Test01()
+    public void XilogEmitter_Drill_Pattern_Matches_Production()
     {
         var nameService = new NameService(31);
         var emitter = new XilogEmitter(nameService);
         
         var drill = emitter.EmitDrill("DRILLROW_1_1", 150.0, 57.0, 13.0, 5.0, "Top", "P");
         
-        // Should match the pattern from test_01.xcs
         var expectedPattern = "CreateDrill(\"DRILLROW_1_1\",150.000,57.000,13.000,5.000,\"\",TypeOfProcess.Drilling,\"-1\",\"-1\",1,-1,-1,\"P\");";
         Assert.Contains(expectedPattern, drill);
         Assert.Contains("SelectWorkplane(\"Top\");", drill);
@@ -66,15 +67,28 @@ public class E2ETests
     }
 
     [Fact]
-    public void XilogEmitter_RNT_Matches_Test01_Pattern()
+    public void XilogEmitter_DrillPattern_Matches_Production()
     {
         var nameService = new NameService(31);
         var emitter = new XilogEmitter(nameService);
         
-        // From test_01.xcs: CreateMacro("RBNUT_RNT_1","RNT",-5.000,280.000,6.000,-1,-1,-1,8.000,true,"066","-1",false,false,true,280.000,null,null,null,null,true);
+        // From production: CreateDrill → CreatePattern(1,4,0,64,0,90) → ResetPattern
+        var result = emitter.EmitDrillPattern("Vertikale Bohrung_1", 24, 75, 14, 15,
+            xCount: 1, yCount: 4, xSpacing: 0, ySpacing: 64);
+        
+        Assert.Contains("CreateDrill(\"Vertikale Bohrung_1\",24.000,75.000,14.000,15.000", result);
+        Assert.Contains("CreatePattern(1,4,0,64,0,90);", result);
+        Assert.Contains("ResetPattern();", result);
+    }
+
+    [Fact]
+    public void XilogEmitter_RNT_Matches_Pattern()
+    {
+        var nameService = new NameService(31);
+        var emitter = new XilogEmitter(nameService);
+        
         var rnt = emitter.EmitRntX("RBNUT_RNT_1", -5.0, 280.0, 6.0, 8.0, 8.0, "066");
         
-        // Note: The test_01.xcs has some inconsistency in parameters, our implementation should be correct
         Assert.Contains("SelectWorkplane(\"Top\");", rnt);
         Assert.Contains("CreateMacro(\"RBNUT_RNT_1\",\"RNT\"", rnt);
         Assert.Contains("-5.000", rnt);
@@ -90,7 +104,6 @@ public class E2ETests
         var nameService = new NameService(31);
         var emitter = new XilogEmitter(nameService);
         
-        // From test_01.xcs polyline pattern
         var pts = new[]
         {
             (1120.0, 300.0),
@@ -110,6 +123,43 @@ public class E2ETests
         Assert.Contains("AddSegmentToPolyline(2240.000,300.000);", polyPass);
         Assert.Contains("AddSegmentToPolyline(1120.000,300.000);", polyPass);
         Assert.Contains("CreateRoughFinish(\"CUT_1_OP\",19.000,\"\", TypeOfProcess.GeneralRouting ,\"E010\"", polyPass);
+    }
+
+    [Fact]
+    public void XilogEmitter_PolylineWithArcs_Reference()
+    {
+        var nameService = new NameService(31);
+        var emitter = new XilogEmitter(nameService);
+        
+        // From production: 2_16_1_Revsionsdeckel.xcs
+        var segments = new PolySegment[]
+        {
+            new(883.5, 0),
+            new(903.5, 20, IsArc: true, CenterX: 883.5, CenterY: 20, Clockwise: false),
+            new(903.5, 280),
+            new(883.5, 300, IsArc: true, CenterX: 883.5, CenterY: 280, Clockwise: false),
+        };
+        
+        var result = emitter.EmitPolylinePassWithArcs("Polylinie_2", "Polylinie_2_OP",
+            451.75, 0, segments, "E010", 19, 9.5);
+        
+        Assert.Contains("CreatePolyline(\"Polylinie_2\", 451.750,0.000);", result);
+        Assert.Contains("AddSegmentToPolyline(883.500,0.000);", result);
+        Assert.Contains("AddArc2PointCenterToPolyline(903.500,20.000,883.500,20.000,false);", result);
+        Assert.Contains("AddSegmentToPolyline(903.500,280.000);", result);
+        Assert.Contains("AddArc2PointCenterToPolyline(883.500,300.000,883.500,280.000,false);", result);
+    }
+
+    [Fact]
+    public void XilogEmitter_Workplane_For_HorizontalDrill()
+    {
+        var nameService = new NameService(31);
+        var emitter = new XilogEmitter(nameService);
+        
+        // From production: CreateWorkplane("Freie Ebene_803",0,43,-9.5+DZ,-90.000,90);
+        var wp = emitter.EmitWorkplane("Freie Ebene_803", 0, 43, 9.5, -90, 90);
+        
+        Assert.Contains("CreateWorkplane(\"Freie Ebene_803\",0,43,9.5,-90,90);", wp);
     }
 
     [Theory]
@@ -136,18 +186,43 @@ public class E2ETests
         var drill = emitter.EmitDrill("Drill_1", 100.0, 50.0, 10.0, 5.0);
         var footer = emitter.EmitFooter();
         
-        // Basic CIX structure validation
         Assert.Contains("BEGIN ID CID3", header);
         Assert.Contains("BEGIN MAINDATA", header);
         Assert.Contains("LPX=800.00000", header);
         Assert.Contains("END MAINDATA", header);
-        Assert.Contains("\r\n", header); // Windows line endings
+        Assert.Contains("\r\n", header);
         
         Assert.Contains("NAME=BG", drill);
         Assert.Contains("PARAM,NAME=X,VALUE=100.0", drill);
-        Assert.Contains("\r\n", drill); // Windows line endings
+        Assert.Contains("\r\n", drill);
         
-        // Footer is empty for basic CIX
         Assert.Equal("", footer);
+    }
+
+    [Fact]
+    public void Production_Header_Structure_Matches_RealFiles()
+    {
+        // Compare our header structure against real production file structure
+        var refPath = Path.Combine(_testDataPath, "references", "1_1_1_Seite_rechts.xcs");
+        if (!File.Exists(refPath)) return; // Skip if reference not available
+
+        var refContent = File.ReadAllText(refPath);
+        
+        var nameService = new NameService(31);
+        var emitter = new XilogEmitter(nameService);
+        var ourHeader = emitter.EmitHeader("Seite_rechts", 300, 280, 19);
+        
+        // Both should have the same structural elements
+        Assert.Contains("SetMachiningParameters(\"IJ\",1,10,196608,false);", refContent);
+        Assert.Contains("SetMachiningParameters(\"IJ\",1,10,196608,false);", ourHeader);
+        
+        Assert.Contains("double DZ = 19;", refContent);
+        Assert.Contains("double DZ = 19;", ourHeader);
+        
+        Assert.Contains("SetWorkpieceSetupPosition(2.5,2.5,0,0);", refContent);
+        Assert.Contains("SetWorkpieceSetupPosition(2.5,2.5,0,0);", ourHeader);
+        
+        Assert.Contains("//**********************************************************", refContent);
+        Assert.Contains("//**********************************************************", ourHeader);
     }
 }

@@ -1,0 +1,80 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Tablar", 812.5, 349, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","zusatz_schrank_Putz_Schran-Staub_Wolf_25_0428_201_006",false,false);
+//CreateMessage("Datei","1_2_18_Tablar.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 406.250+10,349.000);
+AddSegmentToPolyline(0,349.000);
+AddSegmentToPolyline(0,0);
+AddSegmentToPolyline(812.500,0);
+AddSegmentToPolyline(812.500,349.000);
+AddSegmentToPolyline(406.250-10,349.000);
+//
+//Aussenkonturmakro
+//E010
+//CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2.0,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NVersatz NR
+
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(812.500,0.000);
+//AddSegmentToPolyline(812.500,349.000);
+//AddSegmentToPolyline(0.000,349.000);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

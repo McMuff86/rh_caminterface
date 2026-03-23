@@ -97,4 +97,61 @@ public class LayerRegexTests
     {
         Assert.False(LayerRegex.TryParseCut(layer, out _));
     }
+
+    #region DrillPattern
+
+    [Theory]
+    [InlineData("DRILLPAT_D15_Z14_X1_Y4_SX0_SY64", 15.0, 14.0, 'P', 1, 4, 0, 64)]
+    [InlineData("DRILLPAT_D5_X3_Y2_SX32_SY64", 5.0, 19.0, 'P', 3, 2, 32, 64)]
+    [InlineData("DRILLPAT_D8_Z13_X2_Y3_SX32.5_SY64_CP", 8.0, 13.0, 'P', 2, 3, 32.5, 64)]
+    [InlineData("DRILLPAT_D5_Z13_X1_Y4_SX0_SY64_CL", 5.0, 13.0, 'L', 1, 4, 0, 64)]
+    public void TryParseDrillPattern_Valid(string layer, double dia, double depth, char side,
+        int xn, int yn, double sx, double sy)
+    {
+        Assert.True(LayerRegex.TryParseDrillPattern(layer, out var spec));
+        Assert.Equal(dia, spec!.Diameter);
+        Assert.Equal(depth, spec.Depth);
+        Assert.Equal(side, spec.Side);
+        Assert.Equal(xn, spec.XCount);
+        Assert.Equal(yn, spec.YCount);
+        Assert.Equal(sx, spec.XSpacing);
+        Assert.Equal(sy, spec.YSpacing);
+    }
+
+    [Theory]
+    [InlineData("DRILL_D5")]
+    [InlineData("DRILLPAT_D5")]
+    [InlineData("DRILLROW_D5_P32")]
+    public void TryParseDrillPattern_Invalid(string layer)
+    {
+        Assert.False(LayerRegex.TryParseDrillPattern(layer, out _));
+    }
+
+    #endregion
+
+    #region HorizontalDrill
+
+    [Theory]
+    [InlineData("HDRILL_D8_Z30_SL", 8.0, 30.0, 'L')]
+    [InlineData("HDRILL_D5_Z25_SR", 5.0, 25.0, 'R')]
+    [InlineData("HDRILL_D8_SV", 8.0, 30.0, 'V')]  // Default depth 30
+    [InlineData("HDRILL_D10_Z40_SH", 10.0, 40.0, 'H')]
+    public void TryParseHorizontalDrill_Valid(string layer, double dia, double depth, char side)
+    {
+        Assert.True(LayerRegex.TryParseHorizontalDrill(layer, out var spec));
+        Assert.Equal(dia, spec!.Diameter);
+        Assert.Equal(depth, spec.Depth);
+        Assert.Equal(side, spec.DrillSide);
+    }
+
+    [Theory]
+    [InlineData("DRILL_D8")]
+    [InlineData("HDRILL_D8")]
+    [InlineData("HDRILL_D8_ST")]  // T is not valid side
+    public void TryParseHorizontalDrill_Invalid(string layer)
+    {
+        Assert.False(LayerRegex.TryParseHorizontalDrill(layer, out _));
+    }
+
+    #endregion
 }

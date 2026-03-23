@@ -1,0 +1,335 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Mittelseite", 1257, 167, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","Ankleide_Ankleide_Angepass-Mitrovic___Burkhalter_25_0790_201_001",false,false);
+//CreateMessage("Datei","3_3_2_Mittelseite.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 628.500+10,167.000);
+AddSegmentToPolyline(0,167.000);
+AddSegmentToPolyline(0,0);
+AddSegmentToPolyline(1257.000,0);
+AddSegmentToPolyline(1257.000,167.000);
+AddSegmentToPolyline(628.500-10,167.000);
+//
+//Aussenkonturmakro
+//E010
+//CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2.0,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NVersatz NR
+
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(1257.000,0.000);
+//AddSegmentToPolyline(1257.000,167.000);
+//AddSegmentToPolyline(0.000,167.000);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+// *** Vertikale Bohrung ***RP
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_1",7.5,40.02,13.000,6,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***RP
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_2",7.5,127.02,13.000,6,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***RP
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_3",1249.5,127.02,13.000,6,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***RP
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_4",1249.5,40.02,13.000,6,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,3,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_5",978 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,3,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_6",946 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,3,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_7",946 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,3,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_8",978 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_9",722 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_10",690 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_11",690 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_12",722 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_13",466 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_14",434 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_15",434 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_16",466 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_17",210 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_18",178 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_19",178 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_20",210 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** CLAMEX Horizontal ***
+CreateMacro("CLAMEX Horizontal_1","SawCut_Lamello",0,40.03,0,40.03,90,2,19,5,null,1,0.05,null,null,null,null,-1,"3","E015",null,null,"E005",null,0,-1,false,-1,0,null,0,false,null,"E022",null,null,null,null,null,null,null,2,null,null,14,null,"3","E021",270,DZ-9.5);
+//
+// *** CLAMEX Horizontal ***
+CreateMacro("CLAMEX Horizontal_2","SawCut_Lamello",0,127.03,0,127.03,90,2,19,5,null,1,0.05,null,null,null,null,-1,"3","E015",null,null,"E005",null,0,-1,false,-1,0,null,0,false,null,"E022",null,null,null,null,null,null,null,2,null,null,14,null,"3","E021",270,DZ-9.5);
+//
+// *** CLAMEX Horizontal ***
+CreateMacro("CLAMEX Horizontal_3","SawCut_Lamello",1257,40.03,1257,40.03,90,2,19,5,null,1,0.05,null,null,null,null,-1,"3","E015",null,null,"E005",null,0,-1,false,-1,0,null,0,false,null,"E022",null,null,null,null,null,null,null,2,null,null,14,null,"3","E021",90,DZ-9.5);
+//
+// *** CLAMEX Horizontal ***
+CreateMacro("CLAMEX Horizontal_4","SawCut_Lamello",1257,127.03,1257,127.03,90,2,19,5,null,1,0.05,null,null,null,null,-1,"3","E015",null,null,"E005",null,0,-1,false,-1,0,null,0,false,null,"E022",null,null,null,null,null,null,null,2,null,null,14,null,"3","E021",90,DZ-9.5);
+//
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("NC_STOP", "XPARK",null,null,1,1,30,2,-1,-1);
+//SetRelatedToOppositeSideStop(true);
+//SetMultipleDrillingsCanChangeWorkingSequence(false);
+//SetPreserveWorkingSequence(true);
+//SetOptimization(false);
+CreateWorkplan("Swap");
+SetWorkpieceSetupPosition(0,0,0,0);
+SelectWorkplan("Swap");
+CreateWorkplan ("Swap");
+// *** Bauteil Bearbeitungen ***
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_4979",0,83.5,-9.5+DZ,-90.000,90);
+SelectWorkplane("Freie Ebene_4979");
+CreateDrill("Horizontal freie Bohrung_1_L",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_4982",1257,83.5,-9.5+DZ,90.000,90);
+SelectWorkplane("Freie Ebene_4982");
+CreateDrill("Horizontal freie Bohrung_1_R",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_21",151 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_22",183 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_23",183 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_24",151 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_25",407 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_26",439 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_27",439 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_28",407 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_29",663 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_30",695 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_31",695 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,4,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_32",663 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,3,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_33",919 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,3,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_34",951 ,134 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,3,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_35",951 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Lochreihenbohrung ***
+SelectWorkplane("Top");
+CreatePattern(1,3,0,64,0,90);
+CreateDrill("Vertikale Lochreihenbohrung_36",919 ,30 ,12,3,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

@@ -1,0 +1,136 @@
+// *** Programm created by CAD+T CAM Interface, Version 24.34.01 ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("Deckel", 268, 280, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","Teekuche_Hobbyraum_Test_Klame-Staub_Wolf_25_0428_202_001",false,false);
+//CreateMessage("Datei","1_1_3_Deckel_u.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+//CreateWorkplan ("Oberseite");
+//CreateWorkplan ("Unterseite");
+
+// *** Bauteil Bearbeitungen ***
+//
+// *** Konturzug Aussenkontur ***
+SelectWorkplane("Top");
+CreatePolyline("Aussenkontur_1", 134.000+10,280.000);
+AddSegmentToPolyline(0,280.000);
+AddSegmentToPolyline(0,0);
+AddSegmentToPolyline(268.000,0);
+AddSegmentToPolyline(268.000,280.000);
+AddSegmentToPolyline(134.000-10,280.000);
+//
+//Aussenkonturmakro
+//E010
+//CreateIso("Aenderung Ecken Abrunden","CUTOCOK=2","",true);
+SetCompensationMode(false);
+SetApproachStrategy(false,true,2);
+SetRetractStrategy(false,true,2.0,2);
+SetPneumaticHoodPosition(null);
+CreateRoughFinish("Fraesung_2",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+ResetApproachStrategy();
+ResetRetractStrategy();
+//Fahrweg NVersatz NR
+
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_1",7.5,50.02,13.000,6,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_2",7.5,209.02,13.000,6,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_3",260.5,219.02,13.000,6,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+// *** Vertikale Bohrung ***LN
+SelectWorkplane("Top");
+CreateDrill("Vertikale Bohrung_4",260.5,60.02,13.000,6,"",TypeOfProcess.Drilling,"-1","-1",1,-1,-1,"P");
+ResetPattern();
+//
+//// *** Konturzug Vertikal ***
+//SelectWorkplane("Top");
+//CreatePolyline("Polylinie_1", 0, 0);
+//AddSegmentToPolyline(268.000,0.000);
+//AddSegmentToPolyline(268.000,280.000);
+//AddSegmentToPolyline(0.000,280.000);
+//AddSegmentToPolyline(0.000,0.000);
+//
+// *** Fraesung ***
+//SetCompensationMode(false);
+//SetApproachStrategy(false,true,2);
+//SetRetractStrategy(false,true,2,2);
+//SetPneumaticHoodPosition(null);
+//CreateRoughFinish("Fraesung_1",9.500,"", TypeOfProcess.GeneralRouting ,"E010","-1",2,-1,-1,-1,0);
+//ResetApproachStrategy();
+//ResetRetractStrategy();
+////Fahrweg NARCVersatz NR
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_242",0,95,-9.5+DZ,-90.000,90);
+SelectWorkplane("Freie Ebene_242");
+CreateDrill("Horizontal freie Bohrung_1_L",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_244",0,164,-9.5+DZ,-90.000,90);
+SelectWorkplane("Freie Ebene_244");
+CreateDrill("Horizontal freie Bohrung_2_L",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_247",268,105,-9.5+DZ,90.000,90);
+SelectWorkplane("Freie Ebene_247");
+CreateDrill("Horizontal freie Bohrung_1_R",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** Horizontal freie Bohrung ***
+CreateWorkplane("Freie Ebene_249",268,174,-9.5+DZ,90.000,90);
+SelectWorkplane("Freie Ebene_249");
+CreateDrill("Horizontal freie Bohrung_2_R",0 ,0 ,30,8,"",TypeOfProcess.Drilling,"","-1",1,-1,-1,"P",0,0);
+ResetPattern();
+//
+// *** CLAMEX Horizontal ***
+CreateMacro("CLAMEX Horizontal_1","SawCut_Lamello",0,50.03,0,50.03,90,2,19,5,null,1,0.05,null,null,null,null,-1,"3","E015",null,null,"E005",null,0,-1,false,-1,0,null,0,false,null,"E022",null,null,null,null,null,null,null,2,null,null,14,null,"3","E021",270,DZ-9.5);
+//
+// *** CLAMEX Horizontal ***
+CreateMacro("CLAMEX Horizontal_2","SawCut_Lamello",0,209.03,0,209.03,90,2,19,5,null,1,0.05,null,null,null,null,-1,"3","E015",null,null,"E005",null,0,-1,false,-1,0,null,0,false,null,"E022",null,null,null,null,null,null,null,2,null,null,14,null,"3","E021",270,DZ-9.5);
+//
+// *** CLAMEX Horizontal ***
+CreateMacro("CLAMEX Horizontal_3","SawCut_Lamello",268,60.03,268,60.03,90,2,19,5,null,1,0.05,null,null,null,null,-1,"3","E015",null,null,"E005",null,0,-1,false,-1,0,null,0,false,null,"E022",null,null,null,null,null,null,null,2,null,null,14,null,"3","E021",90,DZ-9.5);
+//
+// *** CLAMEX Horizontal ***
+CreateMacro("CLAMEX Horizontal_4","SawCut_Lamello",268,219.03,268,219.03,90,2,19,5,null,1,0.05,null,null,null,null,-1,"3","E015",null,null,"E005",null,0,-1,false,-1,0,null,0,false,null,"E022",null,null,null,null,null,null,null,2,null,null,14,null,"3","E021",90,DZ-9.5);
+//
+//**********************************************************
+//**********************************************************
+
+
+
+
+
+// Macro RNT
+CreateMacro("Wegfahrschritt", "XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

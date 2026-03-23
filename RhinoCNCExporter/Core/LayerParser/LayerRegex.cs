@@ -112,4 +112,42 @@ public static class LayerRegex
         spec = new GrooveRntSpec(axis, width, depth, code, place);
         return true;
     }
+
+    // --- Drill Pattern (grid array) ---
+    // DRILLPAT_D5_Z13_X1_Y4_SX0_SY64
+    private static readonly Regex DrillPatRegex = new(
+        pattern: @"^DRILLPAT_D(?<dia>\d+(?:\.\d+)?)(?:_Z(?<depth>\d+(?:\.\d+)?))?_X(?<xn>\d+)_Y(?<yn>\d+)_SX(?<sx>\d+(?:\.\d+)?)_SY(?<sy>\d+(?:\.\d+)?)(?:_C(?<side>[PL]))?$",
+        options: RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+    public static bool TryParseDrillPattern(string layerName, out DrillPatternSpec? spec)
+    {
+        var m = DrillPatRegex.Match(layerName);
+        if (!m.Success) { spec = null; return false; }
+        double dia = double.Parse(m.Groups["dia"].Value);
+        double depth = m.Groups["depth"].Success ? double.Parse(m.Groups["depth"].Value) : Defaults.DefaultDz;
+        int xn = int.Parse(m.Groups["xn"].Value);
+        int yn = int.Parse(m.Groups["yn"].Value);
+        double sx = double.Parse(m.Groups["sx"].Value);
+        double sy = double.Parse(m.Groups["sy"].Value);
+        char side = m.Groups["side"].Success ? char.ToUpperInvariant(m.Groups["side"].Value[0]) : 'P';
+        spec = new DrillPatternSpec(dia, depth, side, xn, yn, sx, sy);
+        return true;
+    }
+
+    // --- Horizontal Drill (side drilling) ---
+    // HDRILL_D8_Z30_SL  (L=links, R=rechts, V=vorne, H=hinten)
+    private static readonly Regex HDrillRegex = new(
+        pattern: @"^HDRILL_D(?<dia>\d+(?:\.\d+)?)(?:_Z(?<depth>\d+(?:\.\d+)?))?_S(?<side>[LRVH])$",
+        options: RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+    public static bool TryParseHorizontalDrill(string layerName, out HorizontalDrillSpec? spec)
+    {
+        var m = HDrillRegex.Match(layerName);
+        if (!m.Success) { spec = null; return false; }
+        double dia = double.Parse(m.Groups["dia"].Value);
+        double depth = m.Groups["depth"].Success ? double.Parse(m.Groups["depth"].Value) : 30.0; // Default 30mm horizontal
+        char side = char.ToUpperInvariant(m.Groups["side"].Value[0]);
+        spec = new HorizontalDrillSpec(dia, depth, side);
+        return true;
+    }
 }

@@ -16,4 +16,8 @@ public abstract class MachineProfile : IMachineProfile
     public virtual bool UseCornerRounding => false;
     public virtual string DefaultTech => "E010";
     public virtual string FileExtension => ".xcs";
+    public virtual double SetupOffsetX => 2.5;
+    public virtual double SetupOffsetY => 2.5;
+    public virtual double SetupOffsetZ => 0.0;
+    public virtual double SetupOffsetRot => 0.0;
 }

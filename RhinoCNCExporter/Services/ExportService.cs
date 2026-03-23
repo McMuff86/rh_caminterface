@@ -10,78 +10,69 @@ using RhinoCNCExporter.Core.Emitters;
 using RhinoCNCExporter.Core.Geometry;
 using RhinoCNCExporter.Core.LayerParser;
 using RhinoCNCExporter.Core.Naming;
+using RhinoCNCExporter.Core.Profiles;
 
 namespace RhinoCNCExporter.Services;
 
 /// <summary>
-/// Orchestrates the XCS export pipeline: collect geometry → parse layers → emit XCS.
-/// Direct port of main() from Python reference (RH_caminterface_v007.py).
+/// Orchestrates the CNC export pipeline: collect geometry → parse layers → emit CNC code.
+/// Supports XCS (SCM/Maestro), CIX (Biesse), and future formats via IEmitter.
 /// </summary>
 public static class ExportService
 {
-    /// <summary>
-    /// Export CNC program from Rhino document using specified emitter.
-    /// </summary>
-    /// <param name="doc">Active Rhino document.</param>
-    /// <param name="onlySelection">If true, only export selected objects.</param>
-    /// <param name="filePath">Output file path.</param>
-    /// <param name="emitter">CNC format emitter to use.</param>
-    /// <param name="layerStepdown">If true, use layer-defined stepdown. If false, use technology stepdown.</param>
-    /// <returns>True on success.</returns>
-    public static bool ExportCNC(RhinoDoc doc, bool onlySelection, string filePath, IEmitter emitter, NameService nameService, bool layerStepdown = false)
+    /// <summary>Export CNC program using specified emitter and profile.</summary>
+    public static bool ExportCNC(RhinoDoc doc, bool onlySelection, string filePath,
+        IEmitter emitter, NameService nameService, IMachineProfile profile,
+        bool layerStepdown = false)
     {
-        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService, layerStepdown);
+        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService,
+            profile.SetupOffsetX, profile.SetupOffsetY, profile.SetupOffsetZ, profile.SetupOffsetRot,
+            layerStepdown);
     }
 
-    /// <summary>
-    /// Export Xilog Script (.xcs) from Rhino document.
-    /// </summary>
-    /// <param name="doc">Active Rhino document.</param>
-    /// <param name="onlySelection">If true, only export selected objects.</param>
-    /// <param name="filePath">Output file path.</param>
-    /// <param name="layerStepdown">If true, use layer-defined stepdown. If false, use technology stepdown.</param>
-    /// <returns>True on success.</returns>
-    public static bool ExportXilog(RhinoDoc doc, bool onlySelection, string filePath, bool layerStepdown = false)
+    /// <summary>Export Xilog Script (.xcs) with configurable setup offsets.</summary>
+    public static bool ExportXilog(RhinoDoc doc, bool onlySelection, string filePath,
+        bool layerStepdown = false,
+        double setupOffsetX = 2.5, double setupOffsetY = 2.5)
     {
         var nameService = new NameService(maxLength: 31);
         var emitter = new XilogEmitter(nameService);
-        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService, layerStepdown);
+        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService,
+            setupOffsetX, setupOffsetY, 0, 0, layerStepdown);
     }
 
-    /// <summary>
-    /// Export Biesse CIX from Rhino document.
-    /// </summary>
-    /// <param name="doc">Active Rhino document.</param>
-    /// <param name="onlySelection">If true, only export selected objects.</param>
-    /// <param name="filePath">Output file path.</param>
-    /// <param name="layerStepdown">If true, use layer-defined stepdown. If false, use technology stepdown.</param>
-    /// <returns>True on success.</returns>
-    public static bool ExportBiesse(RhinoDoc doc, bool onlySelection, string filePath, bool layerStepdown = false)
+    /// <summary>Export Biesse CIX with configurable setup offsets.</summary>
+    public static bool ExportBiesse(RhinoDoc doc, bool onlySelection, string filePath,
+        bool layerStepdown = false,
+        double setupOffsetX = 2.5, double setupOffsetY = 2.5)
     {
-        var nameService = new NameService(maxLength: 63); // Biesse allows longer names
+        var nameService = new NameService(maxLength: 63);
         var emitter = new BiesseEmitter(nameService);
-        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService, layerStepdown);
+        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService,
+            setupOffsetX, setupOffsetY, 0, 0, layerStepdown);
     }
 
-    /// <summary>
-    /// Internal export logic using any IEmitter implementation.
-    /// </summary>
-    private static bool ExportWithEmitter(RhinoDoc doc, bool onlySelection, string filePath, IEmitter emitter, NameService nameService, bool layerStepdown)
+    /// <summary>Internal export logic using any IEmitter implementation.</summary>
+    private static bool ExportWithEmitter(RhinoDoc doc, bool onlySelection, string filePath,
+        IEmitter emitter, NameService nameService,
+        double setupOffsetX, double setupOffsetY, double setupOffsetZ, double setupOffsetRot,
+        bool layerStepdown)
     {
         try
         {
             var programName = Path.GetFileNameWithoutExtension(filePath);
 
-            // Collect geometry by type (matches Python's main() classification)
+            // Collect geometry by type
             var pieceCurves = new List<Curve>();
             var cuts = new List<(Curve Crv, string Layer)>();
             var drills = new List<(double X, double Y, string Layer)>();
+            var drillPatterns = new List<(double X, double Y, string Layer)>();
+            var horizontalDrills = new List<(double X, double Y, string Layer)>();
             var rows = new List<(Curve Crv, string Layer)>();
             var pockets = new List<(Curve Crv, string Layer)>();
             var grooves = new List<(Curve Crv, string Layer)>();
             var groovesRnt = new List<(Curve Crv, string Layer)>();
 
-            // Get objects
             IEnumerable<RhinoObject> objects;
             if (onlySelection)
             {
@@ -131,6 +122,26 @@ public static class ExportService
                     continue;
                 }
 
+                // DRILLPAT — drill patterns (circles/points like normal drills)
+                if (LayerRegex.TryParseDrillPattern(layerName, out _))
+                {
+                    if (TryGetDrillCenter(ro, out double dpx, out double dpy))
+                    {
+                        drillPatterns.Add((dpx, dpy, layerName));
+                        continue;
+                    }
+                }
+
+                // HDRILL — horizontal drills (circles/points)
+                if (LayerRegex.TryParseHorizontalDrill(layerName, out _))
+                {
+                    if (TryGetDrillCenter(ro, out double hx, out double hy))
+                    {
+                        horizontalDrills.Add((hx, hy, layerName));
+                        continue;
+                    }
+                }
+
                 // DRILL — circles, points, arc-circles
                 if (LayerRegex.TryParseDrill(layerName, out _))
                 {
@@ -162,13 +173,15 @@ public static class ExportService
 
             // Find largest piece curve
             var outer = pieceCurves.OrderByDescending(GeometryUtils.CurveArea).First();
-            var (dx2, dy2) = GeometryUtils.BBoxXY(outer);
+            var (wpDx, wpDy) = GeometryUtils.BBoxXY(outer);
 
             var parts = new List<string>();
-            parts.Add(emitter.EmitHeader(programName, dx2, dy2, Defaults.DefaultDz));
+            parts.Add(emitter.EmitHeader(programName, wpDx, wpDy, Defaults.DefaultDz,
+                setupOffsetX, setupOffsetY, setupOffsetZ, setupOffsetRot));
 
             // Fallback: if nothing but WK_PIECE, route the outer contour
             if (cuts.Count == 0 && pockets.Count == 0 && drills.Count == 0 &&
+                drillPatterns.Count == 0 && horizontalDrills.Count == 0 &&
                 rows.Count == 0 && grooves.Count == 0 && groovesRnt.Count == 0)
             {
                 var pts = GeometryUtils.ToPolyPoints(outer, Defaults.PolyTolerance);
@@ -210,6 +223,14 @@ public static class ExportService
                 parts.Add(EmitDrill.Emit(emitter, nameService, $"DRILL_{idx + 1}", x, y, spec!));
             }
 
+            // DRILLPAT operations (drill patterns / grid arrays)
+            for (int idx = 0; idx < drillPatterns.Count; idx++)
+            {
+                var (x, y, layerName) = drillPatterns[idx];
+                if (!LayerRegex.TryParseDrillPattern(layerName, out var spec)) continue;
+                parts.Add(EmitDrillPattern.Emit(emitter, nameService, $"DRILLPAT_{idx + 1}", x, y, spec!));
+            }
+
             // DRILLROW operations
             for (int idx = 0; idx < rows.Count; idx++)
             {
@@ -217,6 +238,15 @@ public static class ExportService
                 if (!LayerRegex.TryParseRow(layerName, out var spec)) continue;
                 var points = GeometryUtils.SampleDrillRowPoints(crv, spec!.Pitch, spec.Count);
                 parts.Add(EmitRow.Emit(emitter, nameService, $"DRILLROW_{idx + 1}", points, spec));
+            }
+
+            // HDRILL operations (horizontal / side drilling)
+            for (int idx = 0; idx < horizontalDrills.Count; idx++)
+            {
+                var (x, y, layerName) = horizontalDrills[idx];
+                if (!LayerRegex.TryParseHorizontalDrill(layerName, out var spec)) continue;
+                parts.Add(EmitHorizontalDrill.Emit(emitter, nameService, $"HDRILL_{idx + 1}",
+                    x, y, Defaults.DefaultDz, wpDx, wpDy, spec!));
             }
 
             // RBNUT_RNT operations (before channel grooves, matching Python order)
@@ -263,7 +293,6 @@ public static class ExportService
         x = y = 0;
         var geom = ro.Geometry;
 
-        // Point object
         if (geom is Point pt)
         {
             x = pt.Location.X;
@@ -271,7 +300,6 @@ public static class ExportService
             return true;
         }
 
-        // ArcCurve that is a circle
         if (geom is ArcCurve arc && arc.IsCircle())
         {
             var center = arc.Arc.Center;
@@ -280,7 +308,6 @@ public static class ExportService
             return true;
         }
 
-        // General curve — check if it's a circle
         if (geom is Curve crv && crv.TryGetCircle(out Circle circle))
         {
             x = circle.Center.X;
