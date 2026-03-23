@@ -38,8 +38,11 @@ RhinoCNCExporter.Core/                 # Core-Logik OHNE RhinoCommon
 │   ├── BlockUserTextSchema.cs         # CNC_* key constants + validation
 │   ├── CncUserTextParser.cs           # UserText dict → FittingBlock
 │   ├── MachiningFactory.cs            # FittingBlock → Machining objects
+│   ├── ClamexMacroBuilder.cs          # 🆕 Sprint 3: CLAMEX SawCut_Lamello macro generation
 │   └── StarterBlocks/                 # 🆕 Sprint 2: Starter Block Definitions
 │       └── StarterBlockDefinitions.cs # 5 starter blocks as code-defined CNC_* dicts
+├── PlateDetection/                    # 🆕 Sprint 3: Coordinate math (no Rhino)
+│   └── CoordinateTransformer.cs       # World→plate-local coordinate transform
 └── Pipeline/                          # 🆕 Sprint 1: Export-Orchestrierung
     ├── IMachiningBuilder.cs           # Interface: merge machinings
     ├── IEmitterRouter.cs              # Interface: route to emitter
@@ -57,10 +60,12 @@ RhinoCNCExporter/                      # Plugin MIT RhinoCommon
 │   └── ExportDialog.cs
 ├── BlockScanning/                     # 🆕 Sprint 2: Block-Inserts scannen & parsen
 │   ├── BlockScanner.cs                # RhinoDoc → List<FittingBlock>
-│   └── AssignmentResolver.cs          # Layer-based block-to-plate assignment
+│   └── AssignmentResolver.cs          # Layer + proximity-based block-to-plate assignment
+├── PlateDetection/                    # 🆕 Sprint 3: 3D plate detection
+│   └── PlateDetector.cs               # Solid/Extrusion → Plate (RhinoCommon)
 ├── Services/
 │   ├── ExportService.cs               # Orchestrierung: Geometrie → Emitter → Datei
-│   └── BlockAwareExportService.cs     # 🆕 Sprint 2: Block-aware export with feature flag
+│   └── BlockAwareExportService.cs     # Block-aware + multi-plate export pipeline
 ├── Core/
 │   ├── LayerParser/                   # Layer-Namen → DTOs (CutSpec, PocketSpec, ...)
 │   │   ├── Specs.cs
@@ -88,6 +93,9 @@ RhinoCNCExporter.Tests/                # xUnit Tests (OHNE RhinoCommon)
 ├── StarterBlockDefinitionsTests.cs    # 🆕 Sprint 2: Starter block validation + factory
 ├── AssignmentResolverTests.cs         # 🆕 Sprint 2: Layer-based assignment tests
 ├── BlockIntegrationTests.cs           # 🆕 Sprint 2: Full pipeline integration tests
+├── ClamexMacroBuilderTests.cs         # 🆕 Sprint 3: CLAMEX production reference comparison
+├── CoordinateTransformerTests.cs      # 🆕 Sprint 3: Coordinate transform math tests
+├── MultiPlatePipelineTests.cs         # 🆕 Sprint 3: Full multi-plate pipeline integration
 ├── EmitterTests.cs                    # XilogEmitter + BiesseEmitter
 ├── E2ETests.cs                        # End-to-End gegen Referenzdateien
 ├── LayerRegexTests.cs                 # Layer pattern parsing

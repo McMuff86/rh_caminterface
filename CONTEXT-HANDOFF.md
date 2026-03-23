@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 2 Complete)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 3 Complete)
 
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -141,14 +141,64 @@ RhinoCNCExporter.Tests/
 └── BlockIntegrationTests.cs        (10 tests: full pipeline integration)
 ```
 
-### Was fehlt / nächste Schritte (Sprint 3+)
-1. **CLAMEX-System** — 3D-Block-basierter Workflow für Lamello-Verbinder:
-   - Block-Detection: CLAMEX-Blöcke in 3D-Modell erkennen
-   - SawCut_Lamello-Makro: ~48-Parameter Makro für CLAMEX-Verbinder
-   - 3D-Pipeline Vision: Aus 3D-Modell pro Platte CNC-Programme ableiten
-   - **Referenz:** docs/CLAMEX-CONCEPT.md (vollständiges Konzept)
+### Sprint 3 — Plate Detection + Coordinate Transform + CLAMEX (KOMPLETT ✅, 23.03.2026)
+3D plate detection, coordinate transformation, CLAMEX macro generation, multi-plate export:
+- **ClamexMacroBuilder**: Template-based SawCut_Lamello macro generation ✅
+  - Vertical CLAMEX (E015, E004, E019, E032) — 48 parameters ✅
+  - Horizontal CLAMEX (E015, E005, E022, E021) — 49 params + DZ-9.5 ✅
+  - Validated against production XCS files (exact string match!) ✅
+  - BuildFromBlock() for automatic orientation detection ✅
+- **CoordinateTransformer** (Core — no RhinoCommon): ✅
+  - WorldToPlateLocal: dot-product projection onto plate axes ✅
+  - Flat plates (Z-up), upright XZ (side panels), upright YZ (back panels) ✅
+  - DetermineSide / DetermineEdgeSide for machining side detection ✅
+  - Factory methods: CreateFlatOrigin, CreateUprightXZOrigin, CreateUprightYZOrigin ✅
+- **PlateDetector** (Plugin — needs RhinoCommon): ✅
+  - Scans RhinoDoc for Solids/Extrusions → Plate DTOs ✅
+  - BBox analysis: thinnest dimension = thickness, auto LPX/LPY ✅
+  - Auto orientation: flat, upright XZ, upright YZ ✅
+  - WK_PIECE fallback for legacy compatibility ✅
+- **AssignmentResolver**: Extended with proximity-based assignment ✅
+  - Layer match (Phase 2) + proximity check (Phase 3) + explicit CNC_Plate ✅
+- **BlockAwareExportService**: Multi-plate export pipeline ✅
+  - PlateDetector → BlockScanner → AssignmentResolver → CoordinateTransformer → MachiningFactory → EmitterRouter ✅
+  - Per plate → separate .xcs file in output directory ✅
+- **EmitterRouter**: Full SawCut_Lamello CreateMacro emission (no longer comment placeholder) ✅
+- 133 new tests (316 total), all passing, 0 regressions ✅
 
-2. **Neue MSL-Befehle** (aus 55-XCS-Analyse):
+**Sprint 3 Dateien:**
+```
+RhinoCNCExporter.Core/
+├── Blocks/
+│   └── ClamexMacroBuilder.cs          (CLAMEX vertical/horizontal macro generation)
+└── PlateDetection/
+    └── CoordinateTransformer.cs       (World→plate-local coordinate math)
+
+RhinoCNCExporter/
+├── PlateDetection/
+│   ├── PlateDetector.cs               (Solid→Plate detection with RhinoCommon)
+│   └── CoordinateTransformer.cs       (Re-export from Core)
+├── BlockScanning/
+│   └── AssignmentResolver.cs          (MODIFIED: proximity-based assignment)
+└── Services/
+    └── BlockAwareExportService.cs     (MODIFIED: multi-plate export pipeline)
+
+RhinoCNCExporter.Tests/
+├── ClamexMacroBuilderTests.cs         (30 tests: production reference comparison)
+├── CoordinateTransformerTests.cs      (26 tests: flat, upright, roundtrip)
+└── MultiPlatePipelineTests.cs         (8 tests: full pipeline integration)
+```
+
+### Was fehlt / nächste Schritte (Sprint 4+)
+1. **Sprint 4: Multi-Export UI** — NÄCHSTER Sprint:
+   - ExportPanel: Multi-Platte Mode mit Platten-Liste, Checkboxen
+   - Export-Modus Selector (Auto/Legacy/3D)
+   - Batch-Export mit Report
+   - Integration Tests
+
+2. **Sprint 5: Validation** — Testen gegen echte Produktionsdaten
+
+3. **Neue MSL-Befehle** (aus 55-XCS-Analyse):
    - CreateBladeCut: Geneigte Schnitte/Fasen (36 Vorkommen)
    - CreateSectioningMillingStrategy + CreateSegment: Schneidstrategien (68 Vorkommen)
    - CreateHelicMillingStrategy: Spiralbearbeitung für Ausschnitte

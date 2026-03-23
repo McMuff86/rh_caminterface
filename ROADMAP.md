@@ -86,7 +86,20 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [x] 36 new tests (schema validation, assignment, full pipeline integration) ✅
 - [x] All 183 tests pass, 0 regressions ✅
 
-**Next**: Sprint 3 — Plate Detection + Coordinate Transformation
+## ✅ Sprint 3: Plate Detection + Coordinate Transform + CLAMEX
+
+**Status**: KOMPLETT ✅ (23.03.2026)
+
+- [x] ClamexMacroBuilder: SawCut_Lamello macro generation (vertical + horizontal) ✅
+- [x] Validated against production XCS files (exact string match!) ✅
+- [x] CoordinateTransformer: World→plate-local (flat, upright XZ, upright YZ) ✅
+- [x] PlateDetector: Solid/Extrusion→Plate with auto orientation ✅
+- [x] AssignmentResolver: Proximity-based block assignment ✅
+- [x] Multi-plate export pipeline: per plate → separate .xcs file ✅
+- [x] EmitterRouter: Full SawCut_Lamello CreateMacro emission ✅
+- [x] 133 new tests (316 total), 0 regressions ✅
+
+**Next**: Sprint 4 — Multi-Export UI + ExportService3D
 
 ---
 
