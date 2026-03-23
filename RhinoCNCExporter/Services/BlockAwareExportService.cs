@@ -201,7 +201,6 @@ public static class BlockAwareExportService
             // Non-critical: don't fail export if comments can't be appended
         }
     }
-}
 
     /// <summary>
     /// Export multiple plates, each to a separate CNC file.
