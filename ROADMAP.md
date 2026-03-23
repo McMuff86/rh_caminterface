@@ -17,7 +17,7 @@ Ein Rhino 8 Plugin (Yak Package), das aus 2D-Geometrien und Layer-Konventionen C
 - [x] ExportService Orchestrierung (Geometrie sammeln → parsen → emittieren → Datei schreiben) ✅
 - [x] Maschinenprofile (MaestroCadTProfile als Default) ✅
 - [x] .xcs-Ausgabe gegen Python-Referenz validiert ✅
-- [ ] Settings-Panel & Export-Dialog (Eto.Forms) — UI noch zu finalisieren
+- [x] ExportPanel / ExportDialog / SettingsPanel als Rhino UI-Basis vorhanden ✅
 - [ ] Validierung & Warnings (Layer-Mismatches, Geometrie-Probleme) — planned
 
 ## ✅ Phase 2: Emitter-Abstraktion — Multi-Maschinen-Architektur
@@ -99,7 +99,21 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [x] EmitterRouter: Full SawCut_Lamello CreateMacro emission ✅
 - [x] 133 new tests (316 total), 0 regressions ✅
 
-**Next**: Sprint 4 — Multi-Export UI + ExportService3D
+## ✅ Sprint 4: Multi-Platte Export + UI Erweiterung
+
+**Status**: CODE COMPLETE ✅ (23.03.2026)
+
+- [x] `ExportService3D` für Dokumentanalyse, Auto-Detection und Batch-Export ✅
+- [x] `ExportModeResolver` für `Automatic` / `LegacyOnly` / `MultiPlate3D` ✅
+- [x] `BatchExportPlanner` für Dateinamen, Selektion und Reports ✅
+- [x] `ConfigurableMachineProfile` für UI-gesteuerte Setup-Offsets in XCS/CIX ✅
+- [x] ExportPanel erweitert: Maschinenwahl, Export-Modus, Datei-/Ordner-Auswahl ✅
+- [x] **Baumansicht** im ExportPanel: Platte → zugeordnete Blöcke ✅
+- [x] Plattenauswahl via Checkboxen auf Root-Ebene ✅
+- [x] Export-Report: "N Platten, M Bearbeitungen exportiert" ✅
+- [x] Gezielte Sprint-4 Tests + Regressionssuiten grün ✅
+
+**Next**: Sprint 5 — Produktionsvalidierung + Rhino-Smoketests
 
 ---
 
@@ -133,6 +147,7 @@ Block detection, starter block definitions, assignment resolver, UI integration:
   - [ ] POCKET → POCK + GEO
   - [ ] DRILLROW → BG mit Repeat (Nrp/Dx/Dy)
   - [ ] Komplexere Geometrien (Arcs, komplexe Konturen)
+- [ ] Multi-Platte Export mit echtem Biesse-End-to-End Smoke-Test im Rhino UI validieren
 - [ ] BppLib NuGet Integration evaluieren
 - [ ] Optional: BPP-Ausgabe für ältere BiesseWorks-Installationen
 - [ ] Biesse-spezifische Validierung
