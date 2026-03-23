@@ -337,14 +337,83 @@ Jede Phase baut auf der vorherigen auf. Ein User der nur 2D Layer-Konventionen n
 
 ---
 
-## 10. Offene Fragen
+## 10. Bearbeitungs-Ansatz: Plugin-Commands + Face-Tagging
 
-1. **Block-Library Distribution:** Yak Package? Separates Download? Embedded im Plugin?
-2. **Gegenstück-Erkennung:** CLAMEX in Seite + CLAMEX in Boden — automatisch paaren?
-3. **Plattenebene-Erkennung:** Immer grösste Fläche? Was bei L-förmigen Platten?
-4. **Material-Info:** Plattendicke aus Solid, aber Material/Dekor woher?
-5. **Stückliste:** Automatische BOM-Generierung aus dem Modell?
-6. **Nesting-Anbindung:** Pro Platte eine Datei, Nesting separat?
+> **Entscheidung 23.03.2026:** Bearbeitungen werden über Plugin-Commands erstellt,
+> die gleichzeitig die Geometrie UND die CNC-Metadaten setzen.
+
+### Konzept: Boolean + Tag in einem Schritt
+
+Statt separate Beschlag-Blöcke oder reine Feature-Erkennung: **Das Plugin bietet
+eigene Commands die die Bearbeitung direkt ins Solid einbauen und taggen.**
+
+```
+User: "AddDrill" → Klick auf Platte → Ø5, Tiefe 13
+Plugin:
+  1. Erstellt Zylinder (Ø5, H=13) an Klick-Position
+  2. Boolean-Differenz → Loch ist sichtbar im Solid
+  3. Taggt entstandene Faces: CNC_Type=DRILL, CNC_Diameter=5, CNC_Depth=13
+  4. Fertig. Loch IST Teil der Platte. Bewegt sich mit.
+```
+
+### Plugin-Commands für Bearbeitungen
+
+| Command | Was passiert | Face-Tags |
+|---------|-------------|-----------|
+| `AddDrill` | Zylinder-Boolean → rundes Loch | CNC_Type=DRILL, Ø, Tiefe |
+| `AddDrillRow` | Mehrere Zylinder-Booleans → Lochreihe | CNC_Type=DRILLPATTERN, Ø, Tiefe, Raster, Anzahl |
+| `AddPocket` | Box-Boolean → rechteckige Tasche | CNC_Type=POCKET, L, B, Tiefe |
+| `AddGroove` | Extrudierte Nut-Boolean | CNC_Type=GROOVE, Breite, Tiefe, Richtung |
+| `AddClamex` | CLAMEX-Form-Boolean (aus 3D-Block) | CNC_Type=MACRO, MacroName, Orientierung |
+| `AddCut` | Kontur als Durchschnitt | CNC_Type=CUT, Tiefe=DZ |
+
+### Warum Face-Tags statt separate Objekte?
+
+1. **Bewegt sich mit** — Tags sind Teil des Brep, kein separates Objekt das sich lösen kann
+2. **Sichtbar** — Die Bearbeitung ist die echte Geometrie, keine unsichtbare Annotation
+3. **Standard Rhino** — UserText an Brep-Faces ist eine offizielle Rhino-API
+4. **Boolean = Wahrheit** — Was du siehst = was gefräst wird, keine Diskrepanz möglich
+5. **Undo-kompatibel** — Rhino Undo macht Boolean + Tag gleichzeitig rückgängig
+
+### Feature-Erkennung als Fallback
+
+Wenn jemand Löcher manuell per Boolean-Differenz macht (ohne Plugin-Commands):
+- Plugin analysiert zylindrische/planare Faces
+- Boden-Face-Area → Durchmesser (A = π × r²)
+- Wand-Face-Höhe → Tiefe
+- Muster-Erkennung: Gleichmässiges Raster → Lochreihe
+- **Best-Effort** — funktioniert für einfache Bohrungen, nicht für CLAMEX
+
+**Proof of Concept (23.03.2026):** 6 Bohrungen Ø5 T=13 im 32mm Raster erfolgreich
+aus Boolean-Solid erkannt (SumSurface Faces, BoundingBox + Area Analyse).
+
+### Workflow-Vergleich
+
+```
+MIT Plugin-Commands (empfohlen):
+  Platte zeichnen → AddDrill/AddPocket/AddClamex → Export
+  ✅ 100% sicher, alle Metadaten, schnell
+
+OHNE Plugin (Fallback):
+  Platte zeichnen → Boolean-Differenzen von Hand → Export
+  ⚠️ Feature-Erkennung versucht Löcher zu identifizieren
+  ⚠️ Kein Wissen über Beschlag-Typ (Dübel vs. Topfband)
+  ⚠️ CLAMEX nicht erkennbar
+
+HYBRID (beides):
+  Plugin-Commands für Beschläge + manuelle Booleans für Freiform
+  ✅ Flexibel, getaggte Features = sicher, ungetaggte = Best-Effort
+```
+
+## 11. Offene Fragen
+
+1. **Gegenstück-Erkennung:** CLAMEX in Seite + CLAMEX in Boden — automatisch paaren?
+2. **Plattenebene-Erkennung:** Immer grösste Fläche? Was bei L-förmigen Platten?
+3. **Material-Info:** Plattendicke aus Solid, aber Material/Dekor woher?
+4. **Stückliste:** Automatische BOM-Generierung aus dem Modell?
+5. **Nesting-Anbindung:** Pro Platte eine Datei, Nesting separat?
+6. **Face-Tag Persistenz:** Bleiben Tags nach weiteren Boolean-Operationen erhalten?
+7. **AddDrill UI:** Command-Line Eingabe oder Panel mit Presets?
 
 ---
 
