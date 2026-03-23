@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Eto.Drawing;
 using Eto.Forms;
+using RhinoCNCExporter.Services;
 
 namespace RhinoCNCExporter.UI;
 
@@ -33,6 +35,8 @@ public sealed class ExportPanel : Panel
     private readonly TextBox _zugabeYTextBox;
     private readonly CheckBox _layerStepdownCheckBox;
     private readonly CheckBox _onlySelectionCheckBox;
+    private readonly CheckBox _blockDetectionCheckBox;
+    private readonly ListBox _blocksListBox;
     private readonly TextArea _logArea;
 
     // --- Colors for dark theme ---
@@ -88,6 +92,19 @@ public sealed class ExportPanel : Panel
             Items = { _operationsListBox, refreshOpsButton }
         };
         var operationsSection = CreateSection("Operationen", opsLayout);
+
+        // --- Block Detection ---
+        _blockDetectionCheckBox = new CheckBox { Text = "Block-Detection aktivieren", Checked = true, TextColor = FgText };
+        _blocksListBox = new ListBox { Height = 80 };
+        var scanBlocksButton = new Button { Text = "🔍 Blöcke scannen", Height = 26 };
+        scanBlocksButton.Click += (_, _) => ScanBlocks();
+
+        var blocksLayout = new StackLayout
+        {
+            Spacing = 4,
+            Items = { _blockDetectionCheckBox, _blocksListBox, scanBlocksButton }
+        };
+        var blocksSection = CreateSection("Erkannte Blöcke", blocksLayout);
 
         // --- Settings ---
         _stepdownTextBox = new TextBox { PlaceholderText = "Stepdown (mm)", Text = "3.0" };
@@ -160,6 +177,7 @@ public sealed class ExportPanel : Panel
                     machineSection,
                     workpieceSection,
                     operationsSection,
+                    blocksSection,
                     settingsSection,
                     exportSection,
                     logSection
@@ -351,6 +369,42 @@ public sealed class ExportPanel : Panel
         }
     }
 
+    private void ScanBlocks()
+    {
+        try
+        {
+            _blocksListBox.Items.Clear();
+            var doc = Rhino.RhinoDoc.ActiveDoc;
+            if (doc == null)
+            {
+                Log("⚠ Kein aktives Rhino-Dokument.");
+                return;
+            }
+
+            bool onlySelection = _onlySelectionCheckBox.Checked ?? false;
+            var blocks = BlockAwareExportService.ScanBlocks(doc, onlySelection);
+
+            if (blocks.Count == 0)
+            {
+                _blocksListBox.Items.Add("Keine CNC-Blöcke gefunden.");
+                Log("ℹ Keine CNC-Blöcke im Dokument gefunden.");
+                return;
+            }
+
+            var summary = BlockAwareExportService.GetBlockSummary(blocks);
+            foreach (var line in summary)
+            {
+                _blocksListBox.Items.Add($"🔧 {line}");
+            }
+
+            Log($"Gefunden: {blocks.Count} CNC-Block(e) ({summary.Count} Typ(en))");
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Block-Scan-Fehler: {ex.Message}");
+        }
+    }
+
     private void RunExport()
     {
         try
@@ -383,23 +437,48 @@ public sealed class ExportPanel : Panel
 
             bool layerStepdown = _layerStepdownCheckBox.Checked ?? false;
             bool onlySelection = _onlySelectionCheckBox.Checked ?? false;
+            bool blockDetection = _blockDetectionCheckBox.Checked ?? true;
 
             double zugabeX = 2.5, zugabeY = 2.5;
             if (double.TryParse(_zugabeXTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var zx)) zugabeX = zx;
             if (double.TryParse(_zugabeYTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var zy)) zugabeY = zy;
 
-            Log($"Exportiere → {Path.GetFileName(path)} (Zugabe {zugabeX}/{zugabeY}mm) ...");
+            Log($"Exportiere → {Path.GetFileName(path)} (Zugabe {zugabeX}/{zugabeY}mm, Blocks={blockDetection}) ...");
 
-            bool ok = Services.ExportService.ExportXilog(doc, onlySelection, path, layerStepdown, zugabeX, zugabeY);
-
-            if (ok)
+            if (blockDetection)
             {
-                Log($"✅ Export erfolgreich: {path}");
-                Rhino.RhinoApp.WriteLine($"[RhinoCNCExporter] XCS erstellt: {path}");
+                var nameService = new Core.Naming.NameService(maxLength: 31);
+                var emitter = new Core.Emitters.XilogEmitter(nameService);
+                var profile = new Core.Profiles.MaestroCadTProfile();
+
+                var result = BlockAwareExportService.ExportWithBlocks(
+                    doc, onlySelection, path, emitter, nameService, profile,
+                    enableBlockDetection: true, layerStepdown: layerStepdown);
+
+                if (result.Success)
+                {
+                    Log($"✅ Export erfolgreich: {path}");
+                    if (result.BlockCount > 0)
+                        Log($"   🔧 {result.BlockCount} Block(e) erkannt, {result.BlockMachinings.Count} Bearbeitung(en)");
+                    Rhino.RhinoApp.WriteLine($"[RhinoCNCExporter] XCS erstellt: {path}");
+                }
+                else
+                {
+                    Log($"❌ Export fehlgeschlagen: {result.Error ?? "Unbekannter Fehler"}");
+                }
             }
             else
             {
-                Log("❌ Export fehlgeschlagen. Siehe Rhino-Konsole.");
+                bool ok = ExportService.ExportXilog(doc, onlySelection, path, layerStepdown, zugabeX, zugabeY);
+                if (ok)
+                {
+                    Log($"✅ Export erfolgreich: {path}");
+                    Rhino.RhinoApp.WriteLine($"[RhinoCNCExporter] XCS erstellt: {path}");
+                }
+                else
+                {
+                    Log("❌ Export fehlgeschlagen. Siehe Rhino-Konsole.");
+                }
             }
         }
         catch (Exception ex)
