@@ -212,16 +212,16 @@ public static class BlockAwareExportService
     /// <param name="outputDirectory">Directory to write .xcs files to.</param>
     /// <param name="emitter">CNC format emitter.</param>
     /// <param name="profile">Machine profile.</param>
-    /// <param name="selectedPlateNames">If set, only export these plates. Null = export all.</param>
+    /// <param name="selectedPlateKeys">If set, only export these plates. Use LayerPath when available. Null = export all.</param>
     /// <returns>Multi-plate export result.</returns>
     public static MultiPlateExportResult ExportMultiPlate(
         RhinoDoc doc,
         string outputDirectory,
         IEmitter emitter,
         IMachineProfile profile,
-        IReadOnlySet<string>? selectedPlateNames = null)
+        IReadOnlySet<string>? selectedPlateKeys = null)
     {
-        return ExportService3D.ExportMultiPlate(doc, outputDirectory, emitter, profile, selectedPlateNames);
+        return ExportService3D.ExportMultiPlate(doc, outputDirectory, emitter, profile, selectedPlateKeys);
     }
 
     /// <summary>

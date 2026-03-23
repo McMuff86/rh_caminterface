@@ -564,9 +564,9 @@ public sealed class ExportPanel : Panel
 
             var requestedMode = GetRequestedMode();
             var machineFormat = GetMachineFormat();
-            var selectedPlateNames = new HashSet<string>(GetSelectedPlateNames(), StringComparer.OrdinalIgnoreCase);
+            var selectedPlateKeys = new HashSet<string>(GetSelectedPlateKeys(), StringComparer.OrdinalIgnoreCase);
 
-            if (decision.ResolvedMode == ExportMode.MultiPlate3D && selectedPlateNames.Count == 0)
+            if (decision.ResolvedMode == ExportMode.MultiPlate3D && selectedPlateKeys.Count == 0)
             {
                 Log("❌ Keine Platte in der Baumansicht ausgewählt.");
                 UpdateReport("Export nicht möglich.\nKeine Platte ausgewählt.");
@@ -596,7 +596,7 @@ public sealed class ExportPanel : Panel
                 layerStepdown,
                 zugabeX,
                 zugabeY,
-                selectedPlateNames);
+                selectedPlateKeys);
 
             if (!result.Success)
             {
@@ -664,18 +664,30 @@ public sealed class ExportPanel : Panel
         };
     }
 
-    private IEnumerable<string> GetSelectedPlateNames()
+    private IEnumerable<string> GetSelectedPlateKeys()
     {
         foreach (var item in EnumerateRootItems())
         {
             var values = item.Values.Cast<object?>().ToList();
             var isSelected = values.Count > 0 && values[0] is bool selected && selected;
             var name = values.Count > 1 ? values[1] as string : null;
+            var layerOrSource = values.Count > 3 ? values[3] as string : null;
             if (isSelected && !string.IsNullOrWhiteSpace(name) && name != "Keine 3D-Platten erkannt")
             {
-                yield return name;
+                yield return BuildPlateSelectionKey(name, layerOrSource);
             }
         }
+    }
+
+    private static string BuildPlateSelectionKey(string name, string? layerOrSource)
+    {
+        if (!string.IsNullOrWhiteSpace(layerOrSource)
+            && !Enum.TryParse<PlateSource>(layerOrSource, ignoreCase: true, out _))
+        {
+            return layerOrSource;
+        }
+
+        return name;
     }
 
     private IEnumerable<TreeGridItem> EnumerateRootItems()

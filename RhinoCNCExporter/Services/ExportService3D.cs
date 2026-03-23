@@ -55,7 +55,7 @@ public static class ExportService3D
         bool layerStepdown,
         double setupOffsetX,
         double setupOffsetY,
-        IReadOnlySet<string>? selectedPlateNames = null)
+        IReadOnlySet<string>? selectedPlateKeys = null)
     {
         ArgumentNullException.ThrowIfNull(doc);
 
@@ -87,7 +87,7 @@ public static class ExportService3D
         }
 
         return decision.ResolvedMode == ExportMode.MultiPlate3D
-            ? ExportMultiPlateDocument(doc, targetPath, mode, analysis, emitter!, profile!, selectedPlateNames)
+            ? ExportMultiPlateDocument(doc, targetPath, mode, analysis, emitter!, profile!, selectedPlateKeys)
             : ExportLegacyDocument(doc, targetPath, mode, analysis, emitter!, nameService!, profile!,
                 enableBlockDetection, onlySelection, layerStepdown);
     }
@@ -97,7 +97,7 @@ public static class ExportService3D
         string outputDirectory,
         IEmitter emitter,
         IMachineProfile profile,
-        IReadOnlySet<string>? selectedPlateNames = null)
+        IReadOnlySet<string>? selectedPlateKeys = null)
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(emitter);
@@ -122,7 +122,7 @@ public static class ExportService3D
                 analysis.Plates,
                 outputDirectory,
                 profile.FileExtension,
-                selectedPlateNames);
+                selectedPlateKeys);
 
             if (plan.PlateCount == 0)
             {
@@ -170,10 +170,10 @@ public static class ExportService3D
         DocumentExportAnalysis analysis,
         IEmitter emitter,
         IMachineProfile profile,
-        IReadOnlySet<string>? selectedPlateNames)
+        IReadOnlySet<string>? selectedPlateKeys)
     {
         var outputDirectory = NormalizeOutputDirectory(targetPath, doc.Name);
-        var result = ExportMultiPlate(doc, outputDirectory, emitter, profile, selectedPlateNames);
+        var result = ExportMultiPlate(doc, outputDirectory, emitter, profile, selectedPlateKeys);
 
         return new DocumentExportResult
         {

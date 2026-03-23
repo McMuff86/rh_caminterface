@@ -12,7 +12,7 @@ public static class BatchExportPlanner
         IReadOnlyList<PlatePreview> previews,
         string outputDirectory,
         string fileExtension,
-        IReadOnlySet<string>? selectedPlateNames = null)
+        IReadOnlySet<string>? selectedPlateKeys = null)
     {
         if (string.IsNullOrWhiteSpace(outputDirectory))
             throw new ArgumentException("Output directory is required.", nameof(outputDirectory));
@@ -24,14 +24,15 @@ public static class BatchExportPlanner
             ? fileExtension
             : "." + fileExtension;
 
-        var filteredPreviews = selectedPlateNames is { Count: > 0 }
-            ? previews.Where(p => selectedPlateNames.Contains(p.Plate.Name)).ToList()
+        var filteredPreviews = selectedPlateKeys is { Count: > 0 }
+            ? previews.Where(p => IsSelected(p, selectedPlateKeys)).ToList()
             : previews.ToList();
 
+        var usedFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var items = filteredPreviews
             .Select(preview =>
             {
-                var fileName = SanitizeFileName(preview.Plate.Name) + normalizedExtension;
+                var fileName = CreateUniqueFileName(preview.Plate.Name, normalizedExtension, usedFileNames);
                 return new PlateExportPlanItem
                 {
                     Preview = preview,
@@ -73,5 +74,37 @@ public static class BatchExportPlanner
             .ToArray();
 
         return new string(chars);
+    }
+
+    private static bool IsSelected(PlatePreview preview, IReadOnlySet<string> selectedPlateKeys)
+    {
+        var selectionKey = GetSelectionKey(preview.Plate);
+        return selectedPlateKeys.Contains(selectionKey)
+            || selectedPlateKeys.Contains(preview.Plate.Name);
+    }
+
+    internal static string GetSelectionKey(Plate plate)
+    {
+        return string.IsNullOrWhiteSpace(plate.LayerPath)
+            ? plate.Name
+            : plate.LayerPath;
+    }
+
+    private static string CreateUniqueFileName(
+        string plateName,
+        string normalizedExtension,
+        ISet<string> usedFileNames)
+    {
+        var baseName = SanitizeFileName(plateName);
+        var candidate = baseName + normalizedExtension;
+        var suffix = 2;
+
+        while (!usedFileNames.Add(candidate))
+        {
+            candidate = $"{baseName}_{suffix}{normalizedExtension}";
+            suffix++;
+        }
+
+        return candidate;
     }
 }

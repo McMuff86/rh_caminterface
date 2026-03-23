@@ -189,6 +189,16 @@ Multi-plate service layer, export mode resolution, tree-based UI preview, export
   - Neue Sprint-4 Tests + gezielte Regressions-Tests grün ✅
   - Voller `dotnet test` Lauf führt alle 324 Tests aus, beendet sich in dieser CLI-Umgebung aktuell aber nicht sauber (Host/Runner-Hänger nach Testausführung) ⚠
 
+### Sprint 5 — Produktionsvalidierung (IN ARBEIT 🟡, 23.03.2026)
+Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
+- **Duplicate-safe BatchExportPlanner**: Gleichnamige Produktionsplatten wie `Schubladen_Doppel` oder `Revisionsture` erzeugen eindeutige Dateinamen (`_2`, `_3`, ...) statt sich gegenseitig zu überschreiben ✅
+- **Eindeutige Platten-Selektion im 3D-Export**: UI + Service verwenden für Multi-Platte bevorzugt `LayerPath` als Auswahl-Key statt nur den Anzeigenamen ✅
+- **Neue Sprint-5 Tests**: Produktionsnamen-Kollisionen, Sanitizing-Kollisionen und 24-Platten-Batch-Regression ergänzt ✅
+- **Build/Test-Status**:
+  - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter BatchExportPlannerTests` grün ✅
+  - `dotnet build RhinoCNCExporter/RhinoCNCExporter.csproj` grün ✅
+  - Rhino-Smoke-Tests und DWG-basierte Referenzvergleiche noch offen ⚠
+
 **Sprint 3 Dateien:**
 ```
 RhinoCNCExporter.Core/
@@ -213,10 +223,11 @@ RhinoCNCExporter.Tests/
 ```
 
 ### Was fehlt / nächste Schritte (Sprint 5+)
-1. **Sprint 5: Validation** — NÄCHSTER Sprint:
-   - Testen gegen echte Produktionsdaten / CAD+T-Referenzen
-   - Rhino Smoke-Test des neuen ExportPanels mit echten 3D-Modellen
+1. **Sprint 5: Validation** — IN ARBEIT:
+   - DWG-basierte Testmodelle für Putzschrank / Legrabox ausarbeiten
    - Vergleich 3D-Output vs. Produktions-XCS
+   - Rhino Smoke-Test des neuen ExportPanels mit echten 3D-Modellen
+   - Edge Case `Block zwischen zwei Platten` gezielt validieren
 
 2. **Neue MSL-Befehle** (aus 55-XCS-Analyse):
    - CreateBladeCut: Geneigte Schnitte/Fasen (36 Vorkommen)
@@ -255,7 +266,7 @@ RhinoCNCExporter.Tests/
 | `RhinoCNCExporter/Services/ExportService.cs` | Multi-Format Export-Orchestrierung |
 | `RhinoCNCExporter/Services/ExportService3D.cs` | Sprint-4 Service: Auto-Detection, Multi-Platte Export, Report |
 | `RhinoCNCExporter/Core/Pipeline/ExportModeResolver.cs` | Auto/Legacy/3D Modus-Auflösung |
-| `RhinoCNCExporter/Core/Pipeline/BatchExportPlanner.cs` | Dateinamen-/Selektionsplanung für Multi-Platte |
+| `RhinoCNCExporter/Core/Pipeline/BatchExportPlanner.cs` | Dateinamen-/Selektionsplanung für Multi-Platte, inkl. Dubletten-Schutz |
 | `tests/test_01.xcs`, `test_02.xcs` | XCS-Referenz-Ausgaben der Python-Implementierung |
 | `tests/test_biesse_01.cix` | CIX-Referenz für Biesse-Format |
 | `RhinoCNCExporter.Tests/EmitterTests.cs` | Unit Tests für alle Emitter |

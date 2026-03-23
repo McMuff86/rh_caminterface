@@ -115,6 +115,21 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 
 **Next**: Sprint 5 — Produktionsvalidierung + Rhino-Smoketests
 
+## 🟡 Sprint 5: Produktionsvalidierung + Rhino-Smoketests
+
+**Status**: IN ARBEIT (23.03.2026)
+
+- [x] Batch-Export gegen Produktionsbefund gehärtet: gleichnamige Platten erzeugen eindeutige Dateinamen (`_2`, `_3`, ...) ✅
+- [x] Multi-Platte Selektion auf stabile Plate-Keys (`LayerPath` bevorzugt) umgestellt, damit gleichnamige Teile einzeln exportierbar bleiben ✅
+- [x] Automatisierte Validierung ergänzt:
+  - [x] Produktionsnamen-Kollisionen (`Schubladen_Doppel`, `Revisionsture`) ✅
+  - [x] Sanitizing-Kollisionen bei Dateinamen ✅
+  - [x] 24-Platten Batch-Regression als 20+ Platten Scale-Test ✅
+- [ ] DWG-basierte Testmodelle für Putzschrank / Legrabox ableiten
+- [ ] Vergleich 3D-Output vs. Produktions-XCS
+- [ ] Rhino Smoke-Tests des neuen ExportPanels
+- [ ] Edge Case: Block zwischen zwei Platten gezielt validieren
+
 ---
 
 ## Phase 3: Biesse-Support (.cix / .bpp)

@@ -198,7 +198,7 @@ Für jede Platte:
   5. Makros (CLAMEX, RNT, etc.)
   6. Footer (XPARK)
   
-  → Dateiname: {LayerName}.xcs / .cix / .mpr
+  → Dateiname: {LayerName}[_N].xcs / .cix / .mpr (bei Namenskollisionen mit Suffix)
 ```
 
 ---
