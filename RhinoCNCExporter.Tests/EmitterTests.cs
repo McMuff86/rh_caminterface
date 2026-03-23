@@ -3,6 +3,7 @@ using System.Globalization;
 using RhinoCNCExporter.Core.Emitters;
 using RhinoCNCExporter.Core.LayerParser;
 using RhinoCNCExporter.Core.Naming;
+using RhinoCNCExporter.Core.Profiles;
 using Xunit;
 
 namespace RhinoCNCExporter.Tests;
@@ -156,4 +157,136 @@ public class EmitterTests
         Assert.Contains("8.000", result);
         Assert.Contains("066", result);
     }
+
+    #region Biesse Emitter Tests
+
+    private BiesseEmitter CreateBiesseEmitter(out NameService names)
+    {
+        names = new NameService(63); // Biesse allows longer names
+        return new BiesseEmitter(names);
+    }
+
+    [Fact]
+    public void BiesseHeader_Contains_CIX_Structure()
+    {
+        var emitter = CreateBiesseEmitter(out _);
+        var header = emitter.EmitHeader("test_biesse", 800.0, 320.0, 18.0);
+
+        Assert.Contains("BEGIN ID CID3", header);
+        Assert.Contains("REL= 5.0", header);
+        Assert.Contains("END ID", header);
+        Assert.Contains("BEGIN MAINDATA", header);
+        Assert.Contains("LPX=800.00000", header);
+        Assert.Contains("LPY=320.00000", header);
+        Assert.Contains("LPZ=18.00000", header);
+        Assert.Contains("ORLST=\"1\"", header);
+        Assert.Contains("MATERIAL=\"wood\"", header);
+        Assert.Contains("END MAINDATA", header);
+        Assert.Contains("\r\n", header); // Windows line endings
+    }
+
+    [Fact]
+    public void BiesseDrill_Uses_BG_Macro()
+    {
+        var emitter = CreateBiesseEmitter(out _);
+        var drill = emitter.EmitDrill("Drill_1", 150.0, 57.0, 13.0, 5.0, "Top", "P");
+
+        Assert.Contains("BEGIN MACRO", drill);
+        Assert.Contains("NAME=BG", drill);
+        Assert.Contains("PARAM,NAME=ID,VALUE=\"Drill_1\"", drill);
+        Assert.Contains("PARAM,NAME=SIDE,VALUE=0", drill); // Top face
+        Assert.Contains("PARAM,NAME=X,VALUE=150.0", drill);
+        Assert.Contains("PARAM,NAME=Y,VALUE=57.0", drill);
+        Assert.Contains("PARAM,NAME=DP,VALUE=13.0", drill);
+        Assert.Contains("PARAM,NAME=DIA,VALUE=5.0", drill);
+        Assert.Contains("PARAM,NAME=THR,VALUE=YES", drill);
+        Assert.Contains("END MACRO", drill);
+        Assert.Contains("\r\n", drill); // Windows line endings
+    }
+
+    [Fact]
+    public void BiessePolylinePass_Uses_GEO_ROUTG()
+    {
+        var emitter = CreateBiesseEmitter(out _);
+        var pts = new List<(double, double)>
+        {
+            (0.0, 0.0),
+            (100.0, 0.0),
+            (100.0, 50.0),
+            (0.0, 50.0),
+            (0.0, 0.0)
+        };
+
+        var pass = emitter.EmitPolylinePass("Cut_1", "Cut_1_OP", pts, "T01", 18.0, 10.0);
+
+        Assert.Contains("NAME=GEO", pass);
+        Assert.Contains("PARAM,NAME=ID,VALUE=\"G1003.1001\"", pass);
+        Assert.Contains("NAME=START_POINT", pass);
+        Assert.Contains("PARAM,NAME=X,VALUE=0.0", pass);
+        Assert.Contains("PARAM,NAME=Y,VALUE=0.0", pass);
+        Assert.Contains("NAME=LINE_EP", pass);
+        Assert.Contains("PARAM,NAME=XE,VALUE=100.0", pass);
+        Assert.Contains("NAME=ENDPATH", pass);
+        Assert.Contains("NAME=ROUTG", pass);
+        Assert.Contains("PARAM,NAME=TNM,VALUE=\"T01\"", pass);
+        Assert.Contains("PARAM,NAME=DP,VALUE=18.0", pass);
+        Assert.Contains("PARAM,NAME=DIA,VALUE=10.0", pass);
+        Assert.Contains("\r\n", pass); // Windows line endings
+    }
+
+    [Fact]
+    public void BiesseRntX_Converts_To_Rectangular_Route()
+    {
+        var emitter = CreateBiesseEmitter(out _);
+        var result = emitter.EmitRntX("Groove_X", 10.0, 150.0, 6.0, 200.0, 8.0, "T02");
+
+        // Should convert RNT to rectangular groove routing
+        Assert.Contains("NAME=GEO", result);
+        Assert.Contains("NAME=ROUTG", result);
+        Assert.Contains("PARAM,NAME=DP,VALUE=8.0", result);
+        Assert.Contains("PARAM,NAME=TNM,VALUE=\"T02\"", result);
+        Assert.Contains("\r\n", result);
+    }
+
+    #endregion
+
+    #region Interface Tests
+
+    [Fact]
+    public void XilogEmitter_Implements_IEmitter()
+    {
+        var names = new NameService(31);
+        IEmitter emitter = new XilogEmitter(names);
+        
+        Assert.NotNull(emitter);
+        var header = emitter.EmitHeader("test", 100, 100, 19);
+        Assert.Contains("CreateFinishedWorkpieceBox", header);
+    }
+
+    [Fact]
+    public void BiesseEmitter_Implements_IEmitter()
+    {
+        var names = new NameService(63);
+        IEmitter emitter = new BiesseEmitter(names);
+        
+        Assert.NotNull(emitter);
+        var header = emitter.EmitHeader("test", 100, 100, 18);
+        Assert.Contains("BEGIN MAINDATA", header);
+    }
+
+    [Fact]
+    public void BiesseProfile_Implements_IMachineProfile()
+    {
+        IMachineProfile profile = new BiesseProfile();
+        
+        Assert.Equal(18.0, profile.DefaultDz);
+        Assert.Equal(10.0, profile.DefaultToolDiameter);
+        Assert.Equal(63, profile.MaxNameLength);
+        Assert.Equal(".cix", profile.FileExtension);
+        Assert.True(profile.UseRntMacro);
+        Assert.True(profile.UseCornerRounding);
+        Assert.Equal("T01", profile.DefaultTech);
+    }
+
+    #endregion
 }

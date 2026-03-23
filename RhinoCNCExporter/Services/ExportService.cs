@@ -20,6 +20,20 @@ namespace RhinoCNCExporter.Services;
 public static class ExportService
 {
     /// <summary>
+    /// Export CNC program from Rhino document using specified emitter.
+    /// </summary>
+    /// <param name="doc">Active Rhino document.</param>
+    /// <param name="onlySelection">If true, only export selected objects.</param>
+    /// <param name="filePath">Output file path.</param>
+    /// <param name="emitter">CNC format emitter to use.</param>
+    /// <param name="layerStepdown">If true, use layer-defined stepdown. If false, use technology stepdown.</param>
+    /// <returns>True on success.</returns>
+    public static bool ExportCNC(RhinoDoc doc, bool onlySelection, string filePath, IEmitter emitter, bool layerStepdown = false)
+    {
+        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService, layerStepdown);
+    }
+
+    /// <summary>
     /// Export Xilog Script (.xcs) from Rhino document.
     /// </summary>
     /// <param name="doc">Active Rhino document.</param>
@@ -29,10 +43,34 @@ public static class ExportService
     /// <returns>True on success.</returns>
     public static bool ExportXilog(RhinoDoc doc, bool onlySelection, string filePath, bool layerStepdown = false)
     {
+    {
+        var nameService = new NameService(maxLength: 31);
+        var emitter = new XilogEmitter(nameService);
+        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService, layerStepdown);
+    }
+
+    /// <summary>
+    /// Export Biesse CIX from Rhino document.
+    /// </summary>
+    /// <param name="doc">Active Rhino document.</param>
+    /// <param name="onlySelection">If true, only export selected objects.</param>
+    /// <param name="filePath">Output file path.</param>
+    /// <param name="layerStepdown">If true, use layer-defined stepdown. If false, use technology stepdown.</param>
+    /// <returns>True on success.</returns>
+    public static bool ExportBiesse(RhinoDoc doc, bool onlySelection, string filePath, bool layerStepdown = false)
+    {
+        var nameService = new NameService(maxLength: 63); // Biesse allows longer names
+        var emitter = new BiesseEmitter(nameService);
+        return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService, layerStepdown);
+    }
+
+    /// <summary>
+    /// Internal export logic using any IEmitter implementation.
+    /// </summary>
+    private static bool ExportWithEmitter(RhinoDoc doc, bool onlySelection, string filePath, IEmitter emitter, NameService nameService, bool layerStepdown)
+    {
         try
         {
-            var nameService = new NameService(maxLength: 31);
-            var emitter = new XilogEmitter(nameService);
             var programName = Path.GetFileNameWithoutExtension(filePath);
 
             // Collect geometry by type (matches Python's main() classification)

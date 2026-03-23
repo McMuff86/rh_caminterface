@@ -13,7 +13,7 @@ namespace RhinoCNCExporter.Core.Emitters;
 /// All output matches the Python reference (RH_caminterface_v007.py) exactly.
 /// Uses Unix line endings (\n) to match reference output.
 /// </summary>
-public sealed class XilogEmitter
+public sealed class XilogEmitter : IEmitter
 {
     private readonly NameService _names;
 

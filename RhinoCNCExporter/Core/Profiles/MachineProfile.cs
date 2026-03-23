@@ -4,7 +4,7 @@ namespace RhinoCNCExporter.Core.Profiles;
 /// Abstract machine profile defining defaults for CNC export.
 /// Subclassed per machine type (SCM, Biesse, Homag).
 /// </summary>
-public abstract class MachineProfile
+public abstract class MachineProfile : IMachineProfile
 {
     public virtual double DefaultDz => 19.0;
     public virtual double DefaultToolDiameter => 9.5;
