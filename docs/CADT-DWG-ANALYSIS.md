@@ -324,3 +324,134 @@ Statt 5 TipOn-Blöcke:
 ```
 
 **Vorteil:** Der Schreiner setzt EINEN Block, nicht 5-13 Einzel-Blöcke. Das Plugin weiss was zu bohren ist.
+
+---
+
+# CAD+T DWG Analyse — Innenschubladen (Marti Optik)
+
+**Datum:** 23. März 2026
+**Quelle:** `Innenschubladen_MartiOptik.dwg` aus CAD+T exportiert
+**Statistik:** 487 Layer, 2246 Objekte, 1769 Block-Inserts
+
+## 1. Neue Beschlag-Typen
+
+### Blum Legrabox INSIDE (Innenschubladen — 6 neue Block-Typen!)
+
+| Block-Name | Typ | Inserts |
+|-----------|-----|---------|
+| `LEG_I.BES` | Legrabox INSIDE Basis | 4× |
+| `LEG_I_FRO_HA_M_W.bes` | Inside Front-Halter M Weiss | 8× |
+| `LEG_I_FRO_STABI.BES` | Inside Front-Stabilisator | 4× |
+| `LEG_I_FRO_STABI_0.BES` | Inside Front-Stabi Variante 0 | 4× |
+| `LEG_KONTUR_IS_M_LI.BES` | Inside Kontur M Links | 4× |
+| `LEG_KONTUR_IS_M_RE.BES` | Inside Kontur M Rechts | 4× |
+
+**Erkenntnis:** Legrabox INSIDE = Innenschubladen-System (Schublade in Schublade). Komplett eigene Block-Familie mit `_I` / `_IS` Suffix. Auszuglänge 350mm statt 550mm.
+
+### DistaCube (Abstandhalter — 2 neue Block-Typen)
+
+| Block-Name | Typ | Inserts |
+|-----------|-----|---------|
+| `DISTACUBE_30_S.BES` | DistaCube 30mm Seite | 8× |
+| `DISTACUBE_30_vorne.BES` | DistaCube 30mm Vorne | 8× |
+
+**Erkenntnis:** DistaCube = Blum Abstandhalter für Innenschubladen. Definiert den Abstand zwischen Aussen- und Innenschublade. CNC-relevant: Bohrungen für die Befestigung.
+
+### Topfband-Kollision (neuer Block-Typ!)
+
+| Block-Name | Typ | Inserts |
+|-----------|-----|---------|
+| `TOPFBAND_KOLLISION.BES` | Topfband Kollisions-Check | 8× |
+
+**Erkenntnis:** Nicht CNC-relevant — reiner Planungs-Block der prüft ob Schublade und Scharnier kollidieren. Interessant für Validierung, aber kein CNC-Output.
+
+### XCEBO401 — Neuer Lochreihen-Typ!
+
+| Block-Name | Inserts |
+|-----------|---------|
+| `XCEBO401$250$0$200$0` | 8× |
+| `XCEBO401$500$1200$1300$1200` | 96× (!!) |
+
+**Erkenntnis:** XCEBO401 ist neu — nur bei Marti Optik. 96× ein einzelner Typ → das sind die Innenschubladen-Lochreihen. Hypothese: XCEBO401 = einseitige Lochreihe für Innenschublade (vs. XCEBO400 = einseitig Standard, XCEBO402 = beidseitig).
+
+## 2. Vergleich alle 3 DWGs
+
+| | Staub Wolf | Novotny | Marti Optik |
+|---|---|---|---|
+| **Möbel-Typ** | Putzschrank | Pult + Korpus | Innenschubladen |
+| **Layer** | 522 | 499 | 487 |
+| **Objekte** | 2292 | 3041 | 2246 |
+| **Block-Inserts** | 1562 | 2176 | 1769 |
+| **.BES Typen** | 22 | 38 | 23 |
+| **XCEBO Inserts** | ~100 | 118 | 206 |
+| **XCEBO401** | — | — | 104 (NEU!) |
+| **Legrabox** | Nein | Standard (C+M) | INSIDE (Innenschublade) |
+| **TipOn** | Nein | Ja (5 Typen) | Nein |
+| **CLAMEX** | B_CT (5 Typen) | C.BES + M.BES | B_CT_E (1 Typ) |
+| **Topfband** | Standard | Standard | Standard + Kollision |
+| **DistaCube** | Nein | Nein | Ja |
+| **Hängeschrank** | Nein | Ja (Konsolen) | Nein |
+
+## 3. Gesamtbild: Beschlag-Familien über alle 3 DWGs
+
+```
+Blum Legrabox Familie:
+├── Standard (C=66mm, M=104mm)     → Novotny
+├── INSIDE (Innenschubladen)        → Marti Optik
+├── Auszuglängen: 350mm, 550mm
+├── Front-Befestigung: Expando, Halter, Stabilisator
+├── Höhenreduzierwangen
+└── DistaCube (Abstandhalter)       → Marti Optik
+
+Blum TipOn Familie:                 → Novotny
+├── L1 (kurz), L3 (lang)
+├── Synchronisation
+└── Markierungen
+
+CLAMEX Familie:
+├── B_CT_E_110 (Einweg)            → Staub, Marti
+├── B_CT_M_110 (Mehrweg)           → Staub
+├── C.BES, M.BES (vereinfacht)     → Novotny
+└── B_MP_0 (Montageplatte)         → Staub, Marti
+
+Topfband Familie:
+├── TOPF_GEBOHRT (Standard)        → alle 3
+├── TOPF_GEBOHRT_UNTEN             → Staub, Marti
+├── EXZ_TOPF_MIT_RAND_19           → Staub, Novotny
+└── TOPFBAND_KOLLISION (Check)     → Marti
+
+Verbinder Familie:
+├── RIFFELDUEBEL_8                  → Staub, Novotny
+├── RAST_BOLZ_RAPID_24             → Staub, Novotny
+├── MONTVERB_SCHRANK_35            → Staub
+└── TAB_T_D5_VERN (Tablar-Träger) → Staub
+
+Lochreihen (XCEBO):
+├── XCEBO400 (einseitig)           → alle 3
+├── XCEBO401 (einseitig Inside?)   → nur Marti
+├── XCEBO402 (beidseitig)          → alle 3
+├── XCEBO403 (+ Bohrung)           → nur Staub
+├── XCEBO404 (komplex)             → nur Staub
+├── XCEBO410 (Spezial)             → nur Staub
+├── XCEBO413 (Spezial)             → nur Staub
+└── XCEBO414 (Spezial)             → nur Staub
+```
+
+## 4. Fazit für Block-Bibliothek
+
+### CNC-Pakete Priorität (basierend auf Häufigkeit über alle 3 DWGs)
+
+| Priorität | CNC-Paket | Vorkommen |
+|-----------|-----------|-----------|
+| 🔴 P1 | Lochreihe System 32 (XCEBO) | 424× total |
+| 🔴 P1 | Topfband 35mm | 20× |
+| 🔴 P1 | Exzenter + Topf | 16× |
+| 🟠 P2 | Legrabox Standard (C/M) | ~50× |
+| 🟠 P2 | CLAMEX (E/M Varianten) | ~20× |
+| 🟠 P2 | Riffeldübel 8mm | 16× |
+| 🟡 P3 | Legrabox INSIDE | ~40× |
+| 🟡 P3 | TipOn | ~28× |
+| 🟡 P3 | Rastbolzen Rapid 24 | 16× |
+| 🟢 P4 | DistaCube | 16× |
+| 🟢 P4 | Hängeschrank-Konsolen | 2× |
+| 🟢 P4 | Sockelversteller | 7× |
