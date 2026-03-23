@@ -39,8 +39,11 @@ public class EmitterRouter : IEmitterRouter
             _profile.SetupOffsetX, _profile.SetupOffsetY,
             _profile.SetupOffsetZ, _profile.SetupOffsetRot));
 
-        // Sort machinings by type and emit each
-        foreach (var machining in OrderMachinings(plate.Machinings))
+        var sequence = plate.PreserveMachiningOrder
+            ? plate.Machinings
+            : OrderMachinings(plate.Machinings);
+
+        foreach (var machining in sequence)
         {
             var emitted = EmitMachining(machining);
             if (!string.IsNullOrEmpty(emitted))

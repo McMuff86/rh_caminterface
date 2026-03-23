@@ -34,6 +34,13 @@ public sealed record Plate
     /// <summary>All machining operations assigned to this plate.</summary>
     public IReadOnlyList<Machining> Machinings { get; init; } = Array.Empty<Machining>();
 
+    /// <summary>
+    /// When true, <see cref="RhinoCNCExporter.Core.Pipeline.EmitterRouter"/> emits machinings in <see cref="Machinings"/> list order.
+    /// Use for production-reference tests or when CAD+T order must be preserved (e.g. drills, then patterns, then more drills).
+    /// Default false keeps type-based ordering (contours, drills, patterns, …).
+    /// </summary>
+    public bool PreserveMachiningOrder { get; init; }
+
     /// <summary>Source: how this plate was detected.</summary>
     public PlateSource Source { get; init; } = PlateSource.LegacyLayer;
 }

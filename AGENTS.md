@@ -100,7 +100,8 @@ RhinoCNCExporter.Tests/                # xUnit Tests (OHNE RhinoCommon)
 ├── E2ETests.cs                        # End-to-End gegen Referenzdateien
 ├── LayerRegexTests.cs                 # Layer pattern parsing
 ├── NameServiceTests.cs                # Name generation + sanitization
-└── SpecsTests.cs                      # Spec defaults + validation
+├── SpecsTests.cs                      # Spec defaults + validation
+└── ProductionReferenceValidationTests.cs  # Sprint 5: DWG-linked vs production XCS (normalized)
 ```
 
 ## Layer-Konventionen (universell für alle Maschinen)

@@ -186,7 +186,7 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 ## Sprint 5: Testing gegen echte Produktionsdaten
 
 **Ziel:** Validierung der gesamten Pipeline gegen echte CAD+T DWGs und bekannte XCS-Referenzdateien.
-**Zwischenstand (24.03.2026):** Automatisierte Batch-Validierung gestartet. Duplicate-sichere Dateinamen für gleichnamige Produktionsplatten, LayerPath-basierte Selektion, echter `AssignmentResolver`-Test gegen die Plugin-Klasse und ein 24-Platten-Regressionstest sind umgesetzt. Zusätzlich sind jetzt erste DWG-abgeleitete Fixtures für `Putz-Schrank.dwg` (`Staub_SockelMont.xcs`) und `Pult_und_Korpus_Novotny.dwg` (`NEW_Fertigauszug_Legrabox.xcs`) als normalisierte Produktionsvergleichstests im Repo. Komplexe Produktionsplatten mit `CreateBladeCut` / `CreateSectioningMillingStrategy` bleiben offen; der Gap ist über `NEW_Schubladen_Doppel_1.xcs` jetzt explizit im Testbestand dokumentiert. Rhino-Smoke-Tests bleiben offen.
+**Zwischenstand (24.03.2026):** Automatisierte Batch-Validierung gestartet. Duplicate-sichere Dateinamen für gleichnamige Produktionsplatten, LayerPath-basierte Selektion, echter `AssignmentResolver`-Test gegen die Plugin-Klasse und ein 24-Platten-Regressionstest sind umgesetzt. DWG-abgeleitete Fixtures: `Staub_SockelMont.xcs`, `NEW_Fertigauszug_Legrabox.xcs`, und **`Staub_Seite_links.xcs`** (Kontur + RNT + Bohrungen + Lochreihen; `Plate.PreserveMachiningOrder` + korrigierte `CreatePattern`/`CreateDrill`-Reihenfolge im `XilogEmitter`). Komplexe Produktionsplatten mit `CreateBladeCut` / `CreateSectioningMillingStrategy` bleiben offen; der Gap ist über `NEW_Schubladen_Doppel_1.xcs` dokumentiert. Rhino-Smoke-Tests bleiben offen.
 
 ### Tasks
 

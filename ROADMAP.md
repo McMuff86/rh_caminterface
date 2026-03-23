@@ -131,7 +131,8 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [x] Erste DWG-basierte Fixtures für Putzschrank / Legrabox abgeleitet (`SockelMont`, `Fertigauszug_Legrabox`) ✅
 - [x] Normalisierte 3D-vs.-Produktions-XCS Vergleiche für aktuell unterstützte Referenzteile ergänzt ✅
 - [x] Produktions-Gap für `Schubladen_Doppel` via BladeCut-/Sectioning-Referenztest dokumentiert ✅
-- [ ] Fixtures auf komplexere Produktionsplatten mit RNT/Pattern/BladeCut erweitern
+- [x] Fixture für `Putz-Schrank.dwg` / `Staub_Seite_links.xcs` (RNT + Drill + Lochreihen, `PreserveMachiningOrder`) ✅
+- [ ] Fixtures auf weitere komplexe Produktionsplatten (z. B. BladeCut-lastig) erweitern
 - [ ] Rhino Smoke-Tests des neuen ExportPanels
 - [ ] Face-Tagging/Plugin-Commands (`AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`) von ADR zu erster Code-Implementierung bringen
 

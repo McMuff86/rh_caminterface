@@ -200,6 +200,10 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
 - **DWG-abgeleitete Produktionsfixtures ergänzt**: `Putz-Schrank.dwg` → `Staub_SockelMont.xcs` und `Pult_und_Korpus_Novotny.dwg` → `NEW_Fertigauszug_Legrabox.xcs` sind jetzt als reproduzierbare Tests im Repo hinterlegt ✅
 - **Normalisierte Produktionsvergleiche aktiv**: 3D-/Plate-basierter XCS-Output wird für heute unterstützte Referenzteile nach Normalisierung nicht-semantischer Unterschiede direkt gegen Produktions-XCS verglichen ✅
 - **Feature-Gap formalisiert**: `NEW_Schubladen_Doppel_1.xcs` ist jetzt als BladeCut-/Sectioning-Referenz abgesichert, damit der offene MSL-Block nicht nur in Doku, sondern auch in Tests sichtbar bleibt ✅
+- **Komplexere Putz-Schrank-Platte**: `Staub_Seite_links.xcs` (Aussenkontur E010, RNT 066, Einzelbohrungen, Lochreihen, System-32) ist als DWG-verknüpfter Produktionsvergleich mit handgebautem `Plate` + `PreserveMachiningOrder` abgedeckt ✅
+- **XilogEmitter Lochreihen-Reihenfolge**: `EmitDrillPattern` emittiert jetzt wie CAD+T-Staub/Mittelseite — `CreatePattern` vor `CreateDrill` (vorher war die Reihenfolge invertiert) ✅
+- **`Plate.PreserveMachiningOrder`**: Optional, damit die Router-Ausgabe die Listenreihenfolge beibehält (nötig wenn Bohrungen und Lochreihen gemischt sind wie in Produktions-XCS) ✅
+- **Normalisierung in Produktionsvergleichen**: Erstes Argument von `SetMachiningParameters` (`IJ`/`IL`/…) wird für den Diff neutralisiert ✅
 - **Build/Test-Status**:
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter BatchExportPlannerTests` grün ✅
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter AssignmentResolverTests` grün ✅

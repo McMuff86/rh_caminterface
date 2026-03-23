@@ -72,7 +72,7 @@ public class E2ETests
         var nameService = new NameService(31);
         var emitter = new XilogEmitter(nameService);
         
-        // From production: CreateDrill → CreatePattern(1,4,0,64,0,90) → ResetPattern
+        // From production (Staub / Mittelseite): CreatePattern → CreateDrill → ResetPattern
         var result = emitter.EmitDrillPattern("Vertikale Bohrung_1", 24, 75, 14, 15,
             xCount: 1, yCount: 4, xSpacing: 0, ySpacing: 64);
         

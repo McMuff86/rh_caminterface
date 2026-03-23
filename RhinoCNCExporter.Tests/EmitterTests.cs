@@ -142,9 +142,12 @@ public class EmitterTests
             xCount: 1, yCount: 4, xSpacing: 0, ySpacing: 64);
 
         Assert.Contains("SelectWorkplane(\"Top\");", result);
-        Assert.Contains("CreateDrill(\"Vertikale Bohrung_1\",24.000,75.000,14.000,15.000,\"\",TypeOfProcess.Drilling,\"-1\",\"-1\",1,-1,-1,\"P\");", result);
         Assert.Contains("CreatePattern(1,4,0,64,0,90);", result);
+        Assert.Contains("CreateDrill(\"Vertikale Bohrung_1\",24.000,75.000,14.000,15.000,\"\",TypeOfProcess.Drilling,\"-1\",\"-1\",1,-1,-1,\"P\");", result);
         Assert.Contains("ResetPattern();", result);
+        var patternIdx = result.IndexOf("CreatePattern", StringComparison.Ordinal);
+        var drillIdx = result.IndexOf("CreateDrill", StringComparison.Ordinal);
+        Assert.True(patternIdx >= 0 && drillIdx > patternIdx, "Production order: CreatePattern before CreateDrill");
     }
 
     [Fact]

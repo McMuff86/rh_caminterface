@@ -163,7 +163,8 @@ public sealed class XilogEmitter : IEmitter
 
     /// <summary>
     /// Emit a drill pattern (grid array).
-    /// Production format: CreateDrill → CreatePattern(xCount, yCount, xSpacing, ySpacing, angle, direction) → ResetPattern.
+    /// Production format (CAD+T Staub / Mittelseite references):
+    /// CreatePattern(xCount, yCount, xSpacing, ySpacing, angle, direction) → CreateDrill → ResetPattern.
     /// </summary>
     public string EmitDrillPattern(string name, double x, double y, double depth, double dia,
         int xCount, int yCount, double xSpacing, double ySpacing,
@@ -172,8 +173,8 @@ public sealed class XilogEmitter : IEmitter
         var lines = new List<string>
         {
             F($"SelectWorkplane(\"{plane}\");"),
-            F($"CreateDrill(\"{name}\",{x:F3},{y:F3},{depth:F3},{dia:F3},\"\",TypeOfProcess.Drilling,\"-1\",\"-1\",1,-1,-1,\"{side}\");"),
             F($"CreatePattern({xCount},{yCount},{FmtCompact(xSpacing)},{FmtCompact(ySpacing)},0,90);"),
+            F($"CreateDrill(\"{name}\",{x:F3},{y:F3},{depth:F3},{dia:F3},\"\",TypeOfProcess.Drilling,\"-1\",\"-1\",1,-1,-1,\"{side}\");"),
             "ResetPattern();",
             ""
         };

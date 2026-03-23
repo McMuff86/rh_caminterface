@@ -325,6 +325,46 @@ public class EmitterRouterTests
     }
 
     [Fact]
+    public void GenerateProgram_PreserveMachiningOrder_KeepsDrillPatternDrillSequence()
+    {
+        var router = CreateRouter();
+        var plate = new Plate
+        {
+            Name = "OrderPlate",
+            LengthX = 500,
+            WidthY = 400,
+            Thickness = 19,
+            PreserveMachiningOrder = true,
+            Machinings = new Machining[]
+            {
+                new DrillMachining { Name = "FirstDrill", X = 11, Y = 22, Depth = 5, Diameter = 5 },
+                new DrillPatternMachining
+                {
+                    Name = "MidPattern",
+                    X = 100,
+                    Y = 200,
+                    Depth = 12,
+                    Diameter = 5,
+                    CountX = 1,
+                    CountY = 2,
+                    SpacingX = 0,
+                    SpacingY = 32
+                },
+                new DrillMachining { Name = "LastDrill", X = 33, Y = 44, Depth = 5, Diameter = 5 }
+            }
+        };
+
+        var result = router.GenerateProgram(plate);
+
+        var firstDrillIdx = result.IndexOf("11.000,22.000", StringComparison.Ordinal);
+        var patternIdx = result.IndexOf("CreatePattern", StringComparison.Ordinal);
+        var lastDrillIdx = result.IndexOf("33.000,44.000", StringComparison.Ordinal);
+
+        Assert.True(firstDrillIdx >= 0 && patternIdx > firstDrillIdx && lastDrillIdx > patternIdx,
+            "Expected drill → pattern block → drill when PreserveMachiningOrder is true");
+    }
+
+    [Fact]
     public void OrderMachinings_SortsCorrectly()
     {
         var machinings = new Machining[]

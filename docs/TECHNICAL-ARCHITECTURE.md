@@ -507,8 +507,9 @@ public class EmitterRouter
             _profile.SetupOffsetX, _profile.SetupOffsetY,
             _profile.SetupOffsetZ, _profile.SetupOffsetRot));
 
-        // Sort machinings by type (Drills → Patterns → Routings → Grooves → Macros)
-        foreach (var machining in OrderMachinings(plate.Machinings))
+        // Default: sort by type. When plate.PreserveMachiningOrder is true, use list order (production parity).
+        var sequence = plate.PreserveMachiningOrder ? plate.Machinings : OrderMachinings(plate.Machinings);
+        foreach (var machining in sequence)
         {
             parts.Add(EmitMachining(machining));
         }

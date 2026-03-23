@@ -352,7 +352,7 @@ SetMachiningParameters("EF",1,10,196608,false);  // 1x (Sichtrückwand)
 1. **CreatePattern()** Support
    - 122 Vorkommen in Produktion!
    - Pattern: `CreatePattern(xCount, yCount, xSpacing, ySpacing, angle, direction)`
-   - Nach CreateDrill, vor ResetPattern()
+   - Reihenfolge in Produktions-Staub/Mittelseite-XCS: **CreatePattern vor CreateDrill**, dann ResetPattern()
 
 2. **CreateBladeCut()** - Geneigte Schnitte
    - 36 neue Vorkommen! (Schubladen-Bearbeitung)

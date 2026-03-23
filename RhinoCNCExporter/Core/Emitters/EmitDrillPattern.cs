@@ -5,7 +5,7 @@ namespace RhinoCNCExporter.Core.Emitters;
 
 /// <summary>
 /// Emits DRILLPAT operations (drill pattern / grid array).
-/// Production files use CreateDrill + CreatePattern(xCount, yCount, xSpacing, ySpacing, 0, 90) + ResetPattern.
+/// Production XCS (e.g. Staub_*, Mittelseite) uses CreatePattern(...) then CreateDrill then ResetPattern.
 /// 122 occurrences in production — most common pattern after basic drills.
 /// </summary>
 public static class EmitDrillPattern
