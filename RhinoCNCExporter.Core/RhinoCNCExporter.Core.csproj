@@ -12,4 +12,8 @@
     </Compile>
     <!-- Own files (Models/, Blocks/, Pipeline/) are auto-included by SDK -->
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RhinoCNCExporter.Tests" />
+  </ItemGroup>
 </Project>
