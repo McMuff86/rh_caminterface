@@ -1,13 +1,12 @@
 using System.IO;
 using Rhino;
 using Rhino.Commands;
-using Eto.Forms;
 using RhinoCNCExporter.Services;
 using RhinoCNCExporter.UI;
 
 namespace RhinoCNCExporter.Commands;
 
-public sealed class ExportXilogCommand : Command
+public sealed class ExportXilogCommand : Rhino.Commands.Command
 {
     public override string EnglishName => "ExportXilog";
 
@@ -19,16 +18,16 @@ public sealed class ExportXilogCommand : Command
             return Result.Cancel;
 
         // Step 2: Save file dialog
-        var saveDlg = new SaveFileDialog
+        var saveDlg = new Eto.Forms.SaveFileDialog
         {
             Title = "Speichere XCS",
-            Filters = { new FileFilter("Xilog Script (*.xcs)", ".xcs") },
+            Filters = { new Eto.Forms.FileFilter("Xilog Script (*.xcs)", ".xcs") },
             FileName = string.IsNullOrWhiteSpace(doc.Name)
                 ? "program.xcs"
                 : Path.ChangeExtension(doc.Name, ".xcs")
         };
 
-        if (saveDlg.ShowDialog(null) != DialogResult.Ok || string.IsNullOrWhiteSpace(saveDlg.FileName))
+        if (saveDlg.ShowDialog(null) != Eto.Forms.DialogResult.Ok || string.IsNullOrWhiteSpace(saveDlg.FileName))
             return Result.Cancel;
 
         var filePath = saveDlg.FileName;
