@@ -1,34 +1,13 @@
+using RhinoCNCExporter.BlockScanning;
 using RhinoCNCExporter.Core.Models;
+using RhinoCNCExporter.Core.PlateDetection;
 using Xunit;
 
 namespace RhinoCNCExporter.Tests;
 
-/// <summary>
-/// Tests for AssignmentResolver — the block-to-plate assignment logic.
-/// Note: AssignmentResolver lives in the Plugin project but only depends on Core Models.
-/// We test the core assignment logic here using mock data.
-/// The actual class uses the same logic — these tests validate the algorithm.
-/// </summary>
 public class AssignmentResolverTests
 {
-    // We test the assignment algorithm directly using simple logic
-    // since AssignmentResolver only uses Core.Models types.
-
-    [Fact]
-    public void GroupByLayer_SingleLayer_GroupsCorrectly()
-    {
-        var blocks = new[]
-        {
-            CreateBlock("Topfband_35", "DRILL", "Seite_links"),
-            CreateBlock("Lochreihe_32", "DRILLPATTERN", "Seite_links"),
-        };
-
-        var groups = GroupByLayer(blocks);
-
-        Assert.Single(groups);
-        Assert.True(groups.ContainsKey("Seite_links"));
-        Assert.Equal(2, groups["Seite_links"].Count);
-    }
+    private readonly AssignmentResolver _resolver = new();
 
     [Fact]
     public void GroupByLayer_MultipleLayers_GroupsCorrectly()
@@ -41,7 +20,7 @@ public class AssignmentResolverTests
             CreateBlock("CLAMEX_P14", "MACRO", "Boden"),
         };
 
-        var groups = GroupByLayer(blocks);
+        var groups = _resolver.GroupByLayer(blocks);
 
         Assert.Equal(3, groups.Count);
         Assert.Equal(2, groups["Seite_links"].Count);
@@ -50,134 +29,145 @@ public class AssignmentResolverTests
     }
 
     [Fact]
-    public void GroupByLayer_NoLayer_UsesUnassigned()
+    public void Resolve_LayerPathPreferredOverName()
     {
-        var blocks = new[]
-        {
-            CreateBlock("Topfband_35", "DRILL", null),
-        };
+        var plate = CreatePlate("Boden", @"Korpus_1::Boden", 0, 0, 0);
+        var byPath = CreateBlock("Topfband_35", "DRILL", @"Korpus_1::Boden");
+        var byName = CreateBlock("Lochreihe_32", "DRILLPATTERN", "Boden");
 
-        var groups = GroupByLayer(blocks);
-        Assert.True(groups.ContainsKey("__unassigned__"));
+        var result = _resolver.Resolve(new[] { plate }, new[] { byPath, byName });
+
+        Assert.Single(result);
+        Assert.Single(result[0].Blocks);
+        Assert.Same(byPath, result[0].Blocks[0]);
     }
 
     [Fact]
-    public void GroupByLayer_Empty_ReturnsEmpty()
+    public void Resolve_ExplicitCncPlate_AssignsWithoutLayerMatch()
     {
-        var groups = GroupByLayer(Array.Empty<FittingBlock>());
-        Assert.Empty(groups);
+        var plate = CreatePlate("Seite_links", @"Korpus::Seite_links", 0, 0, 0);
+        var block = CreateBlock(
+            "Duebel_8x30",
+            "DRILL",
+            layerName: "Andere_Layer",
+            attrs: new Dictionary<string, string> { ["CNC_Plate"] = "Seite_links" });
+
+        var result = _resolver.Resolve(new[] { plate }, new[] { block });
+
+        Assert.Single(result);
+        Assert.Single(result[0].Blocks);
+        Assert.Same(block, result[0].Blocks[0]);
     }
 
     [Fact]
-    public void LayerMatch_BlockToPlate_MatchesByName()
+    public void ResolveWithProximity_AssignsBlockToContainingPlate()
     {
-        var plates = new[]
-        {
-            CreatePlate("Seite_links", 800, 400, 19),
-            CreatePlate("Seite_rechts", 800, 400, 19),
-            CreatePlate("Boden", 750, 400, 19),
-        };
+        var left = CreatePlate("Seite_links", @"Korpus::Seite_links", 0, 0, 0);
+        var right = CreatePlate("Seite_rechts", @"Korpus::Seite_rechts", 120, 0, 0);
+        var block = CreateBlock("Topfband_35", "DRILL", layerName: null, x: 40, y: 50, z: 9.5);
 
-        var blocks = new[]
-        {
-            CreateBlock("Topfband_35", "DRILL", "Seite_links"),
-            CreateBlock("Lochreihe_32", "DRILLPATTERN", "Seite_links"),
-            CreateBlock("CLAMEX_P14", "MACRO", "Boden"),
-        };
+        var result = _resolver.ResolveWithProximity(new[] { left, right }, new[] { block }, tolerance: 5);
 
-        var assignments = ResolveByLayerMatch(plates, blocks);
-
-        Assert.Equal(3, assignments.Count);
-        Assert.Equal(2, assignments["Seite_links"].Count);
-        Assert.Empty(assignments["Seite_rechts"]);
-        Assert.Single(assignments["Boden"]);
+        Assert.Single(result[0].Blocks);
+        Assert.Empty(result[1].Blocks);
     }
 
     [Fact]
-    public void LayerMatch_NoMatchingPlate_BlockNotAssigned()
+    public void ResolveWithProximity_BlockBetweenTwoPlates_AssignsToClosestFace()
     {
-        var plates = new[]
-        {
-            CreatePlate("Seite_links", 800, 400, 19),
-        };
+        var left = CreatePlate("Seite_links", @"Korpus::Seite_links", 0, 0, 0, lengthX: 100);
+        var right = CreatePlate("Seite_rechts", @"Korpus::Seite_rechts", 108, 0, 0, lengthX: 100);
+        var block = CreateBlock("Topfband_35", "DRILL", layerName: null, x: 103, y: 50, z: 9.5);
 
-        var blocks = new[]
-        {
-            CreateBlock("Topfband_35", "DRILL", "NonExistentLayer"),
-        };
+        var result = _resolver.ResolveWithProximity(new[] { left, right }, new[] { block }, tolerance: 5);
 
-        var assignments = ResolveByLayerMatch(plates, blocks);
-        Assert.Empty(assignments["Seite_links"]);
+        Assert.Single(result[0].Blocks);
+        Assert.Empty(result[1].Blocks);
     }
 
     [Fact]
-    public void LayerMatch_CaseInsensitive()
+    public void ResolveWithProximity_ExplicitPlateBeatsCloserNeighbor()
     {
-        var plates = new[]
-        {
-            CreatePlate("Seite_Links", 800, 400, 19),
-        };
+        var left = CreatePlate("Seite_links", @"Korpus::Seite_links", 0, 0, 0);
+        var right = CreatePlate("Seite_rechts", @"Korpus::Seite_rechts", 120, 0, 0);
+        var block = CreateBlock(
+            "CLAMEX_P14",
+            "MACRO",
+            layerName: null,
+            x: 125,
+            y: 40,
+            z: 9.5,
+            attrs: new Dictionary<string, string> { ["CNC_Plate"] = "Seite_links" });
 
-        var blocks = new[]
-        {
-            CreateBlock("Topfband_35", "DRILL", "seite_links"),
-        };
+        var result = _resolver.ResolveWithProximity(new[] { left, right }, new[] { block }, tolerance: 5);
 
-        var assignments = ResolveByLayerMatch(plates, blocks);
-        Assert.Single(assignments["Seite_Links"]);
+        Assert.Single(result[0].Blocks);
+        Assert.Empty(result[1].Blocks);
     }
 
-    // --- Helper: Simulates AssignmentResolver logic ---
-
-    private static Dictionary<string, List<FittingBlock>> GroupByLayer(IReadOnlyList<FittingBlock> blocks)
+    [Fact]
+    public void ResolveWithProximity_BlockOutsideTolerance_RemainsUnassigned()
     {
-        var result = new Dictionary<string, List<FittingBlock>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var block in blocks)
+        var plate = CreatePlate("Boden", @"Korpus::Boden", 0, 0, 0);
+        var block = CreateBlock("Topfband_35", "DRILL", layerName: null, x: 500, y: 500, z: 50);
+
+        var result = _resolver.ResolveWithProximity(new[] { plate }, new[] { block }, tolerance: 5);
+
+        Assert.Single(result);
+        Assert.Empty(result[0].Blocks);
+    }
+
+    private static Plate CreatePlate(
+        string name,
+        string layerPath,
+        double originX,
+        double originY,
+        double originZ,
+        double lengthX = 100,
+        double widthY = 100,
+        double thickness = 19)
+    {
+        return new Plate
         {
-            var key = block.LayerName ?? "__unassigned__";
-            if (!result.TryGetValue(key, out var list))
+            Name = name,
+            LayerPath = layerPath,
+            LengthX = lengthX,
+            WidthY = widthY,
+            Thickness = thickness,
+            Origin = CoordinateTransformer.CreateFlatOrigin(originX, originY, originZ),
+            Source = PlateSource.SolidDetection
+        };
+    }
+
+    private static FittingBlock CreateBlock(
+        string name,
+        string cncType,
+        string? layerName,
+        double x = 100,
+        double y = 200,
+        double z = 0,
+        Dictionary<string, string>? attrs = null)
+    {
+        var cncAttributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["CNC_Type"] = cncType
+        };
+
+        if (attrs != null)
+        {
+            foreach (var (key, value) in attrs)
             {
-                list = new List<FittingBlock>();
-                result[key] = list;
+                cncAttributes[key] = value;
             }
-            list.Add(block);
         }
-        return result;
-    }
 
-    private static Dictionary<string, List<FittingBlock>> ResolveByLayerMatch(
-        IReadOnlyList<Plate> plates, IReadOnlyList<FittingBlock> blocks)
-    {
-        var blocksByLayer = GroupByLayer(blocks);
-        var result = new Dictionary<string, List<FittingBlock>>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var plate in plates)
+        return new FittingBlock
         {
-            var assigned = new List<FittingBlock>();
-
-            if (blocksByLayer.TryGetValue(plate.Name, out var byName))
-                assigned.AddRange(byName);
-
-            result[plate.Name] = assigned;
-        }
-
-        return result;
+            BlockName = name,
+            CncType = cncType,
+            InsertionPoint = (x, y, z),
+            CncAttributes = cncAttributes,
+            LayerName = layerName
+        };
     }
-
-    private static FittingBlock CreateBlock(string name, string cncType, string? layer) => new()
-    {
-        BlockName = name,
-        CncType = cncType,
-        InsertionPoint = (100, 200, 0),
-        CncAttributes = new Dictionary<string, string> { ["CNC_Type"] = cncType },
-        LayerName = layer
-    };
-
-    private static Plate CreatePlate(string name, double lx, double ly, double thickness) => new()
-    {
-        Name = name,
-        LengthX = lx,
-        WidthY = ly,
-        Thickness = thickness
-    };
 }

@@ -220,19 +220,17 @@ public class ExportService3DPipelineTests
         Assert.Equal("Tür/links", plate.Name);
     }
 
-    // === ExportReport Tests ===
+    // === ExportSummaryReport Tests ===
 
     [Fact]
-    public void ExportReport_TracksMultiplePlates()
+    public void ExportSummaryReport_TracksMultiplePlates()
     {
-        var report = new ExportReport
+        var report = new ExportSummaryReport
         {
-            Success = true,
-            Mode = ExportMode.ThreeD,
-            TotalPlatesDetected = 7,
-            PlatesExported = 5,
+            Mode = ExportMode.MultiPlate3D,
+            PlateCount = 5,
             TotalMachinings = 48,
-            TotalBlocksDetected = 35,
+            TotalBlocks = 35,
             ExportedFiles = new List<string>
             {
                 "/output/Seite_links.xcs",
@@ -240,23 +238,13 @@ public class ExportService3DPipelineTests
                 "/output/Boden.xcs",
                 "/output/Deckel.xcs",
                 "/output/Rückwand.xcs"
-            },
-            Warnings = new List<string>
-            {
-                "Platte 'Rückwand' hat keine Bearbeitungen."
             }
         };
 
-        Assert.True(report.Success);
-        Assert.Equal(5, report.PlatesExported);
+        Assert.Equal(5, report.PlateCount);
         Assert.Equal(48, report.TotalMachinings);
-        Assert.Single(report.Warnings);
         Assert.Equal(5, report.ExportedFiles.Count);
-
-        var summary = report.GetSummary();
-        Assert.Contains("5 Platte(n) exportiert", summary);
-        Assert.Contains("48 Bearbeitung(en)", summary);
-        Assert.Contains("1 Warnung(en)", summary);
+        Assert.Equal("5 Platten, 48 Bearbeitungen exportiert", report.SummaryLine);
     }
 
     // === Legacy Regression ===

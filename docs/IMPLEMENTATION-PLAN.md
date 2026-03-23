@@ -186,7 +186,7 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 ## Sprint 5: Testing gegen echte Produktionsdaten
 
 **Ziel:** Validierung der gesamten Pipeline gegen echte CAD+T DWGs und bekannte XCS-Referenzdateien.
-**Zwischenstand (23.03.2026):** Automatisierte Batch-Validierung gestartet. Duplicate-sichere Dateinamen für gleichnamige Produktionsplatten, LayerPath-basierte Selektion und ein 24-Platten-Regressionstest sind umgesetzt. DWG-abgeleitete Testmodelle, Rhino-Smoke-Tests und der direkte 3D-vs.-Produktions-XCS Vergleich bleiben offen.
+**Zwischenstand (23.03.2026):** Automatisierte Batch-Validierung gestartet. Duplicate-sichere Dateinamen für gleichnamige Produktionsplatten, LayerPath-basierte Selektion, echter `AssignmentResolver`-Test gegen die Plugin-Klasse und ein 24-Platten-Regressionstest sind umgesetzt. Der Edge Case `Block zwischen zwei Platten` ist jetzt über die nächstgelegene Plattenfläche abgesichert. DWG-abgeleitete Testmodelle, Rhino-Smoke-Tests und der direkte 3D-vs.-Produktions-XCS Vergleich bleiben offen.
 
 ### Tasks
 
@@ -214,6 +214,8 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 - Duplicate-sichere Batch-Dateinamen bei mehrfach vorkommenden Plattennamen
 - Eindeutige Multi-Platte-Selektion über `LayerPath`, wenn vorhanden
 - 4 neue Validierungs-Tests für Produktionsnamen, Sanitizing-Kollisionen und 24-Platten-Regression
+- Echte `AssignmentResolver`-Tests statt lokaler Test-Nachbildung
+- Proximity-Zuweisung für Blöcke zwischen zwei Platten auf closest-face Logik umgestellt
 
 **Risiko:** Echte Produktionsdaten können Fälle enthalten die wir nicht bedacht haben. Mitigation: Inkrementell testen, Fehler dokumentieren, in nächsten Sprint-Zyklus aufnehmen.
 

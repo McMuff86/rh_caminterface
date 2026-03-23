@@ -121,6 +121,9 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 
 - [x] Batch-Export gegen Produktionsbefund gehärtet: gleichnamige Platten erzeugen eindeutige Dateinamen (`_2`, `_3`, ...) ✅
 - [x] Multi-Platte Selektion auf stabile Plate-Keys (`LayerPath` bevorzugt) umgestellt, damit gleichnamige Teile einzeln exportierbar bleiben ✅
+- [x] AssignmentResolver-Tests auf die echte Plugin-Implementierung umgestellt ✅
+- [x] Edge Case `Block zwischen zwei Platten` über nächstgelegene Plattenfläche validiert und im Resolver behoben ✅
+- [x] Veraltete Sprint-4 Altmodelle (`ExportModeDetector`, altes `ExportMode`, altes `ExportReport`) aus dem Compile-Graph bereinigt ✅
 - [x] Automatisierte Validierung ergänzt:
   - [x] Produktionsnamen-Kollisionen (`Schubladen_Doppel`, `Revisionsture`) ✅
   - [x] Sanitizing-Kollisionen bei Dateinamen ✅
@@ -128,7 +131,7 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [ ] DWG-basierte Testmodelle für Putzschrank / Legrabox ableiten
 - [ ] Vergleich 3D-Output vs. Produktions-XCS
 - [ ] Rhino Smoke-Tests des neuen ExportPanels
-- [ ] Edge Case: Block zwischen zwei Platten gezielt validieren
+- [ ] Face-Tagging/Plugin-Commands (`AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`) von ADR zu erster Code-Implementierung bringen
 
 ---
 

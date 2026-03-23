@@ -341,6 +341,9 @@ Jede Phase baut auf der vorherigen auf. Ein User der nur 2D Layer-Konventionen n
 
 > **Entscheidung 23.03.2026:** Bearbeitungen werden über Plugin-Commands erstellt,
 > die gleichzeitig die Geometrie UND die CNC-Metadaten setzen.
+>
+> **Implementierungsstatus 23.03.2026:** Noch nicht im produktiven Code.
+> Aktuell läuft der Export weiterhin über die bestehende Layer-/Block-Pipeline.
 
 ### Konzept: Boolean + Tag in einem Schritt
 

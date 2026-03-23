@@ -17,4 +17,10 @@
   <ItemGroup>
     <ProjectReference Include="..\RhinoCNCExporter.Core\RhinoCNCExporter.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\RhinoCNCExporter\BlockScanning\AssignmentResolver.cs">
+      <Link>BlockScanning\AssignmentResolver.cs</Link>
+    </Compile>
+  </ItemGroup>
 </Project>

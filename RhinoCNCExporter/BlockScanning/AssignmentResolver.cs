@@ -105,13 +105,15 @@ public class AssignmentResolver
         IReadOnlyList<FittingBlock> allBlocks,
         double tolerance = 5.0)
     {
-        var results = new List<(Plate, IReadOnlyList<FittingBlock>)>();
+        var assignments = plates
+            .Select(plate => (Plate: plate, Blocks: new List<FittingBlock>()))
+            .ToList();
         var assignedBlocks = new HashSet<FittingBlock>(ReferenceEqualityComparer.Instance);
         var blocksByLayer = GroupByLayer(allBlocks);
 
-        foreach (var plate in plates)
+        foreach (var assignment in assignments)
         {
-            var assigned = new List<FittingBlock>();
+            var plate = assignment.Plate;
 
             // Strategy 1: Layer match (same as Phase 2)
             if (plate.LayerPath != null && blocksByLayer.TryGetValue(plate.LayerPath, out var byPath))
@@ -119,7 +121,7 @@ public class AssignmentResolver
                 foreach (var b in byPath)
                 {
                     if (assignedBlocks.Add(b))
-                        assigned.Add(b);
+                        assignment.Blocks.Add(b);
                 }
             }
             else if (blocksByLayer.TryGetValue(plate.Name, out var byName))
@@ -127,45 +129,80 @@ public class AssignmentResolver
                 foreach (var b in byName)
                 {
                     if (assignedBlocks.Add(b))
-                        assigned.Add(b);
+                        assignment.Blocks.Add(b);
                 }
             }
-
-            // Strategy 2: Explicit CNC_Plate attribute
-            foreach (var block in allBlocks)
-            {
-                if (assignedBlocks.Contains(block)) continue;
-                if (block.CncAttributes.TryGetValue("CNC_Plate", out var plateName)
-                    && plateName.Equals(plate.Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (assignedBlocks.Add(block))
-                        assigned.Add(block);
-                }
-            }
-
-            // Strategy 3: Proximity — block insertion point within plate bounds
-            foreach (var block in allBlocks)
-            {
-                if (assignedBlocks.Contains(block)) continue;
-
-                if (IsBlockNearPlate(block, plate, tolerance))
-                {
-                    if (assignedBlocks.Add(block))
-                        assigned.Add(block);
-                }
-            }
-
-            results.Add((plate, assigned));
         }
 
-        return results;
+        // Strategy 2: Explicit CNC_Plate attribute
+        foreach (var block in allBlocks)
+        {
+            if (assignedBlocks.Contains(block))
+                continue;
+
+            if (!block.CncAttributes.TryGetValue("CNC_Plate", out var plateName))
+                continue;
+
+            var assignment = assignments.FirstOrDefault(a =>
+                plateName.Equals(a.Plate.Name, StringComparison.OrdinalIgnoreCase));
+            if (assignment.Plate != null && assignedBlocks.Add(block))
+            {
+                assignment.Blocks.Add(block);
+            }
+        }
+
+        // Strategy 3: Proximity — assign to the nearest plate face within tolerance.
+        foreach (var block in allBlocks)
+        {
+            if (assignedBlocks.Contains(block))
+                continue;
+
+            var closestPlateIndex = FindClosestPlateIndex(plates, block, tolerance);
+            if (closestPlateIndex >= 0 && assignedBlocks.Add(block))
+            {
+                assignments[closestPlateIndex].Blocks.Add(block);
+            }
+        }
+
+        return assignments
+            .Select(a => (a.Plate, (IReadOnlyList<FittingBlock>)a.Blocks))
+            .ToList();
     }
 
     /// <summary>
-    /// Check if a block's insertion point is near/within a plate's bounding box.
-    /// Uses the plate's origin and dimensions to define the plate volume in world space.
+    /// Find the closest plate whose bounding box is within tolerance of the block insertion point.
+    /// This resolves ambiguous "between two plates" cases by picking the nearest face instead of
+    /// relying on input order.
     /// </summary>
-    private static bool IsBlockNearPlate(FittingBlock block, Plate plate, double tolerance)
+    private static int FindClosestPlateIndex(
+        IReadOnlyList<Plate> plates,
+        FittingBlock block,
+        double tolerance)
+    {
+        var bestIndex = -1;
+        var bestDistance = double.MaxValue;
+
+        for (var i = 0; i < plates.Count; i++)
+        {
+            var distance = GetDistanceToPlateBox(block, plates[i]);
+            if (distance > tolerance)
+                continue;
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    /// <summary>
+    /// Get the Euclidean distance from a block insertion point to the plate's local bounding box.
+    /// Returns 0 when the point lies on or inside the box.
+    /// </summary>
+    private static double GetDistanceToPlateBox(FittingBlock block, Plate plate)
     {
         var origin = plate.Origin;
         var (bx, by, bz) = block.InsertionPoint;
@@ -179,9 +216,17 @@ public class AssignmentResolver
         double localY = dx * origin.YAxis.X + dy * origin.YAxis.Y + dz * origin.YAxis.Z;
         double localZ = dx * origin.Normal.X + dy * origin.Normal.Y + dz * origin.Normal.Z;
 
-        // Check if within plate bounds (with tolerance)
-        return localX >= -tolerance && localX <= plate.LengthX + tolerance
-            && localY >= -tolerance && localY <= plate.WidthY + tolerance
-            && localZ >= -tolerance && localZ <= plate.Thickness + tolerance;
+        static double AxisDistance(double value, double min, double max)
+        {
+            if (value < min) return min - value;
+            if (value > max) return value - max;
+            return 0;
+        }
+
+        var deltaX = AxisDistance(localX, 0, plate.LengthX);
+        var deltaY = AxisDistance(localY, 0, plate.WidthY);
+        var deltaZ = AxisDistance(localZ, 0, plate.Thickness);
+
+        return Math.Sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
     }
 }

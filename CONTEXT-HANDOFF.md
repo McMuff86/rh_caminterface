@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 4 Code Complete)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 5 Validation In Progress)
 
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -194,10 +194,19 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
 - **Duplicate-safe BatchExportPlanner**: Gleichnamige Produktionsplatten wie `Schubladen_Doppel` oder `Revisionsture` erzeugen eindeutige Dateinamen (`_2`, `_3`, ...) statt sich gegenseitig zu überschreiben ✅
 - **Eindeutige Platten-Selektion im 3D-Export**: UI + Service verwenden für Multi-Platte bevorzugt `LayerPath` als Auswahl-Key statt nur den Anzeigenamen ✅
 - **Neue Sprint-5 Tests**: Produktionsnamen-Kollisionen, Sanitizing-Kollisionen und 24-Platten-Batch-Regression ergänzt ✅
+- **AssignmentResolver validiert gegen echten Codepfad**: Tests binden jetzt die echte Plugin-Klasse ein statt eine lokale Nachbildung ✅
+- **Edge Case gelöst**: Blöcke zwischen zwei Platten werden im Proximity-Pfad der nächstgelegenen Plattenfläche zugewiesen statt input-order-abhängig ✅
+- **Altbestand bereinigt**: Veraltete `ExportMode`/`ExportReport`/`ExportModeDetector` Artefakte aus dem Compile-Graph entfernt ✅
 - **Build/Test-Status**:
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter BatchExportPlannerTests` grün ✅
+  - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter AssignmentResolverTests` grün ✅
   - `dotnet build RhinoCNCExporter/RhinoCNCExporter.csproj` grün ✅
   - Rhino-Smoke-Tests und DWG-basierte Referenzvergleiche noch offen ⚠
+
+### Architektur-Klärung (23.03.2026)
+- `docs/ARCHITECTURE-3D-TO-CNC.md` legt das **künftige** Face-Tagging-/Plugin-Command-Konzept fest
+- **Noch nicht implementiert im Code**: `AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`, Face-Tags und Feature-Erkennung sind aktuell ADR/Future Work
+- **Aktueller produktiver Pfad bleibt**: Layer-/Block-basierte Pipeline mit PlateDetector, BlockScanner, AssignmentResolver, MachiningFactory, EmitterRouter
 
 **Sprint 3 Dateien:**
 ```
@@ -227,7 +236,6 @@ RhinoCNCExporter.Tests/
    - DWG-basierte Testmodelle für Putzschrank / Legrabox ausarbeiten
    - Vergleich 3D-Output vs. Produktions-XCS
    - Rhino Smoke-Test des neuen ExportPanels mit echten 3D-Modellen
-   - Edge Case `Block zwischen zwei Platten` gezielt validieren
 
 2. **Neue MSL-Befehle** (aus 55-XCS-Analyse):
    - CreateBladeCut: Geneigte Schnitte/Fasen (36 Vorkommen)
