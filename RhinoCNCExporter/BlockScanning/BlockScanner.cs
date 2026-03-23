@@ -68,12 +68,8 @@ public class BlockScanner
         if (rhinoObj.Geometry is not InstanceReferenceGeometry instanceRef)
             return null;
 
-        // Get block definition
-        var idefIndex = instanceRef.ParentIdefIndex;
-        if (idefIndex < 0 || idefIndex >= doc.InstanceDefinitions.Count)
-            return null;
-
-        var idef = doc.InstanceDefinitions[idefIndex];
+        // Get block definition via ParentIdefId (Rhino 8 SDK)
+        var idef = doc.InstanceDefinitions.FindId(instanceRef.ParentIdefId);
         if (idef == null || idef.IsDeleted)
             return null;
 
