@@ -141,6 +141,19 @@ Alle Angaben in mm. Workplane Top. Maximale Namenslänge: 31 Zeichen.
 - **NameService-Tests:** 31-Zeichen-Limit, Duplikate, Sonderzeichen
 - **Ziel:** 80%+ Code Coverage auf Core/
 
+### Dokumentationspflicht — PFLICHT!
+- **Bei jeder Implementierung** MUSS die Dokumentation auf den aktuellen Stand gebracht werden
+- **Immer prüfen und bei Bedarf updaten:** `CONTEXT-HANDOFF.md` und `ROADMAP.md`
+- **Im Allgemeinen gilt das für den gesamten `docs/`-Ordner:** Wenn dort etwas fachlich, technisch oder organisatorisch nicht mehr stimmt, muss es bereinigt und verbessert werden
+- Wenn ein Sprint/Feature umgesetzt wurde, müssen Status, nächste Schritte und betroffene Architektur-/UI-/Test-Änderungen in der Doku nachgezogen werden
+- Wenn ein Agent Unstimmigkeiten, veraltete Aussagen oder Widersprüche in der Dokumentation bemerkt, müssen diese im selben Arbeitsgang bereinigt werden
+- `AGENTS.md`, `docs/IMPLEMENTATION-PLAN.md`, `docs/MIGRATION-STRATEGY.md`, `docs/TECHNICAL-ARCHITECTURE.md` und weitere betroffene Dateien sollen ebenfalls angepasst werden, sobald sie nicht mehr zum tatsächlichen Code-/Projektstand passen
+- Dokumentation ist nicht optionales Cleanup am Ende, sondern Teil der Definition of Done
+- **Bei Unsicherheit** darf nichts erfunden oder schöngeredet werden
+- Wenn Informationen unsicher oder unvollständig sind, muss der Agent entweder selbst weiter recherchieren / Deep Research in den vorhandenen Quellen betreiben oder den User gezielt fragen
+- Wenn trotz Recherche keine belastbare Lösung gefunden wird, muss das offen und ehrlich so benannt werden
+- Annahmen müssen klar als Annahmen gekennzeichnet werden; unbestätigte Aussagen dürfen nicht als Fakten in Code, Doku oder Commit-Texten landen
+
 ### Wichtige Regeln (März 2026)
 1. **55 Produktions-XCS-Dateien** sind die neue Referenz — nicht mehr Python!
 2. `docs/XCS-REFERENCE-ANALYSIS.md` enthält vollständige Produktions-Spezifikation
