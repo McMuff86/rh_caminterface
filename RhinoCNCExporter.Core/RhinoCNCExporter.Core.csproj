@@ -10,5 +10,6 @@
     <Compile Include="..\RhinoCNCExporter\Core\**\*.cs" Exclude="..\RhinoCNCExporter\Core\Geometry\GeometryUtils.cs">
       <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Compile>
+    <!-- Own files (Models/, Blocks/, Pipeline/) are auto-included by SDK -->
   </ItemGroup>
 </Project>
