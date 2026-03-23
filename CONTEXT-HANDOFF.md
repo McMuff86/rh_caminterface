@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Phase 2 Complete)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Phase 2.5 Complete)
 
 ### Deep Research abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -48,14 +48,26 @@ Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nu
   - ExportService unterstützt beide Formate ✅
 - **Yak-Vorbereitung**: manifest.yml erstellt, .csproj für Rhino 8 netcore konfiguriert
 
+### Phase 2.5 — Production-Quality XCS (KOMPLETT ✅, 23.03.2026)
+Based on analysis of 36 real production XCS files:
+- Production header/footer format (comment blocks, compact numbers) ✅
+- CreatePattern() for drill grid arrays (122× in production) ✅
+- AddArc2PointCenterToPolyline() for arc segments ✅
+- CreateWorkplane() for horizontal drilling ✅
+- Configurable setup offsets (Zugabe X/Y) via IMachineProfile + UI ✅
+- New layer patterns: DRILLPAT, HDRILL ✅
+- New emit classes: EmitDrillPattern, EmitHorizontalDrill ✅
+- All 80+ tests green ✅
+
 ### Was fehlt / nächste Schritte (Phase 3+)
-1. **BppLib Integration** — BppLib NuGet Package evaluieren und ggf. als Abhängigkeit einbinden
-2. **Biesse-Emitter erweitern** — Pocket, komplexe Geometrien, Makros verfeinern
-3. **Homag-Emitter** (.mpr) — Noch nicht begonnen, aber Research vorhanden
-4. **UI Improvements** — Maschinenformat-Auswahl, Profile-Konfiguration
-5. **Yak Package Build** — Finaler Package-Build und Test-Installation
-6. **Performance Optimization** — Große Dateien, viele Operationen
-7. **Error Handling** — Robustness für fehlerhafte Geometrie
+1. **GeometryUtils Arc Detection** — `ToPolySegments()` that detects ArcCurve segments from Rhino curves (requires RhinoCommon, plugin project)
+2. **BppLib Integration** — BppLib NuGet Package evaluieren und ggf. als Abhängigkeit einbinden
+3. **Biesse-Emitter erweitern** — Pocket, komplexe Geometrien, Makros verfeinern
+4. **Homag-Emitter** (.mpr) — Noch nicht begonnen, aber Research vorhanden
+5. **UI Improvements** — Maschinenformat-Auswahl, Profile-Konfiguration
+6. **Yak Package Build** — Finaler Package-Build und Test-Installation
+7. **SawCut_Lamello/CLAMEX** — Verbinder-Makros (gefunden in Produktion, noch nicht implementiert)
+8. **Error Handling** — Robustness für fehlerhafte Geometrie
 
 ## Schlüsseldateien
 
@@ -71,7 +83,7 @@ Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nu
 | `RhinoCNCExporter/Core/Emitters/IEmitter.cs` | Interface für alle CNC-Format-Emitter |
 | `RhinoCNCExporter/Core/Emitters/XilogEmitter.cs` | SCM XCS-Ausgabe (vollständig) |
 | `RhinoCNCExporter/Core/Emitters/BiesseEmitter.cs` | Biesse CIX-Ausgabe (Grundoperationen) |
-| `RhinoCNCExporter/Core/Emitters/Emit*.cs` | Spezifische Operationen-Emitter (funktional) |
+| `RhinoCNCExporter/Core/Emitters/Emit*.cs` | Operationen-Emitter (CUT, POCKET, DRILL, ROW, GrooveCH, GrooveRNT, DrillPattern, HorizontalDrill) |
 | `RhinoCNCExporter/Core/Profiles/IMachineProfile.cs` | Interface für Maschinenprofile |
 | `RhinoCNCExporter/Core/Profiles/MachineProfile.cs` | Maschinenprofil-Basisklasse |
 | `RhinoCNCExporter/Core/Profiles/BiesseProfile.cs` | Biesse-spezifische Konfiguration |

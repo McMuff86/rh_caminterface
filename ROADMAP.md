@@ -34,6 +34,31 @@ Ein Rhino 8 Plugin (Yak Package), das aus 2D-Geometrien und Layer-Konventionen C
 - [x] E2E Tests erweitert für Interface-Validierung ✅
 - [ ] Emitter-Registry / Factory-Pattern für dynamische Emitter-Auswahl — geplant
 
+## ✅ Phase 2.5: Production-Quality XCS & New Operations
+
+**Status**: KOMPLETT ✅ (23.03.2026)
+
+Based on analysis of 36 real production XCS files from CAD+T/Maestro:
+
+- [x] Production header format (comment blocks, compact numbers, CreateMessage) ✅
+- [x] Production footer format (comment blocks, "Programm Ende") ✅
+- [x] DZ format: `19` not `19.000` (matching CAD+T output) ✅
+- [x] Setup offsets compact: `2.5,2.5,0,0` not `2.5,2.5,0.0,0.0` ✅
+- [x] **Configurable Setup Offsets (Zugabe)**: SetupOffsetX/Y in IMachineProfile + UI ✅
+- [x] **CreatePattern()** for drill grid arrays (122× in production!) ✅
+  - New: `DrillPatternSpec`, `DRILLPAT_D{d}_Z{z}_X{nx}_Y{ny}_SX{sx}_SY{sy}` layer pattern
+  - New: `EmitDrillPattern.cs`, `IEmitter.EmitDrillPattern()`
+  - Biesse: BG with RTY=rpGRD grid repeat
+- [x] **AddArc2PointCenterToPolyline()** for arc segments (12× in production) ✅
+  - New: `PolySegment` record with IsArc/CenterX/CenterY/Clockwise
+  - New: `IEmitter.EmitPolylinePassWithArcs()`
+  - Biesse: ARC_EPCE macro support
+- [x] **CreateWorkplane()** for horizontal/side drilling (40× in production) ✅
+  - New: `HorizontalDrillSpec`, `HDRILL_D{d}_Z{z}_S{side}` layer pattern (L/R/V/H)
+  - New: `EmitHorizontalDrill.cs`, `IEmitter.EmitWorkplane()`, `EmitSelectWorkplane()`
+- [x] **ExportPanel UI**: "Zugabe X/Y (mm)" fields for configurable setup offsets ✅
+- [x] All 80+ tests green ✅
+
 ## Phase 3: Biesse-Support (.cix / .bpp)
 
 **Status**: Grundstruktur implementiert, Erweiterung geplant
