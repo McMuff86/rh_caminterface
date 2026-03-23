@@ -163,23 +163,57 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [ ] Tests gegen bekannte .mpr-Referenzdateien
 - [ ] Homag-spezifische Validierung
 
-## Phase 5: UI & UX
+## Phase 5: Toolpath-Visualisierung & Werkzeug-Datenbank
+
+**Status**: Geplant — KRITISCH für professionellen Einsatz
+
+> **Entscheidung 23.03.2026:** Toolpath-Preview und Werkzeug-Datenbank sind nicht optional.
+> Ohne visuelle Kontrolle = Black Box. Kein Schreiner vertraut einer Black Box.
+
+### Werkzeug-Datenbank (Tool Library)
+- [ ] `ToolDefinition` Datenmodell: Name, Typ (Fräser/Bohrer/Säge), Nenndurchmesser, Schneidenlänge, Gesamtlänge, Drehzahl, Vorschub, E-Code
+- [ ] Werkzeug-Datenbank pro MachineProfile (JSON/CSV Import/Export)
+- [ ] Werkzeug-Manager Panel im Plugin (CRUD für Werkzeuge)
+- [ ] E-Code → Werkzeug Mapping (E010 = "Schaftfräser HW 10mm")
+- [ ] Werkzeug-Vorschläge pro Bearbeitungstyp (Tasche → Fräser, Bohrung → Bohrer)
+- [ ] Mehrfach-Werkzeug pro Operation: Schruppfräser (E010) + Schlichtfräser (E015)
+
+### Schrupp-/Schlicht-Strategie
+- [ ] Pro Bearbeitung: Schrupp-Werkzeug + Schlicht-Werkzeug wählbar
+- [ ] Aufmass-Parameter für Schruppen (z.B. 0.3mm stehen lassen)
+- [ ] Zustellung (Stepdown) pro Werkzeug konfigurierbar
+- [ ] Automatische Multi-Pass Generierung (Schrubben → Schlichten)
+- [ ] Reihenfolge: Alle Schruppoperationen zuerst, dann alle Schlichtoperationen
+
+### Toolpath-Preview (Stufe 1 — Visualisierung)
+- [ ] Nach Berechnung: Werkzeugbahnen als Rhino-Curves auf Preview-Layer generieren
+- [ ] Farbkodierung:
+  - Blau = Eilgang (Rapid)
+  - Rot = Vorschub-Fräsen (Feed)
+  - Orange = Schruppen
+  - Grün = Schlichten
+  - Gelb = Bohren (Eintauchen)
+  - Gestrichelt = Anfahrwege / Rückzug
+- [ ] Bohrpunkte als Kreise mit Durchmesser-Darstellung
+- [ ] Maschinen-Makros (CLAMEX, RNT) als vereinfachte Pfade
+- [ ] Preview-Layer ein/ausblenden
+- [ ] "Vorschau generieren" Button im Panel
+
+### Toolpath-Preview (Stufe 2 — Interaktiv)
+- [ ] Bearbeitungsreihenfolge per Drag&Drop ändern
+- [ ] Anfahrstrategie pro Operation wählen (direkt, tangential, helikal)
+- [ ] Zustellung visuell anpassen
+- [ ] Werkzeug-Auswahl pro Operation im Preview ändern
+- [ ] Simulation: Schritt-für-Schritt durchspielen (wie Video-Player)
 
 ### Core UI
 - [ ] Maschinenauswahl im Export-Dialog (SCM / Biesse / Homag)
-- [ ] Profil-Editor (Technologien, Werkzeuge, Defaults pro Maschine)
 - [ ] Batch-Export (mehrere Formate gleichzeitig)
 - [ ] Layer-Cheatsheet im Plugin (Schnellreferenz für Layer-Konventionen)
 - [ ] Validierung & Warnings Panel (Layer-Mismatches, Geometrie-Probleme)
 
-### Visualisierung (inspiriert von bSolid / NC-HOPS)
-- [ ] 2D-Vorschau der Werkzeugbahnen im Dockable Panel
-- [ ] 3D-Vorschau der Bearbeitungen im Rhino-Viewport (Abtragssimulation)
-- [ ] Farbkodierte Layer-Vorschau (Drill=rot, Cut=blau, Pocket=grün, etc.)
-- [ ] Verfahrweg-Anzeige (Rapid=gestrichelt, Feed=durchgezogen)
-
 ### Makro-Bibliothek (inspiriert von NC-HOPS / Maestro Lab)
-- [ ] Vorgefertigte Layer-Templates für Standard-Bearbeitungen:
+- [ ] Vorgefertigte Block-Templates für Standard-Bearbeitungen:
   - Topfband 35mm (Bohrbild + Tasche)
   - Lochreihe System 32 (Regalbodenträger)
   - Rückwandnut Standard (10mm ab Kante)

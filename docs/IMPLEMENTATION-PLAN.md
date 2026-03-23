@@ -281,3 +281,62 @@ Diese Tasks bringen sofort Mehrwert und können jederzeit parallel gemacht werde
 ---
 
 *Dieser Plan ist die Grundlage für Nacht-Sessions. Sprint-Backlog in `~/clawd/sprints/active.md` tracken.*
+
+---
+
+## Sprint 6: Werkzeug-Datenbank (nach Sprint 5)
+
+**Ziel:** Werkzeugverwaltung im Plugin — E-Codes werden zu echten Werkzeugen mit Parametern
+
+| Task | Beschreibung | Aufwand |
+|------|-------------|---------|
+| 6.1 | `ToolDefinition` Record: Name, Typ, Ø, Schneidenlänge, Drehzahl, Vorschub, E-Code | 2h |
+| 6.2 | `ToolLibrary` Klasse: CRUD, JSON Import/Export, pro MachineProfile | 4h |
+| 6.3 | Werkzeug-Manager Panel (Eto.Forms): Liste, Add/Edit/Delete, Import/Export | 6h |
+| 6.4 | E-Code → Werkzeug Mapping in Emittern | 3h |
+| 6.5 | Werkzeug-Vorschläge pro Bearbeitungstyp (Default-Zuordnung) | 3h |
+| 6.6 | Tests | 3h |
+
+**Geschätzt:** ~3 Tage
+
+## Sprint 7: Schrupp-/Schlicht-Strategie (nach Sprint 6)
+
+**Ziel:** Pro Bearbeitung Schrupp- und Schlichtwerkzeug + Aufmass konfigurierbar
+
+| Task | Beschreibung | Aufwand |
+|------|-------------|---------|
+| 7.1 | `MachiningStrategy` Record: RoughTool, FinishTool, Allowance, StepDown | 2h |
+| 7.2 | Multi-Pass Generierung: Schrubben (mit Aufmass) → Schlichten (Endmass) | 6h |
+| 7.3 | Offset-Berechnung für Schrupp-Kontur (Aufmass nach aussen) | 4h |
+| 7.4 | UI: Pro Operation Werkzeug-Auswahl (Schruppen/Schlichten) | 4h |
+| 7.5 | Reihenfolge-Logik: Alle Schrupp-Ops zuerst, dann Schlicht-Ops | 3h |
+| 7.6 | Tests + Validierung gegen Produktionsdaten | 3h |
+
+**Geschätzt:** ~3-4 Tage
+
+## Sprint 8: Toolpath-Visualisierung (nach Sprint 7)
+
+**Ziel:** Werkzeugbahnen als farbkodierte Curves im Rhino-Viewport sichtbar machen
+
+| Task | Beschreibung | Aufwand |
+|------|-------------|---------|
+| 8.1 | `ToolpathVisualizer` Klasse: Machinings → Rhino Curves auf Preview-Layer | 6h |
+| 8.2 | Farbkodierung: Rapid=Blau, Feed=Rot, Schruppen=Orange, Schlichten=Grün | 3h |
+| 8.3 | Bohrpunkte als Kreise mit Ø-Darstellung | 2h |
+| 8.4 | Makro-Pfade als vereinfachte Geometrie (CLAMEX, RNT) | 4h |
+| 8.5 | "Vorschau generieren" / "Vorschau löschen" Buttons im Panel | 2h |
+| 8.6 | Preview-Layer Management (ein/aus, auto-cleanup) | 2h |
+| 8.7 | Werkzeug-Ø in Preview berücksichtigen (aus ToolLibrary) | 3h |
+| 8.8 | Tests + visueller Abgleich | 3h |
+
+**Geschätzt:** ~4 Tage
+
+### Dependencies
+```
+Sprint 3 (Platten-Erkennung) 
+  → Sprint 4 (Multi-Export + UI)
+    → Sprint 5 (Validierung)
+      → Sprint 6 (Werkzeug-DB)
+        → Sprint 7 (Schrupp/Schlicht)
+          → Sprint 8 (Toolpath-Visualisierung)
+```
