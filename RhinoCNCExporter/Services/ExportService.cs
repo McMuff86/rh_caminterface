@@ -28,7 +28,7 @@ public static class ExportService
     /// <param name="emitter">CNC format emitter to use.</param>
     /// <param name="layerStepdown">If true, use layer-defined stepdown. If false, use technology stepdown.</param>
     /// <returns>True on success.</returns>
-    public static bool ExportCNC(RhinoDoc doc, bool onlySelection, string filePath, IEmitter emitter, bool layerStepdown = false)
+    public static bool ExportCNC(RhinoDoc doc, bool onlySelection, string filePath, IEmitter emitter, NameService nameService, bool layerStepdown = false)
     {
         return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService, layerStepdown);
     }

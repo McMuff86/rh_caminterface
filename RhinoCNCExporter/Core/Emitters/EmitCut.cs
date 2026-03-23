@@ -12,7 +12,7 @@ namespace RhinoCNCExporter.Core.Emitters;
 /// </summary>
 public static class EmitCut
 {
-    public static string Emit(XilogEmitter emitter, NameService names, string baseName,
+    public static string Emit(IEmitter emitter, NameService names, string baseName,
         IReadOnlyList<(double X, double Y)> pts, CutSpec spec, bool layerStepdown)
     {
         var parts = new List<string>();

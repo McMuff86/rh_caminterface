@@ -26,7 +26,7 @@ public static class EmitGrooveRnt
         public double YCenter { get; init; }
     }
 
-    public static string Emit(XilogEmitter emitter, NameService names, string baseName,
+    public static string Emit(IEmitter emitter, NameService names, string baseName,
         GrooveEndpoints ends, GrooveRntSpec spec)
     {
         // Python uses descriptive names like "Nut in X-Richtung"

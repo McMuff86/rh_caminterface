@@ -12,7 +12,7 @@ namespace RhinoCNCExporter.Core.Emitters;
 /// </summary>
 public static class EmitGrooveChannel
 {
-    public static string Emit(XilogEmitter emitter, NameService names, string baseName,
+    public static string Emit(IEmitter emitter, NameService names, string baseName,
         IReadOnlyList<(double X, double Y)> rectPts, GrooveChannelSpec spec, bool layerStepdown)
     {
         string tech = spec.Tech ?? Defaults.DefaultGrooveTech;

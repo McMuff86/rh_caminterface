@@ -9,7 +9,7 @@ namespace RhinoCNCExporter.Core.Emitters;
 /// </summary>
 public static class EmitDrill
 {
-    public static string Emit(XilogEmitter emitter, NameService names, string baseName,
+    public static string Emit(IEmitter emitter, NameService names, string baseName,
         double x, double y, DrillSpec spec)
     {
         string unique = names.CreateUnique(baseName);
