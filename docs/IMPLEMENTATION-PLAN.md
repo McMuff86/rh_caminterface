@@ -19,9 +19,10 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 
 ---
 
-## Sprint 1: Datenmodell + Block-Detection Grundgerüst
+## Sprint 1: Datenmodell + Block-Detection Grundgerüst ✅ COMPLETE (23.03.2026)
 
 **Ziel:** Core-DTOs definieren, Pipeline-Skeleton aufbauen, Tests für Datenmodell.
+**Ergebnis:** Alle Tasks implementiert. 90+ neue Tests, 0 Warnings, 0 Regressions.
 
 ### Tasks
 
@@ -38,12 +39,19 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 | 1.9 | Unit Tests für alle DTOs + Schema-Validierung | Tests/ | 1.1–1.5 | 3h |
 | 1.10 | Unit Tests für EmitterRouter mit Mock-Emitter | Tests/ | 1.7 | 3h |
 
-**Deliverables:**
-- Kompilierbares Core/Models/ Namespace
-- Kompilierbares Core/Blocks/ Namespace  
-- Kompilierbares Core/Pipeline/ Namespace
-- 15+ neue Unit Tests, alle grün
-- Bestehende 80+ Tests: immer noch grün
+**Deliverables:** ✅ Alle erreicht
+- ✅ Kompilierbares Core/Models/ Namespace (6 Dateien)
+- ✅ Kompilierbares Core/Blocks/ Namespace (3 Dateien)
+- ✅ Kompilierbares Core/Pipeline/ Namespace (5 Dateien)
+- ✅ 90+ neue Unit Tests, alle grün (Ziel war 15+)
+- ✅ Bestehende 80+ Tests: immer noch grün (0 Regression)
+
+**Erkenntnisse:**
+- Core.csproj brauchte Anpassung: Eigene Dateien werden per SDK auto-included,
+  linked files aus Plugin/Core/ bleiben per explizitem Compile-Include
+- InternalsVisibleTo für Tests-Zugriff auf interne Methoden nötig
+- MachiningFactory: CUT/POCKET/GROOVE als Stubs (brauchen Geometrie aus Rhino)
+- EmitterRouter: Macro-Ausgabe als Kommentar-Placeholder (konkrete Implementierung Sprint 2+)
 
 **Risiken:** Keine — reine Core-Arbeit ohne Rhino-Abhängigkeit.
 

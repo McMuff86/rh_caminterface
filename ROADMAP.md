@@ -59,6 +59,23 @@ Based on analysis of 36 real production XCS files from CAD+T/Maestro:
 - [x] **ExportPanel UI**: "Zugabe X/Y (mm)" fields for configurable setup offsets ✅
 - [x] All 80+ tests green ✅
 
+## ✅ Sprint 1: Core Data Models + Pipeline Skeleton
+
+**Status**: KOMPLETT ✅ (23.03.2026)
+
+Foundation for the 3D-to-CNC block-based pipeline:
+
+- [x] Core/Models/: Plate, Machining (8 subtypes), FittingBlock, ExportJob, PlateOrigin, Enums ✅
+- [x] Core/Blocks/: BlockUserTextSchema, CncUserTextParser, MachiningFactory ✅
+- [x] Core/Pipeline/: IMachiningBuilder, IEmitterRouter, IPlateExporter interfaces ✅
+- [x] Core/Pipeline/: MachiningBuilder, EmitterRouter implementations ✅
+- [x] Template expansion: {DZ}, {X}, {Y} placeholders with arithmetic ✅
+- [x] 90+ unit tests, all green, 0 warnings ✅
+
+**Next**: Sprint 2 — Block-Scanner + UserText-Parsing (requires Rhino on Windows for block scanning)
+
+---
+
 ## Phase 3: Biesse-Support (.cix / .bpp)
 
 **Status**: Grundstruktur implementiert, Erweiterung geplant

@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Nach 55-XCS-Analyse)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 1 Complete)
 
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -70,7 +70,47 @@ Based on analysis of 36 real production XCS files:
 - New emit classes: EmitDrillPattern, EmitHorizontalDrill ✅
 - All 80+ tests green ✅
 
-### Was fehlt / nächste Schritte (Phase 3+)
+### Sprint 1 — Core Data Models + Pipeline Skeleton (KOMPLETT ✅, 23.03.2026)
+Foundation for 3D-to-CNC block-based pipeline:
+- **Core/Models/**: Plate, Machining (8 subtypes), FittingBlock, ExportJob, PlateOrigin, Enums ✅
+- **Core/Blocks/**: BlockUserTextSchema (validation + constants), CncUserTextParser, MachiningFactory ✅
+- **Core/Pipeline/**: IMachiningBuilder, IEmitterRouter, IPlateExporter interfaces ✅
+- **Core/Pipeline/**: MachiningBuilder (merge + deduplicate), EmitterRouter (bridge to IEmitter) ✅
+- MachiningFactory dispatch: DRILL, DRILLPATTERN, MACRO, HDRILL implemented; CUT/POCKET/GROOVE stubs ✅
+- Template expansion: {DZ}, {X}, {Y} placeholders with arithmetic ({DZ}-9.5 etc.) ✅
+- 90+ new unit tests covering models, schema validation, factory, parser, pipeline ✅
+- All 95+ total tests green, 0 warnings ✅
+
+**Neue Dateien:**
+```
+RhinoCNCExporter.Core/
+├── Models/
+│   ├── Enums.cs           (MachiningType, MachiningSide, MachineFormat, etc.)
+│   ├── Plate.cs           (Plate record with dimensions, origin, machinings)
+│   ├── PlateOrigin.cs     (Coordinate system for plate in world space)
+│   ├── Machining.cs       (Base + 8 subtypes: Drill, DrillPattern, Routing, etc.)
+│   ├── FittingBlock.cs    (Parsed block with CNC_* attributes)
+│   └── ExportJob.cs       (Export orchestration record)
+├── Blocks/
+│   ├── BlockUserTextSchema.cs  (CNC_* key constants, validation)
+│   ├── CncUserTextParser.cs    (UserText dict → FittingBlock)
+│   └── MachiningFactory.cs     (FittingBlock → Machining objects)
+└── Pipeline/
+    ├── IMachiningBuilder.cs    (Interface)
+    ├── IEmitterRouter.cs       (Interface)
+    ├── IPlateExporter.cs       (Interface)
+    ├── MachiningBuilder.cs     (Merge legacy + block machinings)
+    └── EmitterRouter.cs        (Route Machining → IEmitter calls)
+
+RhinoCNCExporter.Tests/
+├── ModelTests.cs               (25 tests)
+├── BlockUserTextSchemaTests.cs (20 tests)
+├── CncUserTextParserTests.cs   (10 tests)
+├── MachiningFactoryTests.cs    (20 tests)
+└── PipelineTests.cs            (15 tests)
+```
+
+### Was fehlt / nächste Schritte (Sprint 2+)
 1. **CLAMEX-System** — 3D-Block-basierter Workflow für Lamello-Verbinder:
    - Block-Detection: CLAMEX-Blöcke in 3D-Modell erkennen
    - SawCut_Lamello-Makro: ~48-Parameter Makro für CLAMEX-Verbinder

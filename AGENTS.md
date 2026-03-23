@@ -26,7 +26,26 @@
 ## Architektur
 
 ```
-RhinoCNCExporter/
+RhinoCNCExporter.Core/                 # Core-Logik OHNE RhinoCommon
+├── Models/                            # 🆕 Sprint 1: Zentrale Datenmodelle (DTOs)
+│   ├── Enums.cs                       # MachiningType, MachiningSide, MachineFormat, etc.
+│   ├── Plate.cs                       # Plate record (Name, Dimensions, Machinings)
+│   ├── PlateOrigin.cs                 # Coordinate system origin for plate
+│   ├── Machining.cs                   # Base + 8 subtypes (Drill, DrillPattern, etc.)
+│   ├── FittingBlock.cs                # Parsed block with CNC_* attributes
+│   └── ExportJob.cs                   # Export orchestration record
+├── Blocks/                            # 🆕 Sprint 1: Block-Logik (ohne Rhino)
+│   ├── BlockUserTextSchema.cs         # CNC_* key constants + validation
+│   ├── CncUserTextParser.cs           # UserText dict → FittingBlock
+│   └── MachiningFactory.cs            # FittingBlock → Machining objects
+└── Pipeline/                          # 🆕 Sprint 1: Export-Orchestrierung
+    ├── IMachiningBuilder.cs           # Interface: merge machinings
+    ├── IEmitterRouter.cs              # Interface: route to emitter
+    ├── IPlateExporter.cs              # Interface: export single plate
+    ├── MachiningBuilder.cs            # Merge legacy + block machinings
+    └── EmitterRouter.cs               # Route Machining → IEmitter calls
+
+RhinoCNCExporter/                      # Plugin MIT RhinoCommon
 ├── PlugIn.cs                          # Rhino Plugin Entry
 ├── Commands/                          # User-facing Rhino Commands
 │   ├── ExportCommand.cs               # Export-Dialog starten
@@ -45,16 +64,26 @@ RhinoCNCExporter/
 │   ├── Naming/                        # Eindeutige Namen (max 31 Zeichen)
 │   │   └── NameService.cs
 │   ├── Emitters/                      # Maschinenspezifische Ausgabe
-│   │   ├── IEmitter.cs               # (geplant) Gemeinsames Interface
+│   │   ├── IEmitter.cs               # Gemeinsames Interface
 │   │   ├── XilogEmitter.cs           # SCM Maestro (.xcs)
-│   │   ├── BiesseEmitter.cs          # (geplant) Biesse (.cix)
+│   │   ├── BiesseEmitter.cs          # Biesse (.cix)
 │   │   ├── HomagEmitter.cs           # (geplant) Homag (.mpr)
 │   │   └── Emit*.cs                  # Operation-spezifische Emitter
 │   └── Profiles/                      # Maschinenprofile (Defaults, Technologien)
 │       ├── MachineProfile.cs
 │       └── MaestroCadTProfile.cs
-└── Tests/
-    └── RhinoCNCExporter.Tests/
+
+RhinoCNCExporter.Tests/                # xUnit Tests (OHNE RhinoCommon)
+├── ModelTests.cs                      # 🆕 Plate, Machining, FittingBlock, ExportJob
+├── BlockUserTextSchemaTests.cs        # 🆕 Validation rules
+├── CncUserTextParserTests.cs          # 🆕 Parsing + error cases
+├── MachiningFactoryTests.cs           # 🆕 CNC_Type mapping + template expansion
+├── PipelineTests.cs                   # 🆕 MachiningBuilder + EmitterRouter
+├── EmitterTests.cs                    # XilogEmitter + BiesseEmitter
+├── E2ETests.cs                        # End-to-End gegen Referenzdateien
+├── LayerRegexTests.cs                 # Layer pattern parsing
+├── NameServiceTests.cs                # Name generation + sanitization
+└── SpecsTests.cs                      # Spec defaults + validation
 ```
 
 ## Layer-Konventionen (universell für alle Maschinen)
