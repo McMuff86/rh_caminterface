@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-22, Research-Update Nacht 22./23.03.)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Phase 2 Complete)
 
 ### Deep Research abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -28,36 +28,58 @@ Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nu
 
 ### Was existiert und funktioniert
 - **Python-Referenz** (`RH_caminterface_v007.py`): Vollständig funktional, kann .xcs-Dateien erzeugen
-- **C#-Skeleton**: Projekt-Struktur steht, baut erfolgreich
-  - LayerParser (Regex + DTOs): implementiert
-  - NameService: implementiert mit Tests
-  - XilogEmitter: Header/Footer funktional, Operationen sind **Stubs**
+- **Phase 1 (SCM/XCS)** — KOMPLETT:
+  - LayerParser (Regex + DTOs): implementiert ✅
+  - NameService: implementiert mit Tests ✅
+  - XilogEmitter: Vollständig implementiert ✅
+  - Alle Operationen (CUT, POCKET, DRILL, DRILLROW, RBNUT_CH, RBNUT_RNT) ✅
+  - Unit Tests vorhanden und grün ✅
+  - GeometryUtils mit Polyline-Sampling, Offsets, Groove-Konstruktion ✅
+  - ExportService End-to-End funktional ✅
   - UI: Settings-Panel + Export-Dialog als Grundgerüst
+- **Phase 2 (IEmitter Interface + Biesse)** — KOMPLETT:
+  - IEmitter Interface für Multi-Maschinen-Support ✅
+  - IMachineProfile Interface für maschinenspezifische Konfiguration ✅
+  - XilogEmitter refactored to implement IEmitter ✅
+  - BiesseProfile mit Biesse-spezifischen Defaults ✅
+  - BiesseEmitter mit CIX-Format Grundstruktur ✅
+  - Header (MAINDATA), Drill (BG), Cut (ROUTG+GEO) implementiert ✅
+  - E2E Tests gegen Referenz-XCS-Dateien ✅
+  - ExportService unterstützt beide Formate ✅
 - **Yak-Vorbereitung**: manifest.yml erstellt, .csproj für Rhino 8 netcore konfiguriert
 
-### Was fehlt / nächste Schritte
-1. **Emitter-Implementierung** — Die Emit*.cs-Dateien geben nur Kommentare zurück, keine echte .xcs-Ausgabe
-2. **GeometryUtils** — Polyline-Sampling, Offset-Berechnung, Groove-Konstruktion fehlen
-3. **IEmitter-Interface** — Für Multi-Maschinen-Support brauchen wir eine Abstraktion
-4. **Biesse-Emitter** (.cix) — Noch nicht begonnen
-5. **Homag-Emitter** (.mpr) — Noch nicht begonnen
-6. **End-to-End-Test** — C#-Ausgabe gegen Python-Referenz validieren
+### Was fehlt / nächste Schritte (Phase 3+)
+1. **BppLib Integration** — BppLib NuGet Package evaluieren und ggf. als Abhängigkeit einbinden
+2. **Biesse-Emitter erweitern** — Pocket, komplexe Geometrien, Makros verfeinern
+3. **Homag-Emitter** (.mpr) — Noch nicht begonnen, aber Research vorhanden
+4. **UI Improvements** — Maschinenformat-Auswahl, Profile-Konfiguration
+5. **Yak Package Build** — Finaler Package-Build und Test-Installation
+6. **Performance Optimization** — Große Dateien, viele Operationen
+7. **Error Handling** — Robustness für fehlerhafte Geometrie
 
 ## Schlüsseldateien
 
 | Datei | Zweck |
 |-------|-------|
-| `RH_caminterface_v007.py` | Quelle der Wahrheit — alle Regeln, Mappings, Emitter-Logik |
+| `RH_caminterface_v007.py` | Python-Referenz — Quelle der Wahrheit für XCS-Format |
 | `maestro_editor_text.txt` | Durchsuchbarer Maestro-Handbuch-Text (Page-Marker) |
+| `docs/RESEARCH-CAM-FORMATS.md` | Umfassendes Research zu SCM, Biesse, Homag Formaten |
 | `manifest.yml` | Yak Package Manifest für Rhino Package Manager |
 | `RhinoCNCExporter/RhinoCNCExporter.csproj` | Plugin-Projekt (net7.0-windows, Rhino 8) |
 | `RhinoCNCExporter/Core/LayerParser/LayerRegex.cs` | Alle Regex-Patterns + Parsing |
 | `RhinoCNCExporter/Core/LayerParser/Specs.cs` | DTOs (CutSpec, PocketSpec, DrillSpec, ...) |
-| `RhinoCNCExporter/Core/Emitters/XilogEmitter.cs` | SCM-Ausgabe (Header/Footer) |
-| `RhinoCNCExporter/Core/Emitters/Emit*.cs` | Operations-Emitter (aktuell Stubs!) |
+| `RhinoCNCExporter/Core/Emitters/IEmitter.cs` | Interface für alle CNC-Format-Emitter |
+| `RhinoCNCExporter/Core/Emitters/XilogEmitter.cs` | SCM XCS-Ausgabe (vollständig) |
+| `RhinoCNCExporter/Core/Emitters/BiesseEmitter.cs` | Biesse CIX-Ausgabe (Grundoperationen) |
+| `RhinoCNCExporter/Core/Emitters/Emit*.cs` | Spezifische Operationen-Emitter (funktional) |
+| `RhinoCNCExporter/Core/Profiles/IMachineProfile.cs` | Interface für Maschinenprofile |
 | `RhinoCNCExporter/Core/Profiles/MachineProfile.cs` | Maschinenprofil-Basisklasse |
-| `RhinoCNCExporter/Services/ExportService.cs` | Orchestrierung des Exports |
-| `tests/test_01.xcs`, `test_02.xcs` | Referenz-Ausgaben der Python-Implementierung |
+| `RhinoCNCExporter/Core/Profiles/BiesseProfile.cs` | Biesse-spezifische Konfiguration |
+| `RhinoCNCExporter/Services/ExportService.cs` | Multi-Format Export-Orchestrierung |
+| `tests/test_01.xcs`, `test_02.xcs` | XCS-Referenz-Ausgaben der Python-Implementierung |
+| `tests/test_biesse_01.cix` | CIX-Referenz für Biesse-Format |
+| `RhinoCNCExporter.Tests/EmitterTests.cs` | Unit Tests für alle Emitter |
+| `RhinoCNCExporter.Tests/E2ETests.cs` | End-to-End Tests gegen Referenz-Dateien |
 
 ## Architektur-Entscheidungen
 
@@ -153,19 +175,22 @@ dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj
 
 ## Wie weiterarbeiten
 
-### Phase 1 — SCM/Maestro Emitter fertigstellen
-1. **Lies die Python-Referenz** (`RH_caminterface_v007.py`) — sie definiert das Soll-Verhalten
-2. Implementiere die Emit*.cs Stubs mit echtem Code (Port aus Python)
-3. Implementiere GeometryUtils (Polyline-Sampling, Offsets, Groove-Konstruktion)
-4. **Teste gegen Referenz-Ausgaben** (`tests/test_01.xcs`, `test_02.xcs`)
-5. ExportService End-to-End zum Laufen bringen
+### ✅ Phase 1 — SCM/Maestro Emitter (KOMPLETT)
+1. Python-Referenz analysiert und portiert ✅
+2. Emit*.cs Stubs mit echtem XCS-Code implementiert ✅
+3. GeometryUtils implementiert (Polyline-Sampling, Offsets, Groove-Konstruktion) ✅
+4. Tests gegen Referenz-Ausgaben (`tests/test_01.xcs`, `test_02.xcs`) ✅
+5. ExportService End-to-End funktional ✅
 
-### Phase 2 — Multi-Maschinen-Abstraktion
-6. IEmitter-Interface extrahieren
-7. XilogEmitter darauf refactoren
-8. IMachineProfile-Interface
+### ✅ Phase 2 — Multi-Maschinen-Abstraktion (KOMPLETT)
+6. IEmitter-Interface extrahiert ✅
+7. XilogEmitter refactored to IEmitter ✅
+8. IMachineProfile-Interface implementiert ✅
+9. BiesseEmitter mit CIX-Grundstruktur ✅
+10. BiesseProfile mit Biesse-Defaults ✅
+11. E2E Tests erweitert ✅
 
-### Phase 3+ — Biesse/Homag
+### Phase 3+ — Erweiterte Biesse/Homag-Unterstützung
 9. **BppLib** als Referenz für CIX-Format nutzen (https://github.com/viachpaliy/BppLib)
 10. **woodWOP Formatbeschreibung** für MPR-Format konsultieren (Dok-Nr. 9-080-42-7190)
 11. **Maestro-Handbuch** bei Detailfragen: `maestro_editor_text.txt`
