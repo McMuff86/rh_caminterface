@@ -138,11 +138,11 @@ RhinoCNCExporter/
   RhinoCNCExporter.csproj            # .NET 7, Rhino 8
   PlugIn.cs                          # class PlugIn : Rhino.PlugIns.PlugIn
   Commands/
-    ExportXilogCommand.cs            # Benutzer-Entry (UI → Orchestrierung)
-    SettingsCommand.cs               # Panel öffnen
+    RhinoCNCExporterCommand.cs       # Dockbares ExportPanel öffnen
+    ExportXilogCommand.cs            # Legacy XCS-Dialogexport
   UI/
-    SettingsPanel.cs                 # Eto.Forms (Profile, DZ, Offsets, Templates)
-    ExportDialog.cs                  # A/B Stepdown, Zielpfad, Preview-Zählung
+    ExportPanel.cs                   # Produktives Export-Panel
+    ExportDialog.cs                  # Legacy Dialogexport
   Core/
     LayerParser/
       Specs.cs                       # DTOs: CutSpec, PocketSpec, DrillSpec, ...
@@ -171,9 +171,9 @@ RhinoCNCExporter/
 ```
 
 ## UI & Persistenz
-- Settings Panel (Eto): Maschinenprofil, DZ, Setup-Offsets, Default ToolØ, Corner-ISO Toggle, RNT-Templates (X/Y, editierbar), Layer-Cheatsheet.
-- Export-Dialog: Z-Strategie A/B, Zielpfad, „Nur Selektion“, Preview-Zählung (Cuts/Pockets/Drills/Rows/Grooves).
-- Persistenz: `PlugIn.Settings` und `%APPDATA%/RhinoCNCExporter/config.json`. RNT-Templates je Profil anpassbar (ohne Rebuild).
+- ExportPanel (Eto): Maschinenwahl, Export-Modus, 3D-Plattenvorschau, Zugabe X/Y, Block-Detection, Zielpfad, Export-Report.
+- Export-Dialog: Legacy XCS-Schnellexport mit Z-Strategie A/B und „Nur Selektion“.
+- Persistenz: produktiv aktuell keine separate globale Settings-Oberfläche; exportrelevante Laufzeitoptionen sitzen im ExportPanel.
 
 ## Tests & Qualität
 - **Philosophie**: Pure Logik testbar ohne Rhino-UI. Geometrienahe Tests können Rhino.Geometry headless nutzen.
@@ -238,7 +238,7 @@ public void Rnt_Macro_Is_Formatted_As_Specified()
 - GeometryUtils (Polyline/Offsets/Groove) + Tests
 - Emitter (CUT/POCKET/DRILL/ROW/GrooveCH/GrooveRNT) + Tests
 - NameService + Tests
-- Settings-Panel & Export-Dialog
+- ExportPanel & Export-Dialog
 - Maschinenprofile (Maestro CAD+T default)
 - Validierung/Warnings (Nut horizontal/vertikal, Layer-Mismatches, Template-Fehler)
 - Packaging (.rhi), Beispieldateien, interne Abnahme

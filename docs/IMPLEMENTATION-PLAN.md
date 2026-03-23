@@ -186,7 +186,7 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 ## Sprint 5: Testing gegen echte Produktionsdaten
 
 **Ziel:** Validierung der gesamten Pipeline gegen echte CAD+T DWGs und bekannte XCS-Referenzdateien.
-**Zwischenstand (23.03.2026):** Automatisierte Batch-Validierung gestartet. Duplicate-sichere Dateinamen für gleichnamige Produktionsplatten, LayerPath-basierte Selektion, echter `AssignmentResolver`-Test gegen die Plugin-Klasse und ein 24-Platten-Regressionstest sind umgesetzt. Der Edge Case `Block zwischen zwei Platten` ist jetzt über die nächstgelegene Plattenfläche abgesichert. DWG-abgeleitete Testmodelle, Rhino-Smoke-Tests und der direkte 3D-vs.-Produktions-XCS Vergleich bleiben offen.
+**Zwischenstand (24.03.2026):** Automatisierte Batch-Validierung gestartet. Duplicate-sichere Dateinamen für gleichnamige Produktionsplatten, LayerPath-basierte Selektion, echter `AssignmentResolver`-Test gegen die Plugin-Klasse und ein 24-Platten-Regressionstest sind umgesetzt. Zusätzlich sind jetzt erste DWG-abgeleitete Fixtures für `Putz-Schrank.dwg` (`Staub_SockelMont.xcs`) und `Pult_und_Korpus_Novotny.dwg` (`NEW_Fertigauszug_Legrabox.xcs`) als normalisierte Produktionsvergleichstests im Repo. Komplexe Produktionsplatten mit `CreateBladeCut` / `CreateSectioningMillingStrategy` bleiben offen; der Gap ist über `NEW_Schubladen_Doppel_1.xcs` jetzt explizit im Testbestand dokumentiert. Rhino-Smoke-Tests bleiben offen.
 
 ### Tasks
 
@@ -204,8 +204,9 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 | 5.10 | ROADMAP.md aktualisieren | Docs/ | 5.1–5.8 | 1h |
 
 **Deliverables:**
-- 2 Test-3D-Modelle mit Blöcken (aus echten CAD+T DWG-Daten abgeleitet)
-- XCS-Output-Vergleich: Unsere Pipeline vs. CAD+T Referenz
+- Erste DWG-basierte Produktionsfixtures für einfache Referenzteile (heute unterstützt)
+- Normalisierte XCS-Output-Vergleiche: Unsere Plate-/3D-Pipeline vs. CAD+T Referenz
+- Dokumentierter Feature-Gap für komplexe BladeCut-/Sectioning-Teile
 - Alle Edge Cases abgedeckt
 - 100+ Tests grün
 - Dokumentation aktuell
@@ -216,6 +217,8 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 - 4 neue Validierungs-Tests für Produktionsnamen, Sanitizing-Kollisionen und 24-Platten-Regression
 - Echte `AssignmentResolver`-Tests statt lokaler Test-Nachbildung
 - Proximity-Zuweisung für Blöcke zwischen zwei Platten auf closest-face Logik umgestellt
+- DWG-abgeleitete Fixtures + Produktionsvergleichstests für `SockelMont` und `Fertigauszug_Legrabox`
+- BladeCut-/Sectioning-Gap für `Schubladen_Doppel` als expliziter Referenztest abgesichert
 
 **Risiko:** Echte Produktionsdaten können Fälle enthalten die wir nicht bedacht haben. Mitigation: Inkrementell testen, Fehler dokumentieren, in nächsten Sprint-Zyklus aufnehmen.
 

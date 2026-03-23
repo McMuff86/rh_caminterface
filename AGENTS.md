@@ -53,11 +53,11 @@ RhinoCNCExporter.Core/                 # Core-Logik OHNE RhinoCommon
 RhinoCNCExporter/                      # Plugin MIT RhinoCommon
 ├── PlugIn.cs                          # Rhino Plugin Entry
 ├── Commands/                          # User-facing Rhino Commands
-│   ├── ExportCommand.cs               # Export-Dialog starten
-│   └── SettingsCommand.cs             # Einstellungen öffnen
+│   ├── RhinoCNCExporterCommand.cs     # Dockbares ExportPanel öffnen
+│   ├── ExportXilogCommand.cs          # Legacy XCS-Dialogexport
 ├── UI/                                # Eto.Forms UI
-│   ├── SettingsPanel.cs
-│   └── ExportDialog.cs
+│   ├── ExportPanel.cs                 # Produktives Export-Panel
+│   └── ExportDialog.cs                # Legacy Quick-Export Dialog
 ├── BlockScanning/                     # 🆕 Sprint 2: Block-Inserts scannen & parsen
 │   ├── BlockScanner.cs                # RhinoDoc → List<FittingBlock>
 │   └── AssignmentResolver.cs          # Layer + proximity-based block-to-plate assignment

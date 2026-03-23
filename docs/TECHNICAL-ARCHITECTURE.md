@@ -982,8 +982,8 @@ Per Plate: .xcs / .cix / .mpr           │
 | **Plate Detection** | | ✅ PlateDetector (Brep/Solid analyse) |
 | **Assignment** | | ✅ AssignmentResolver (Layer-Zuordnung) |
 | **Block Library** | | ✅ BlockLibraryService (.3dm Import) |
-| **UI** | | ✅ ExportDialog, SettingsPanel |
-| **Rhino Commands** | | ✅ ExportCommand, SettingsCommand |
+| **UI** | | ✅ ExportPanel, ExportDialog |
+| **Rhino Commands** | | ✅ RhinoCNCExporterCommand, ExportXilogCommand |
 
 **Regel:** Wenn es ohne `using Rhino;` geht → Core. Wenn es RhinoCommon braucht → Plugin.
 

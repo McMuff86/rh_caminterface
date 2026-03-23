@@ -24,7 +24,6 @@ public sealed class RhinoCNCExporterPlugIn : PlugIn
     {
         // Panel registration moved to Command constructors (Rhino 8 best practice).
         // ExportPanel → RhinoCNCExporterCommand constructor
-        // SettingsPanel → SettingsCommand constructor
         RhinoApp.WriteLine("[RhinoCNCExporter] Plugin loaded (v0.2.0)");
         return LoadReturnCode.Success;
     }

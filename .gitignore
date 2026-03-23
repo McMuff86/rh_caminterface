@@ -19,3 +19,6 @@ Desktop.ini
 # Python
 __pycache__/
 *.pyc
+
+# Local research / scratch fixtures
+template_dwg_xcs/

@@ -17,7 +17,7 @@ Ein Rhino 8 Plugin (Yak Package), das aus 2D-Geometrien und Layer-Konventionen C
 - [x] ExportService Orchestrierung (Geometrie sammeln → parsen → emittieren → Datei schreiben) ✅
 - [x] Maschinenprofile (MaestroCadTProfile als Default) ✅
 - [x] .xcs-Ausgabe gegen Python-Referenz validiert ✅
-- [x] ExportPanel / ExportDialog / SettingsPanel als Rhino UI-Basis vorhanden ✅
+- [x] ExportPanel / ExportDialog als Rhino UI-Basis vorhanden; altes SettingsPanel entfernt ✅
 - [ ] Validierung & Warnings (Layer-Mismatches, Geometrie-Probleme) — planned
 
 ## ✅ Phase 2: Emitter-Abstraktion — Multi-Maschinen-Architektur
@@ -117,7 +117,7 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 
 ## 🟡 Sprint 5: Produktionsvalidierung + Rhino-Smoketests
 
-**Status**: IN ARBEIT (23.03.2026)
+**Status**: IN ARBEIT (24.03.2026)
 
 - [x] Batch-Export gegen Produktionsbefund gehärtet: gleichnamige Platten erzeugen eindeutige Dateinamen (`_2`, `_3`, ...) ✅
 - [x] Multi-Platte Selektion auf stabile Plate-Keys (`LayerPath` bevorzugt) umgestellt, damit gleichnamige Teile einzeln exportierbar bleiben ✅
@@ -128,8 +128,10 @@ Block detection, starter block definitions, assignment resolver, UI integration:
   - [x] Produktionsnamen-Kollisionen (`Schubladen_Doppel`, `Revisionsture`) ✅
   - [x] Sanitizing-Kollisionen bei Dateinamen ✅
   - [x] 24-Platten Batch-Regression als 20+ Platten Scale-Test ✅
-- [ ] DWG-basierte Testmodelle für Putzschrank / Legrabox ableiten
-- [ ] Vergleich 3D-Output vs. Produktions-XCS
+- [x] Erste DWG-basierte Fixtures für Putzschrank / Legrabox abgeleitet (`SockelMont`, `Fertigauszug_Legrabox`) ✅
+- [x] Normalisierte 3D-vs.-Produktions-XCS Vergleiche für aktuell unterstützte Referenzteile ergänzt ✅
+- [x] Produktions-Gap für `Schubladen_Doppel` via BladeCut-/Sectioning-Referenztest dokumentiert ✅
+- [ ] Fixtures auf komplexere Produktionsplatten mit RNT/Pattern/BladeCut erweitern
 - [ ] Rhino Smoke-Tests des neuen ExportPanels
 - [ ] Face-Tagging/Plugin-Commands (`AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`) von ADR zu erster Code-Implementierung bringen
 

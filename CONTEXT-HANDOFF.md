@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 5 Validation In Progress)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-24, Sprint 5 Validation In Progress)
 
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -47,7 +47,7 @@ Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nu
   - Unit Tests vorhanden und grün ✅
   - GeometryUtils mit Polyline-Sampling, Offsets, Groove-Konstruktion ✅
   - ExportService End-to-End funktional ✅
-  - UI: Settings-Panel + Export-Dialog als Grundgerüst
+  - UI: ExportPanel + ExportDialog als Rhino-Basis, separates Settings-Panel entfernt ✅
 - **Phase 2 (IEmitter Interface + Biesse)** — KOMPLETT:
   - IEmitter Interface für Multi-Maschinen-Support ✅
   - IMachineProfile Interface für maschinenspezifische Konfiguration ✅
@@ -197,9 +197,13 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
 - **AssignmentResolver validiert gegen echten Codepfad**: Tests binden jetzt die echte Plugin-Klasse ein statt eine lokale Nachbildung ✅
 - **Edge Case gelöst**: Blöcke zwischen zwei Platten werden im Proximity-Pfad der nächstgelegenen Plattenfläche zugewiesen statt input-order-abhängig ✅
 - **Altbestand bereinigt**: Veraltete `ExportMode`/`ExportReport`/`ExportModeDetector` Artefakte aus dem Compile-Graph entfernt ✅
+- **DWG-abgeleitete Produktionsfixtures ergänzt**: `Putz-Schrank.dwg` → `Staub_SockelMont.xcs` und `Pult_und_Korpus_Novotny.dwg` → `NEW_Fertigauszug_Legrabox.xcs` sind jetzt als reproduzierbare Tests im Repo hinterlegt ✅
+- **Normalisierte Produktionsvergleiche aktiv**: 3D-/Plate-basierter XCS-Output wird für heute unterstützte Referenzteile nach Normalisierung nicht-semantischer Unterschiede direkt gegen Produktions-XCS verglichen ✅
+- **Feature-Gap formalisiert**: `NEW_Schubladen_Doppel_1.xcs` ist jetzt als BladeCut-/Sectioning-Referenz abgesichert, damit der offene MSL-Block nicht nur in Doku, sondern auch in Tests sichtbar bleibt ✅
 - **Build/Test-Status**:
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter BatchExportPlannerTests` grün ✅
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter AssignmentResolverTests` grün ✅
+  - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter ProductionReferenceValidationTests` grün ✅
   - `dotnet build RhinoCNCExporter/RhinoCNCExporter.csproj` grün ✅
   - Rhino-Smoke-Tests und DWG-basierte Referenzvergleiche noch offen ⚠
 
@@ -233,8 +237,8 @@ RhinoCNCExporter.Tests/
 
 ### Was fehlt / nächste Schritte (Sprint 5+)
 1. **Sprint 5: Validation** — IN ARBEIT:
-   - DWG-basierte Testmodelle für Putzschrank / Legrabox ausarbeiten
-   - Vergleich 3D-Output vs. Produktions-XCS
+   - DWG-basierte Fixtures von einfachen Referenzteilen auf komplexe Platten (z.B. `Seite_links`, `Schubladen_Doppel`) erweitern
+   - Vergleich 3D-Output vs. Produktions-XCS auf BladeCut-/Sectioning-/Helic-Fälle ausdehnen
    - Rhino Smoke-Test des neuen ExportPanels mit echten 3D-Modellen
 
 2. **Neue MSL-Befehle** (aus 55-XCS-Analyse):
@@ -397,5 +401,5 @@ dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj
 11. **Maestro-Handbuch** bei Detailfragen: `maestro_editor_text.txt`
 
 ### Rhino-Kommandos zum Testen
+- `RhinoCNCExporter` — Dockbares ExportPanel öffnen
 - `ExportXilog` — Export-Dialog öffnen
-- `RhinoCNCExporterSettings` — Settings-Panel öffnen
