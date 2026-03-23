@@ -11,6 +11,8 @@ using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Naming;
 using RhinoCNCExporter.Core.Pipeline;
 using RhinoCNCExporter.Core.Profiles;
+using RhinoCNCExporter.Core.PlateDetection;
+using RhinoCNCExporter.PlateDetection;
 
 namespace RhinoCNCExporter.Services;
 
@@ -201,6 +203,155 @@ public static class BlockAwareExportService
     }
 }
 
+    /// <summary>
+    /// Export multiple plates, each to a separate CNC file.
+    /// This is the full Sprint 3 3D pipeline:
+    ///   PlateDetector → BlockScanner → AssignmentResolver → CoordinateTransformer
+    ///   → MachiningFactory → EmitterRouter → per-plate file
+    /// </summary>
+    /// <param name="doc">Active Rhino document.</param>
+    /// <param name="outputDirectory">Directory to write .xcs files to.</param>
+    /// <param name="emitter">CNC format emitter.</param>
+    /// <param name="profile">Machine profile.</param>
+    /// <param name="selectedPlateNames">If set, only export these plates. Null = export all.</param>
+    /// <returns>Multi-plate export result.</returns>
+    public static MultiPlateExportResult ExportMultiPlate(
+        RhinoDoc doc,
+        string outputDirectory,
+        IEmitter emitter,
+        IMachineProfile profile,
+        IReadOnlySet<string>? selectedPlateNames = null)
+    {
+        var result = new MultiPlateExportResult();
+
+        try
+        {
+            // Step 1: Detect plates
+            var detector = new PlateDetector();
+            var allPlates = detector.DetectPlates(doc);
+            result.DetectedPlates = allPlates.ToList();
+
+            if (allPlates.Count == 0)
+            {
+                result.Error = "No plates detected in document";
+                return result;
+            }
+
+            // Filter plates if selection provided
+            var platesToExport = selectedPlateNames != null
+                ? allPlates.Where(p => selectedPlateNames.Contains(p.Name)).ToList()
+                : allPlates.ToList();
+
+            // Step 2: Scan blocks
+            var scanner = new BlockScanner();
+            var allBlocks = scanner.ScanDocument(doc);
+            result.TotalBlockCount = allBlocks.Count;
+
+            // Step 3: Assign blocks to plates (with proximity)
+            var resolver = new AssignmentResolver();
+            var assignments = resolver.ResolveWithProximity(platesToExport, allBlocks);
+
+            // Step 4: For each plate, transform coordinates and generate CNC program
+            var exportedFiles = new List<string>();
+            var clamexCounter = 0;
+
+            foreach (var (plate, blocks) in assignments)
+            {
+                var machinings = new List<Machining>();
+
+                foreach (var block in blocks)
+                {
+                    // Transform block position to plate-local coordinates
+                    var (localX, localY, localZ) = CoordinateTransformer.WorldToPlateLocal(
+                        plate.Origin,
+                        block.InsertionPoint.X,
+                        block.InsertionPoint.Y,
+                        block.InsertionPoint.Z);
+
+                    // Special handling for CLAMEX blocks
+                    if (block.CncType.Equals("MACRO", StringComparison.OrdinalIgnoreCase)
+                        && block.MacroName != null
+                        && block.MacroName.Equals("SawCut_Lamello", StringComparison.OrdinalIgnoreCase))
+                    {
+                        clamexCounter++;
+                        var clamexMachining = ClamexMacroBuilder.CreateMachining(
+                            block, localX, localY, plate.Thickness, clamexCounter);
+                        if (clamexMachining != null)
+                            machinings.Add(clamexMachining);
+                    }
+                    else
+                    {
+                        // Standard block → machining conversion
+                        var created = MachiningFactory.CreateFromBlock(
+                            block, localX, localY, localZ, plate.Thickness);
+                        machinings.AddRange(created);
+                    }
+                }
+
+                // Build plate with machinings
+                var plateWithMachinings = plate with { Machinings = machinings };
+
+                // Generate CNC program
+                var nameService = new NameService();
+                var router = new EmitterRouter(emitter, nameService, profile);
+                var program = router.GenerateProgram(plateWithMachinings);
+
+                // Write file
+                var extension = emitter is XilogEmitter ? ".xcs" : ".cix";
+                var fileName = SanitizeFileName(plate.Name) + extension;
+                var filePath = Path.Combine(outputDirectory, fileName);
+
+                File.WriteAllText(filePath, program, Encoding.UTF8);
+                exportedFiles.Add(filePath);
+            }
+
+            result.ExportedFiles = exportedFiles;
+            result.Success = true;
+            result.PlateCount = platesToExport.Count;
+            result.TotalMachinings = assignments.Sum(a =>
+            {
+                // Count machinings per plate (computed on-the-fly)
+                var count = 0;
+                foreach (var block in a.Blocks)
+                {
+                    if (block.CncType.Equals("MACRO", StringComparison.OrdinalIgnoreCase))
+                        count++;
+                    else
+                        count += MachiningFactory.CreateFromBlock(block, 0, 0, 0, 19).Count;
+                }
+                return count;
+            });
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.Error = $"Multi-plate export failed: {ex.Message}";
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Detect plates in the document (for UI preview).
+    /// </summary>
+    public static IReadOnlyList<Plate> DetectPlates(RhinoDoc doc)
+    {
+        var detector = new PlateDetector();
+        return detector.DetectPlates(doc);
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var sb = new StringBuilder(name.Length);
+        foreach (var c in name)
+        {
+            sb.Append(invalid.Contains(c) ? '_' : c);
+        }
+        return sb.ToString();
+    }
+}
+
 /// <summary>
 /// Result of a block-aware export operation.
 /// </summary>
@@ -211,4 +362,18 @@ public class BlockExportResult
     public int BlockCount { get; set; }
     public List<FittingBlock> DetectedBlocks { get; set; } = new();
     public List<Machining> BlockMachinings { get; set; } = new();
+}
+
+/// <summary>
+/// Result of a multi-plate export operation.
+/// </summary>
+public class MultiPlateExportResult
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public int PlateCount { get; set; }
+    public int TotalBlockCount { get; set; }
+    public int TotalMachinings { get; set; }
+    public List<Plate> DetectedPlates { get; set; } = new();
+    public List<string> ExportedFiles { get; set; } = new();
 }

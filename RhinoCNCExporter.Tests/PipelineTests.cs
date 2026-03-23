@@ -237,8 +237,9 @@ public class EmitterRouterTests
         };
 
         var result = router.GenerateProgram(plate);
-        Assert.Contains("MACRO: SawCut_Lamello", result);
-        Assert.Contains("4 params", result);
+        // SawCut_Lamello macros are now emitted as CreateMacro lines
+        Assert.Contains("CreateMacro(", result);
+        Assert.Contains("SawCut_Lamello", result);
     }
 
     [Fact]

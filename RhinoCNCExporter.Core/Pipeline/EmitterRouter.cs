@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using RhinoCNCExporter.Core.Emitters;
 using RhinoCNCExporter.Core.Models;
@@ -114,8 +115,32 @@ public class EmitterRouter : IEmitterRouter
 
     private string EmitMacroRaw(MacroMachining macro)
     {
-        // Macro output — for now a comment placeholder.
-        // Full macro generation will be implemented per macro type in Sprint 2+.
+        // For SawCut_Lamello macros, emit the full CreateMacro line directly
+        if (macro.MacroName.Equals("SawCut_Lamello", StringComparison.OrdinalIgnoreCase)
+            && macro.Parameters.Count > 0)
+        {
+            // Reconstruct CreateMacro from stored parameters
+            var sb = new StringBuilder();
+            sb.Append($"CreateMacro(\"{_nameService.CreateUnique(macro.Name)}\",\"SawCut_Lamello\",");
+            for (int i = 0; i < macro.Parameters.Count; i++)
+            {
+                var p = macro.Parameters[i];
+                if (i > 0) sb.Append(',');
+                if (p == null)
+                    sb.Append("null");
+                else if (p == "true" || p == "false" || p == "null"
+                    || p.StartsWith("DZ") // DZ-9.5 expression
+                    || (double.TryParse(p, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                        && !p.StartsWith("E")))
+                    sb.Append(p);
+                else
+                    sb.Append($"\"{p}\"");
+            }
+            sb.Append(");");
+            return sb.ToString();
+        }
+
+        // Generic macro: emit as comment placeholder
         return $"// MACRO: {macro.MacroName} ({macro.Parameters.Count} params)";
     }
 
