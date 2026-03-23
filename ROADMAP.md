@@ -109,32 +109,98 @@ Ein Rhino 8 Plugin (Yak Package), das aus 2D-Geometrien und Layer-Konventionen C
 
 ## Phase 5: UI & UX
 
+### Core UI
 - [ ] Maschinenauswahl im Export-Dialog (SCM / Biesse / Homag)
 - [ ] Profil-Editor (Technologien, Werkzeuge, Defaults pro Maschine)
-- [ ] 2D-Vorschau der Werkzeugbahnen im Panel
 - [ ] Batch-Export (mehrere Formate gleichzeitig)
-- [ ] Layer-Cheatsheet im Plugin (Schnellreferenz)
+- [ ] Layer-Cheatsheet im Plugin (Schnellreferenz für Layer-Konventionen)
+- [ ] Validierung & Warnings Panel (Layer-Mismatches, Geometrie-Probleme)
+
+### Visualisierung (inspiriert von bSolid / NC-HOPS)
+- [ ] 2D-Vorschau der Werkzeugbahnen im Dockable Panel
+- [ ] 3D-Vorschau der Bearbeitungen im Rhino-Viewport (Abtragssimulation)
+- [ ] Farbkodierte Layer-Vorschau (Drill=rot, Cut=blau, Pocket=grün, etc.)
+- [ ] Verfahrweg-Anzeige (Rapid=gestrichelt, Feed=durchgezogen)
+
+### Makro-Bibliothek (inspiriert von NC-HOPS / Maestro Lab)
+- [ ] Vorgefertigte Layer-Templates für Standard-Bearbeitungen:
+  - Topfband 35mm (Bohrbild + Tasche)
+  - Lochreihe System 32 (Regalbodenträger)
+  - Rückwandnut Standard (10mm ab Kante)
+  - Exzenter/Minifix (Bohrbild Korpus + Boden)
+  - Scharnier-Bohrbild
+- [ ] Template-Browser Panel (Drag&Drop auf Werkstück)
+- [ ] Custom-Makro-Editor (User kann eigene Templates speichern)
+
+### Optimierungen (inspiriert von NC-HOPS / woodWOP)
+- [ ] Bohr-Optimierung (Clustering, kürzeste Verfahrwege)
+- [ ] Werkzeugwechsel-Optimierung (gleiche Werkzeuge gruppieren)
+- [ ] Verfahrweg-Optimierung (minimale Leerwege)
+- [ ] Bearbeitungsreihenfolge-Optimierung (Bohren → Nuten → Taschen → Konturen)
 
 ## Phase 6: Yak Package & Distribution
 
+### Build & Release
 - [ ] Yak `manifest.yml` finalisieren (Name, Version, Keywords)
-- [ ] Build-Pipeline: `dotnet build -c Release` → `yak build --platform win`
 - [ ] Plugin-Icon (64x64 PNG)
-- [ ] Test-Deployment auf `test.yak.rhino3d.com`
+- [ ] Build-Pipeline: `dotnet build -c Release` → `yak build --platform win`
 - [ ] CI/CD: GitHub Actions mit `yak.exe` + `YAK_TOKEN`
+- [ ] Test-Deployment auf `test.yak.rhino3d.com`
 - [ ] Publish auf `yak.rhino3d.com`
+
+### Dokumentation & Onboarding
+- [ ] Benutzer-Dokumentation (Layer-Konventionen, Workflow, Troubleshooting)
 - [ ] Beispieldateien (.3dm + erwartete Ausgaben pro Format)
-- [ ] Benutzer-Dokumentation
+- [ ] Video-Tutorial: "Vom Rhino-Modell zum CNC-Programm"
+- [ ] Layer-Template .3dm (alle Layer voreingerichtet)
+- [ ] Quick-Start Guide pro Maschinenformat (SCM / Biesse / Homag)
+
+### Pricing & Distribution
+- [ ] Free Tier: XCS-Export (SCM) — Einstieg
+- [ ] Pro Tier: Alle Formate + Optimierungen + Makro-Bibliothek
+- [ ] Food4Rhino Listing mit Screenshots + Feature-Vergleich
+- [ ] Stripe Integration (via Solid AI)
+
+## Phase 7: Nesting (Premium)
+
+- [ ] Manuelles Nesting: Teile auf Rohplatte platzieren
+- [ ] Auto-Nesting: Optimale Platzierung (Verschnitt minimieren)
+- [ ] Maserungsrichtung beachten
+- [ ] Haltebrücken/Tabs automatisch platzieren
+- [ ] Schnittfolge-Optimierung
+- [ ] Saugnapf-Positionsvorschlag (inspiriert von NC-HOPS WorkCenter)
+
+## Phase 8: Erweiterte Features
+
+### Parametrische Programme (inspiriert von woodWOP / NC-HOPS)
+- [ ] Variablen-Support in Layer-Namen (z.B. `CUT_E010_Z{DZ}`)
+- [ ] Formel-Support (z.B. Tiefe = "Materialdicke - 2")
+- [ ] Ein Programm für variable Werkstückgrössen
+- [ ] Parametrische Makro-Bibliothek (Korpus, Schublade, Tür)
+
+### Erweiterte Bearbeitungen
+- [ ] Horizontalbohrungen (Seitenbearbeitung)
+- [ ] 5-Achs-Operationen
+- [ ] Kantenbearbeitung (Anleimen-Sequenz)
+- [ ] Sägeschnitte (Kreissäge-Makros)
+- [ ] Tabs/Mikrostege via Layer-Flags (`_TAB3x10`)
+- [ ] Lead-In/Out als Layer-Schalter (`_LI3_R`, `_LO3_T`)
+- [ ] Unterseite (Bottom Workplane), Flip & Rotation
+
+### Integration & Anbindung
+- [ ] Grasshopper-Komponente für parametrische Workflows
+- [ ] ERP-Import (Stückliste → automatische CNC-Programme)
+- [ ] Barcode/QR-Label-Generierung pro Werkstück
+- [ ] Material- & Werkzeug-DB (CSV/JSON Import)
+- [ ] Kollisionserkennung (Premium, inspiriert von bSolid)
 
 ---
 
-## Erweiterungsideen (Backlog)
+## Backlog / Ideen
 
-- Tabs/Mikrostege via Layer-Flags (`_TAB3x10`)
-- Lead-In/Out als Layer-Schalter (`_LI3_R`, `_LO3_T`)
-- Unterseite (Bottom Workplane), Flip & Rotation
-- Material- & Werkzeug-DB (CSV/JSON)
-- Weitere Postprozessoren (Heidenhain) als zusätzliche Emitter
-- Grasshopper-Komponente für parametrische Workflows
+- Weitere Postprozessoren (Heidenhain, Morbidelli) als zusätzliche Emitter
 - BPP-Ausgabe für ältere Biesse-Installationen
-- MPRXE-Ausgabe für neueste Homag-Maschinen
+- MPRXE-Ausgabe für neueste Homag-Maschinen (woodWOP 8+)
+- Cloud-Export (CNC-Dateien direkt an Maschine senden)
+- Multi-User: Shared Makro-Bibliothek im Netzwerk
+- AI-gestützte Feature-Erkennung (3D-Modell → automatisch Bearbeitungen zuweisen)
