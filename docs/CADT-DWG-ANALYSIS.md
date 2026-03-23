@@ -162,3 +162,165 @@ Jeder Block hat:
 - **UserText/Attributes:** CNC-Parameter (Bohrtiefe, Durchmesser, Makro-Typ)
 - **Insertion Point:** Definiert die CNC-Position
 - **Rotation:** Definiert die Orientierung
+
+---
+
+# CAD+T DWG Analyse — Pult und Korpus (Novotny)
+
+**Datum:** 23. März 2026
+**Quelle:** `Pult_und_Korpus_Novotny.dwg` aus CAD+T exportiert
+**Statistik:** 499 Layer, 3041 Objekte, 2176 Block-Inserts
+
+## 1. Neue Beschlag-Typen (vs. Staub Wolf)
+
+### Blum Legrabox-System (13 Block-Typen!)
+
+| Block-Name | Typ | Inserts |
+|-----------|-----|---------|
+| `FS_LEG_C_550.BES` | Legrabox C-Profil 550mm | 6× |
+| `FS_LEG_M_550.BES` | Legrabox M-Profil 550mm | 2× |
+| `FS_LEG_FRO_BE_C_EXP.BES` | Front-Befestigung C Expando | 6× |
+| `FS_LEG_FRO_BE_M_EXP.BES` | Front-Befestigung M Expando | 8× |
+| `LEG.BES` | Legrabox Basis | 4× |
+| `LEG_40_550_S.BES` | Legrabox 40mm 550 Slim | 8× |
+| `LEG_HRWH_C_W.BES` | Höhenreduzierwange C Weiss | 6× |
+| `LEG_HRWH_M_W.BES` | Höhenreduzierwange M Weiss | 2× |
+| `LEG_KONTUR_C_LI.BES` | Kontur C Links | 3× |
+| `LEG_KONTUR_C_RE.BES` | Kontur C Rechts | 3× |
+| `LEG_KONTUR_M_LI.BES` | Kontur M Links | 1× |
+| `LEG_KONTUR_M_RE.BES` | Kontur M Rechts | 1× |
+| `550.BES` | Auszug-Länge 550mm | 4× |
+
+**Erkenntnis:** Legrabox = ein ganzes System aus Einzel-Blöcken. C = niedrig (66mm), M = mittel (104mm). Front-Befestigung Expando = werkzeuglose Montage. Höhenreduzierwange = wenn Schublade niedriger als Zarge.
+
+### Blum TipOn-System (5 Block-Typen)
+
+| Block-Name | Typ | Inserts |
+|-----------|-----|---------|
+| `MOV_LEG_TipOn_L1.BES` | TipOn Legrabox L1 (kurz) | 2× |
+| `MOV_LEG_TipOn_L3.BES` | TipOn Legrabox L3 (lang) | 6× |
+| `MOV_LEG_TipOn_SY_AD.BES` | TipOn Synchronisations-Adapter | 8× |
+| `TIPON.BES` | TipOn Einheit | 4× |
+| `TIPONMARKIERUNG.BES` | TipOn Markierung (Bohrposition) | 8× |
+
+**Erkenntnis:** TipOn = elektromechanisches Öffnungssystem für grifflose Fronten. Braucht Bohrungen in der Seite für die TipOn-Einheit + Markierungslöcher. L1/L3 = verschiedene Tiefen.
+
+### Hängeschrank & Spezial
+
+| Block-Name | Typ | Inserts |
+|-----------|-----|---------|
+| `KON_HG_FL_75kg_480.BES` | Konsole Hängeschrank flach 75kg 480mm | 1× |
+| `KON_HG_FL_75kg_680.BES` | Konsole Hängeschrank flach 75kg 680mm | 1× |
+| `Fenstergriff.bes` | Fenstergriff | 1× |
+| `MARKIERUNGSLOCH_FLAECHE_FROSTAB.BES` | Frostschutz-Markierung | 4× |
+| `C.BES` | CLAMEX C-System | 3× |
+| `M.BES` | CLAMEX M-System | 1× |
+
+### Lochreihen (XCEBO) — weniger Varianten, mehr Inserts
+
+| Typ | Varianten | Inserts | Vs. Staub |
+|-----|-----------|---------|-----------|
+| XCEBO400 (einseitig) | 8 | 58× | Ähnlich |
+| XCEBO402 (beidseitig) | 3 | 60× | Weniger Varianten, mehr Inserts |
+| **Total** | **11** | **118×** | Staub: 43 Var / ~100 Inserts |
+
+## 2. Vergleich Staub Wolf vs. Novotny
+
+| | Staub Wolf (Putzschrank) | Novotny (Pult+Korpus) |
+|---|---|---|
+| **Layer** | 522 | 499 |
+| **Objekte** | 2292 | 3041 |
+| **Block-Inserts** | 1562 | 2176 |
+| **.BES Typen** | 22 | 38 (+16 neue!) |
+| **XCEBO Varianten** | 43 | 12 |
+| **AZC Intern** | 781 | 1159 |
+| **Highlight** | CLAMEX B_CT, Türbeschläge | Legrabox-System, TipOn |
+| **Schubladen** | Keine | Komplett (Legrabox C+M) |
+| **Hängeschrank** | Nein | Ja (Konsolen 75kg) |
+
+## 3. Naming-Konventionen erkannt
+
+### BES Block-Namen Systematik
+
+```
+{System}_{Detail}_{Variante}.BES
+
+Beispiele:
+  FS_LEG_C_550        = FrontSystem_Legrabox_C-Höhe_550mm
+  FS_LEG_FRO_BE_C_EXP = FrontSystem_Legrabox_Front_Befestigung_C_Expando
+  LEG_HRWH_C_W        = Legrabox_Höhenreduzierwange_C_Weiss
+  LEG_KONTUR_C_LI     = Legrabox_Kontur_C_Links
+  MOV_LEG_TipOn_L3    = Movento_Legrabox_TipOn_Länge3
+  B_CT_E_110_BM1      = Beschlag_ClamexT_Einweg_110Grad_Bohrmaschine1
+  SO_STEL_HOLZ_45     = Sockel_Stellfuss_Holz_45mm
+  KON_HG_FL_75kg_480  = Konsole_Hängeschrank_Flach_75kg_480mm
+```
+
+### Hierarchie der Beschlag-Familien
+
+```
+Blum Beschläge:
+├── Legrabox (Schubladen)
+│   ├── Seitenprofile (C=66mm, M=104mm, K=144mm)
+│   ├── Front-Befestigung (Expando, Clip)
+│   ├── Höhenreduzierwangen
+│   └── Konturen (Links/Rechts)
+├── TipOn (Grifflos-Öffnung)
+│   ├── Einheiten (L1, L3)
+│   ├── Synchronisation
+│   └── Markierungen
+├── Topfbänder
+│   ├── Standard (110°)
+│   └── Unterliegend
+└── Exzenter + Montageverbinder
+
+Hettich/Andere:
+├── Rastbolzen Rapid 24
+├── Riffeldübel
+├── Sockelversteller
+└── Tablar-Träger
+
+Türbeschläge:
+├── Glutz 5341 Langschild
+├── Memphis Drücker
+└── Fenstergriff
+```
+
+## 4. Erkenntnisse für Block-Bibliothek
+
+### Was wir NICHT 1:1 übernehmen
+- Die 13 Legrabox-Blöcke brauchen wir nicht alle als CNC-Blöcke
+- Viele sind nur **visuelle Darstellungen** (Wangen, Konturen) ohne CNC-Relevanz
+- Für CNC relevant sind nur die **Bohrungen** in der Seitenwand/Boden
+
+### Was CNC-relevant ist pro System
+
+**Legrabox:**
+- Seitenwand: 2× Lochreihe für Schiene (XCEBO402) + 2× Bohrung Front-Befestigung
+- Boden: Bohrung für Dübelverbindung
+- → 1 "Legrabox-Paket" Block der alle Bohrungen enthält
+
+**TipOn:**
+- Seitenwand: 1× Bohrung für TipOn-Einheit + Markierungsloch
+- → 1 "TipOn" Block
+
+**Topfband:**
+- Seitenwand: Topf (Ø35, T13) + Grundplatte (2× Ø5)
+- → 1 "Topfband" Block (wie gehabt)
+
+### Unser Ansatz: CNC-Pakete statt Einzel-Blöcke
+
+```
+Statt 13 Legrabox-Blöcke:
+  → 1 Block "Legrabox_C_550" der ALLE Bohrungen definiert
+  → UserText: CNC_Type=LEGRABOX, CNC_Height=C, CNC_Length=550
+  → Plugin kennt das Bohrbild für Legrabox C 550mm
+  → Generiert: Lochreihen + Front-Befestigung + Dübelbohrungen
+
+Statt 5 TipOn-Blöcke:
+  → 1 Block "TipOn_L3" 
+  → UserText: CNC_Type=TIPON, CNC_Variant=L3
+  → Plugin kennt das Bohrbild
+```
+
+**Vorteil:** Der Schreiner setzt EINEN Block, nicht 5-13 Einzel-Blöcke. Das Plugin weiss was zu bohren ist.
