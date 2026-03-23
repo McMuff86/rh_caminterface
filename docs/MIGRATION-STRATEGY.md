@@ -9,11 +9,11 @@
 ## Übersicht
 
 ```
-Phase 1 (JETZT)     Phase 2 (NEXT)           Phase 3 (FUTURE)
+Phase 1 (BLEIBT)    Phase 2 (AKTIV)          Phase 3 (AKTIV)
 2D Layer ─────────── + Block-Detection ──────── + 3D Solid-Pipeline
-    ✅ funktioniert      Neuer Scanner               Platten im Raum
-    ✅ bleibt bestehen   neben LayerParser            Koordinaten-Transform
-    ✅ kein Umbau        Koexistenz                   Multi-Platte Export
+    ✅ funktioniert      ✅ parallel nutzbar         ✅ ExportService3D + UI
+    ✅ bleibt bestehen   ✅ Koexistenz               ✅ Multi-Platte Export
+    ✅ kein Umbau        ✅ fallbackfähig            ✅ Auto/Legacy/3D Routing
 ```
 
 ---
@@ -95,14 +95,14 @@ Ergebnis:
 
 ```csharp
 // In IMachineProfile oder ExportSettings
-public bool EnableBlockDetection { get; set; } = false;  // Default: OFF in Phase 2
+public bool EnableBlockDetection { get; set; } = true;  // Aktueller UI-Default
 ```
 
-**UI:** Checkbox in ExportPanel: `☐ Block-Detection aktivieren (experimentell)`
+**UI:** Checkbox in ExportPanel: `☑ Block-Detection aktivieren`
 
 **Rollout:**
-1. Initially: Default OFF, nur manuell aktivierbar
-2. Nach Testing: Default ON, abschaltbar
+1. Phase 2 initial: Default OFF, nur manuell aktivierbar
+2. Aktuell: Default ON, abschaltbar
 3. Langfristig: Immer an (kein Flag mehr)
 
 ---
@@ -138,11 +138,11 @@ if (doc enthält WK_PIECE Layer + 2D Curves)
 if (doc enthält WK_PIECE + Blocks)
   → Phase 2 Pipeline (Legacy + Blocks)
   
-if (doc enthält 3D Solids auf Layer-Hierarchie + Blocks)
+if (doc enthält 3D Solids/Platten)
   → Phase 3 Pipeline (ExportService3D)
   
 if (doc enthält alles gemischt)
-  → Phase 2 Pipeline (konservativ, Legacy-kompatibel)
+  → Phase 3 Pipeline, sobald 3D-Platten erkannt werden
 ```
 
 **User-Override:** Im ExportPanel:
@@ -183,12 +183,12 @@ Export-Einstellungen:
 │                                             │
 │ ── Erweitert ──                             │
 │ ☐ Block-Detection aktivieren                │
-│ ☐ Multi-Platte Export (3D-Pipeline)         │
-│                                             │
 │ Export-Modus:                                │
 │   ⚪ Automatisch                             │
 │   ⚪ Nur 2D Layer-Konventionen               │
 │   ⚪ Nur 3D Multi-Platte                     │
+│                                             │
+│ Baumansicht: Platte → zugeordnete Blöcke    │
 │                                             │
 │ [Exportieren]  [Abbrechen]                  │
 └─────────────────────────────────────────────┘
@@ -196,24 +196,8 @@ Export-Einstellungen:
 
 ### Settings-Persistenz
 
-```csharp
-// In Plugin Settings (PersistentSettings)
-public class ExportSettings
-{
-    public MachineFormat Format { get; set; } = MachineFormat.Xilog;
-    public double SetupOffsetX { get; set; } = 2.5;
-    public double SetupOffsetY { get; set; } = 2.5;
-    
-    // Phase 2
-    public bool EnableBlockDetection { get; set; } = false;
-    
-    // Phase 3
-    public bool EnableMultiPlateExport { get; set; } = false;
-    public ExportMode Mode { get; set; } = ExportMode.Automatic;
-}
-
-public enum ExportMode { Automatic, LegacyOnly, MultiPlateOnly }
-```
+**Status Sprint 4:** Noch nicht persistent umgesetzt.  
+Das ExportPanel hält den Zustand aktuell nur zur Laufzeit; Persistenz bleibt ein separater UI-/Settings-Task.
 
 ---
 
@@ -242,9 +226,9 @@ public enum ExportMode { Automatic, LegacyOnly, MultiPlateOnly }
 | Feature Flag im UI | Sprint 2 | Checkbox "Block-Detection" | S |
 | Starter-Blöcke erstellen | Sprint 3 | 6 .3dm Dateien mit UserText | M |
 | CLAMEX MachiningFactory | Sprint 3 | SawCut_Lamello Makro-Generation | L |
-| PlateDetector | Sprint 4 | Solid→Platte Erkennung | L |
-| CoordinateTransformer | Sprint 4 | 3D→Platten-Lokal Transform | L |
-| ExportService3D | Sprint 5 | Multi-Platte Pipeline | L |
+| PlateDetector | Sprint 3 | Solid→Platte Erkennung | L |
+| CoordinateTransformer | Sprint 3 | 3D→Platten-Lokal Transform | L |
+| ExportService3D | Sprint 4 | Multi-Platte Pipeline + Auto-Detection | L |
 
 **S** = Small (1-2 Tage), **M** = Medium (3-5 Tage), **L** = Large (1-2 Wochen)
 

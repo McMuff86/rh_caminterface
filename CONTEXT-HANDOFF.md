@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 3 Complete)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 4 Code Complete)
 
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -166,6 +166,29 @@ RhinoCNCExporter.Tests/
 - **EmitterRouter**: Full SawCut_Lamello CreateMacro emission (no longer comment placeholder) ✅
 - 133 new tests (316 total), all passing, 0 regressions ✅
 
+### Sprint 4 — Multi-Platte Export + UI Erweiterung (CODE COMPLETE ✅, 23.03.2026)
+Multi-plate service layer, export mode resolution, tree-based UI preview, export report:
+- **ExportService3D**: neuer Service für Dokumentanalyse + Exportmodus-Auflösung + Batch-Export ✅
+  - `AnalyzeDocument()` erkennt Legacy/3D/Block-Capabilities ✅
+  - `ExportDocument()` routed Auto/Legacy/3D konsistent ✅
+  - `ExportMultiPlate()` erzeugt pro Platte eine separate `.xcs`/`.cix` Datei ✅
+- **Core Sprint-4 Modelle/Helper**: ✅
+  - `ExportMode` Enum (`Automatic`, `LegacyOnly`, `MultiPlate3D`) ✅
+  - `DocumentExportAnalysis`, `PlatePreview`, `ExportBatchPlan`, `ExportSummaryReport` ✅
+  - `ExportModeResolver` für Auto-Detection ✅
+  - `BatchExportPlanner` für Dateinamen/Selektionsplanung ✅
+  - `ConfigurableMachineProfile` für UI-Offsets auf XCS/CIX ✅
+- **ExportPanel UI**: ✅
+  - Export-Modus Selector (Auto / 2D Legacy / 3D Multi-Platte) ✅
+  - Maschinenwahl SCM/Biesse, Homag als Platzhalter ✅
+  - **Baumansicht** Platte → zugeordnete Blöcke mit Checkboxen auf Root-Ebene ✅
+  - Ordner-Export für Multi-Platte, Dateiexport für Legacy ✅
+  - Export-Report ("N Platten, M Bearbeitungen exportiert") ✅
+- **Build/Test-Status**:
+  - `dotnet build RhinoCNCExporter/RhinoCNCExporter.csproj` grün ✅
+  - Neue Sprint-4 Tests + gezielte Regressions-Tests grün ✅
+  - Voller `dotnet test` Lauf führt alle 324 Tests aus, beendet sich in dieser CLI-Umgebung aktuell aber nicht sauber (Host/Runner-Hänger nach Testausführung) ⚠
+
 **Sprint 3 Dateien:**
 ```
 RhinoCNCExporter.Core/
@@ -189,16 +212,13 @@ RhinoCNCExporter.Tests/
 └── MultiPlatePipelineTests.cs         (8 tests: full pipeline integration)
 ```
 
-### Was fehlt / nächste Schritte (Sprint 4+)
-1. **Sprint 4: Multi-Export UI** — NÄCHSTER Sprint:
-   - ExportPanel: Multi-Platte Mode mit Platten-Liste, Checkboxen
-   - Export-Modus Selector (Auto/Legacy/3D)
-   - Batch-Export mit Report
-   - Integration Tests
+### Was fehlt / nächste Schritte (Sprint 5+)
+1. **Sprint 5: Validation** — NÄCHSTER Sprint:
+   - Testen gegen echte Produktionsdaten / CAD+T-Referenzen
+   - Rhino Smoke-Test des neuen ExportPanels mit echten 3D-Modellen
+   - Vergleich 3D-Output vs. Produktions-XCS
 
-2. **Sprint 5: Validation** — Testen gegen echte Produktionsdaten
-
-3. **Neue MSL-Befehle** (aus 55-XCS-Analyse):
+2. **Neue MSL-Befehle** (aus 55-XCS-Analyse):
    - CreateBladeCut: Geneigte Schnitte/Fasen (36 Vorkommen)
    - CreateSectioningMillingStrategy + CreateSegment: Schneidstrategien (68 Vorkommen)
    - CreateHelicMillingStrategy: Spiralbearbeitung für Ausschnitte
@@ -214,9 +234,10 @@ RhinoCNCExporter.Tests/
 
 | Datei | Zweck |
 |-------|-------|
-| `RH_caminterface_v007.py` | Python-Referenz — Quelle der Wahrheit für XCS-Format |
+| `RH_caminterface_v007.py` | Python-Referenz — Legacy-/Fallback-Referenz für XCS, **nicht mehr** Quelle der Wahrheit |
 | `maestro_editor_text.txt` | Durchsuchbarer Maestro-Handbuch-Text (Page-Marker) |
 | `docs/RESEARCH-CAM-FORMATS.md` | Umfassendes Research zu SCM, Biesse, Homag Formaten |
+| `docs/XCS-REFERENCE-ANALYSIS.md` | Primäre fachliche Referenz für aktuelles XCS-Verhalten (55 Produktionsdateien) |
 | `manifest.yml` | Yak Package Manifest für Rhino Package Manager |
 | `RhinoCNCExporter/RhinoCNCExporter.csproj` | Plugin-Projekt (net7.0-windows, Rhino 8) |
 | `RhinoCNCExporter/Core/LayerParser/LayerRegex.cs` | Alle Regex-Patterns + Parsing |
@@ -225,13 +246,16 @@ RhinoCNCExporter.Tests/
 | `RhinoCNCExporter/Core/Emitters/XilogEmitter.cs` | SCM XCS-Ausgabe (vollständig) |
 | `RhinoCNCExporter/Core/Emitters/BiesseEmitter.cs` | Biesse CIX-Ausgabe (Grundoperationen) |
 | `RhinoCNCExporter/Core/Emitters/Emit*.cs` | Operationen-Emitter (CUT, POCKET, DRILL, ROW, GrooveCH, GrooveRNT, DrillPattern, HorizontalDrill) |
-| `docs/XCS-REFERENCE-ANALYSIS.md` | Vollständige Analyse von 55 Produktions-XCS-Dateien |
 | `docs/CLAMEX-CONCEPT.md` | 3D-Block-basiertes CLAMEX-Konzept + 3D-Pipeline Vision |
 | `tests/references/NEW_*.xcs` | 19 neue Produktions-XCS-Dateien (Schubladen, Revisionstüren, etc.) |
 | `RhinoCNCExporter/Core/Profiles/IMachineProfile.cs` | Interface für Maschinenprofile |
 | `RhinoCNCExporter/Core/Profiles/MachineProfile.cs` | Maschinenprofil-Basisklasse |
 | `RhinoCNCExporter/Core/Profiles/BiesseProfile.cs` | Biesse-spezifische Konfiguration |
+| `RhinoCNCExporter/Core/Profiles/ConfigurableMachineProfile.cs` | Laufzeit-Overrides für Setup-Offsets aus der UI |
 | `RhinoCNCExporter/Services/ExportService.cs` | Multi-Format Export-Orchestrierung |
+| `RhinoCNCExporter/Services/ExportService3D.cs` | Sprint-4 Service: Auto-Detection, Multi-Platte Export, Report |
+| `RhinoCNCExporter/Core/Pipeline/ExportModeResolver.cs` | Auto/Legacy/3D Modus-Auflösung |
+| `RhinoCNCExporter/Core/Pipeline/BatchExportPlanner.cs` | Dateinamen-/Selektionsplanung für Multi-Platte |
 | `tests/test_01.xcs`, `test_02.xcs` | XCS-Referenz-Ausgaben der Python-Implementierung |
 | `tests/test_biesse_01.cix` | CIX-Referenz für Biesse-Format |
 | `RhinoCNCExporter.Tests/EmitterTests.cs` | Unit Tests für alle Emitter |
@@ -321,12 +345,14 @@ dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj
 - **Eto.dll Pfad**: Liegt in `System\`, NICHT in `System\netcore\` — häufige Build-Fehlerquelle
 - **Maximale Namenslänge**: 31 Zeichen (Maestro-Limit) — NameService kürzt automatisch
 - **RNT-Makro-Signatur**: Muss exakt dem Maestro-Format entsprechen (siehe Python-Referenz)
+- **XCS Source of Truth**: Produktions-XCS + `docs/XCS-REFERENCE-ANALYSIS.md`, nicht die Python-Datei
 - **CIX ist kein XML**: Trotz "X" im Namen — es sind BEGIN/END Textblöcke
 - **MPR Konturen**: Werden als separate `]n` Blöcke definiert und von Operationen referenziert
 - **Biesse Seiten vs Homag**: Biesse nutzt SIDE=0-5, Homag nutzt Koordinatensysteme (KO)
 - **System.Drawing.Common**: Wird als NuGet-Paket (v7.0.0) benötigt wegen `Icon`-Typ in `Panels.RegisterPanel`
 - **Yak Package**: manifest.yml muss im Root des dist-Ordners liegen, `.rhp` daneben
 - **Workplane**: Immer "Top", Eingaben immer in mm
+- **`dotnet test` CLI-Hänger**: Der komplette Testlauf führt aktuell alle Tests aus, terminiert in dieser Umgebung aber nicht sauber; gezielte Testläufe funktionieren
 - **.gitignore**: Ist vorhanden — `bin/`, `obj/`, `*.rhp`, `*.yak` werden ignoriert
 
 ## Wie weiterarbeiten

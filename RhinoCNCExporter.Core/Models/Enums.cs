@@ -42,6 +42,19 @@ public enum MachineFormat
 }
 
 /// <summary>
+/// User-selectable export mode in the UI/service layer.
+/// </summary>
+public enum ExportMode
+{
+    /// <summary>Choose the best mode from the detected document content.</summary>
+    Automatic,
+    /// <summary>Use the legacy WK_PIECE + layer-based pipeline.</summary>
+    LegacyOnly,
+    /// <summary>Use the 3D multi-plate pipeline (one file per detected plate).</summary>
+    MultiPlate3D
+}
+
+/// <summary>
 /// How this machining was sourced.
 /// </summary>
 public enum MachiningSource

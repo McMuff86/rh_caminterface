@@ -30,13 +30,14 @@ RhinoCNCExporter.Core/
 ├── Emitters/              ✅ BESTEHT — IEmitter, XilogEmitter, BiesseEmitter
 ├── LayerParser/           ✅ BESTEHT — Specs, LayerRegex
 ├── Naming/                ✅ BESTEHT — NameService
-├── Profiles/              ✅ BESTEHT — IMachineProfile, MachineProfile
+├── Profiles/              ✅ BESTEHT — IMachineProfile, MachineProfile, ConfigurableMachineProfile
 │
 ├── Models/                🆕 Zentrale Datenmodelle (DTOs)
 │   ├── Plate.cs
 │   ├── Machining.cs
 │   ├── FittingBlock.cs
-│   └── ExportJob.cs
+│   ├── ExportJob.cs
+│   └── ExportAnalysis.cs
 │
 ├── Blocks/                🆕 Block-Logik (ohne Rhino)
 │   ├── IBlockDefinition.cs
@@ -44,6 +45,8 @@ RhinoCNCExporter.Core/
 │   └── MachiningFactory.cs
 │
 └── Pipeline/              🆕 Export-Orchestrierung (abstrakt)
+    ├── BatchExportPlanner.cs
+    ├── ExportModeResolver.cs
     ├── IPipelineStep.cs
     ├── MachiningBuilder.cs
     └── EmitterRouter.cs
@@ -55,7 +58,7 @@ RhinoCNCExporter.Core/
 RhinoCNCExporter/
 ├── Commands/              ✅ BESTEHT
 ├── UI/                    ✅ BESTEHT
-├── Services/              ✅ BESTEHT — ExportService (wird erweitert)
+├── Services/              ✅ BESTEHT — ExportService, BlockAwareExportService, ExportService3D
 ├── Core/                  ✅ BESTEHT — Emitters, Geometry, LayerParser, etc.
 │
 ├── BlockLibrary/          🆕 Block-Definitionen laden & verwalten

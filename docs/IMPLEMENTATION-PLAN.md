@@ -147,9 +147,10 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 
 ---
 
-## Sprint 4: Multi-Platte Export + UI Erweiterung
+## Sprint 4: Multi-Platte Export + UI Erweiterung ✅ COMPLETE (23.03.2026, Code Complete)
 
 **Ziel:** Mehrere Platten aus einem 3D-Modell erkennen und pro Platte eine separate CNC-Datei exportieren.
+**Ergebnis:** `ExportService3D`, Auto/Legacy/3D Routing, Baumansicht im ExportPanel, Batch-Export und Report implementiert. `dotnet build` grün, Sprint-4 Tests + gezielte Regressionsläufe grün.
 
 ### Tasks
 
@@ -166,14 +167,19 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 | 4.9 | Integration Test: Einfacher Korpus (4 Platten) | Tests/ | 4.1–4.7 | 4h |
 | 4.10 | Integration Test: Legacy-Modus unverändert | Tests/ | 4.1 | 2h |
 
-**Deliverables:**
-- 3D-Modell → pro Platte eine .xcs/.cix Datei
-- UI: Platten-Auswahl, Export-Modus, Report
-- Automatische Modus-Erkennung
-- Legacy-Export funktioniert weiterhin identisch
-- Integration Tests für beide Pfade
+**Deliverables:** ✅ Erreicht
+- ✅ 3D-Modell → pro Platte eine `.xcs`/`.cix` Datei
+- ✅ UI: Platten-Auswahl, Export-Modus, Report
+- ✅ Automatische Modus-Erkennung
+- ✅ Legacy-Export funktioniert weiterhin identisch
+- ✅ Tests für ExportModeResolver, BatchExportPlanner, 4-Platten-Planung und gezielte Regressions-Suiten
 
-**Risiko:** UI-Komplexität. Mitigation: Einfache Tabelle mit Checkboxen, keine Baumansicht.
+**Zusätzliche Umsetzung:**
+- `ExportPanel` nutzt eine **Baumansicht**: Root = Platte, Children = zugeordnete Blöcke
+- Export-Ziel wechselt je nach Modus automatisch zwischen Datei- und Ordner-Auswahl
+- `ConfigurableMachineProfile` erlaubt UI-Offsets auch im 3D-/CIX-Pfad
+
+**Risiko:** UI-Komplexität. Mitigation: flache Baumansicht mit nur einer Hierarchieebene (`Platte → Blöcke`), keine tiefe Verschachtelung.
 
 ---
 
