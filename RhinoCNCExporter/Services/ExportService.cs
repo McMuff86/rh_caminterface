@@ -43,7 +43,6 @@ public static class ExportService
     /// <returns>True on success.</returns>
     public static bool ExportXilog(RhinoDoc doc, bool onlySelection, string filePath, bool layerStepdown = false)
     {
-    {
         var nameService = new NameService(maxLength: 31);
         var emitter = new XilogEmitter(nameService);
         return ExportWithEmitter(doc, onlySelection, filePath, emitter, nameService, layerStepdown);
