@@ -72,7 +72,21 @@ Foundation for the 3D-to-CNC block-based pipeline:
 - [x] Template expansion: {DZ}, {X}, {Y} placeholders with arithmetic ✅
 - [x] 90+ unit tests, all green, 0 warnings ✅
 
-**Next**: Sprint 2 — Block-Scanner + UserText-Parsing (requires Rhino on Windows for block scanning)
+## ✅ Sprint 2: Block Scanning + Starter Blocks
+
+**Status**: KOMPLETT ✅ (23.03.2026)
+
+Block detection, starter block definitions, assignment resolver, UI integration:
+
+- [x] StarterBlockDefinitions: 5 starter blocks (Topfband_35, Lochreihe_32, Duebel_8x30, Duebel_8x30_Stirn, CLAMEX_P14) ✅
+- [x] BlockScanner: Scans RhinoDoc for CNC_* block inserts, extracts position/rotation/layer ✅
+- [x] AssignmentResolver: Layer-based block-to-plate assignment, CNC_Plate override ✅
+- [x] BlockAwareExportService: Bridge between BlockScanner and ExportService, feature flag, fallback ✅
+- [x] ExportPanel UI: Block detection checkbox, blocks list, scan button ✅
+- [x] 36 new tests (schema validation, assignment, full pipeline integration) ✅
+- [x] All 183 tests pass, 0 regressions ✅
+
+**Next**: Sprint 3 — Plate Detection + Coordinate Transformation
 
 ---
 

@@ -37,7 +37,9 @@ RhinoCNCExporter.Core/                 # Core-Logik OHNE RhinoCommon
 ├── Blocks/                            # 🆕 Sprint 1: Block-Logik (ohne Rhino)
 │   ├── BlockUserTextSchema.cs         # CNC_* key constants + validation
 │   ├── CncUserTextParser.cs           # UserText dict → FittingBlock
-│   └── MachiningFactory.cs            # FittingBlock → Machining objects
+│   ├── MachiningFactory.cs            # FittingBlock → Machining objects
+│   └── StarterBlocks/                 # 🆕 Sprint 2: Starter Block Definitions
+│       └── StarterBlockDefinitions.cs # 5 starter blocks as code-defined CNC_* dicts
 └── Pipeline/                          # 🆕 Sprint 1: Export-Orchestrierung
     ├── IMachiningBuilder.cs           # Interface: merge machinings
     ├── IEmitterRouter.cs              # Interface: route to emitter
@@ -53,8 +55,12 @@ RhinoCNCExporter/                      # Plugin MIT RhinoCommon
 ├── UI/                                # Eto.Forms UI
 │   ├── SettingsPanel.cs
 │   └── ExportDialog.cs
+├── BlockScanning/                     # 🆕 Sprint 2: Block-Inserts scannen & parsen
+│   ├── BlockScanner.cs                # RhinoDoc → List<FittingBlock>
+│   └── AssignmentResolver.cs          # Layer-based block-to-plate assignment
 ├── Services/
-│   └── ExportService.cs               # Orchestrierung: Geometrie → Emitter → Datei
+│   ├── ExportService.cs               # Orchestrierung: Geometrie → Emitter → Datei
+│   └── BlockAwareExportService.cs     # 🆕 Sprint 2: Block-aware export with feature flag
 ├── Core/
 │   ├── LayerParser/                   # Layer-Namen → DTOs (CutSpec, PocketSpec, ...)
 │   │   ├── Specs.cs
@@ -79,6 +85,9 @@ RhinoCNCExporter.Tests/                # xUnit Tests (OHNE RhinoCommon)
 ├── CncUserTextParserTests.cs          # 🆕 Parsing + error cases
 ├── MachiningFactoryTests.cs           # 🆕 CNC_Type mapping + template expansion
 ├── PipelineTests.cs                   # 🆕 MachiningBuilder + EmitterRouter
+├── StarterBlockDefinitionsTests.cs    # 🆕 Sprint 2: Starter block validation + factory
+├── AssignmentResolverTests.cs         # 🆕 Sprint 2: Layer-based assignment tests
+├── BlockIntegrationTests.cs           # 🆕 Sprint 2: Full pipeline integration tests
 ├── EmitterTests.cs                    # XilogEmitter + BiesseEmitter
 ├── E2ETests.cs                        # End-to-End gegen Referenzdateien
 ├── LayerRegexTests.cs                 # Layer pattern parsing

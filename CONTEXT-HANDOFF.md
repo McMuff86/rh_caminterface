@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 1 Complete)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-23, Sprint 2 Complete)
 
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -81,7 +81,7 @@ Foundation for 3D-to-CNC block-based pipeline:
 - 90+ new unit tests covering models, schema validation, factory, parser, pipeline ✅
 - All 95+ total tests green, 0 warnings ✅
 
-**Neue Dateien:**
+**Sprint 1 Dateien:**
 ```
 RhinoCNCExporter.Core/
 ├── Models/
@@ -110,7 +110,38 @@ RhinoCNCExporter.Tests/
 └── PipelineTests.cs            (15 tests)
 ```
 
-### Was fehlt / nächste Schritte (Sprint 2+)
+### Sprint 2 — Block Scanning + Starter Blocks (KOMPLETT ✅, 23.03.2026)
+Block detection pipeline, starter blocks, assignment resolver, UI integration:
+- **StarterBlockDefinitions**: 5 starter blocks as code-defined CNC_* dictionaries ✅
+- **BlockScanner**: Scans RhinoDoc for block inserts with CNC_* UserText ✅
+- **AssignmentResolver**: Layer-based block-to-plate assignment ✅
+- **BlockAwareExportService**: Bridge to ExportService with feature flag + fallback ✅
+- **ExportPanel UI**: Block detection checkbox, blocks list, scan button ✅
+- 36 new tests, all passing. Total: 183 tests green, 0 regressions ✅
+
+**Sprint 2 Dateien:**
+```
+RhinoCNCExporter.Core/
+└── Blocks/
+    └── StarterBlocks/
+        └── StarterBlockDefinitions.cs  (5 starter block definitions)
+
+RhinoCNCExporter/
+├── BlockScanning/
+│   ├── BlockScanner.cs           (RhinoDoc → List<FittingBlock>)
+│   └── AssignmentResolver.cs     (Layer-based block-to-plate assignment)
+├── Services/
+│   └── BlockAwareExportService.cs (Block-aware export with feature flag)
+└── UI/
+    └── ExportPanel.cs            (MODIFIED: block detection UI added)
+
+RhinoCNCExporter.Tests/
+├── StarterBlockDefinitionsTests.cs (19 tests: schema, parse, factory, emitter)
+├── AssignmentResolverTests.cs      (7 tests: grouping, matching, edge cases)
+└── BlockIntegrationTests.cs        (10 tests: full pipeline integration)
+```
+
+### Was fehlt / nächste Schritte (Sprint 3+)
 1. **CLAMEX-System** — 3D-Block-basierter Workflow für Lamello-Verbinder:
    - Block-Detection: CLAMEX-Blöcke in 3D-Modell erkennen
    - SawCut_Lamello-Makro: ~48-Parameter Makro für CLAMEX-Verbinder
