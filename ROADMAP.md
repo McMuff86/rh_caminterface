@@ -227,8 +227,10 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [x] Werkzeug-Datenbank pro MachineProfile (JSON Import/Export + Persistenz unter `%AppData%`) ✅
 - [x] Werkzeug-Manager Panel im Plugin (CRUD für Werkzeuge + Halter) ✅
 - [x] Resizable Tool-Manager mit Assembly-Vorschau für Halter + Werkzeug ✅
+- [x] Listenbereiche im Tool-Manager bleiben bei engem Splitter horizontal/vertikal scrollbar ✅
 - [x] E-Code → Werkzeug Mapping in ToolLibrary/Preview-Planung ✅
 - [x] Werkzeug-Vorschläge pro Bearbeitungstyp (Tasche → Fräser, Bohrung → Bohrer) ✅
+- [x] Kompatibilitätsprüfung nach `ToolMotionProfile`/Aggregat: RNT nutzt Rueckwandnuter-Säge, Bohrer bleiben Punkt-/Aggregat-Werkzeuge ✅
 - [x] ExportPanel UI-Polish: 2-Spalten-Dashboard, einklappbare Bereiche und Status-Tabs für Report/Log ✅
 - [ ] Mehrfach-Werkzeug pro Operation: Schruppfräser (E010) + Schlichtfräser (E015)
 
@@ -241,13 +243,13 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 
 ### Toolpath-Preview (Stufe 1 — Visualisierung)
 - [x] Nach Berechnung: Werkzeugbahnen als Rhino-Curves auf Preview-Layer generieren ✅
-- [ ] Farbkodierung:
+- [x] Farbkodierung:
   - Blau = Eilgang (Rapid)
   - Rot = Vorschub-Fräsen (Feed)
   - Orange = Schruppen
   - Grün = Schlichten
   - Gelb = Bohren (Eintauchen)
-  - Gestrichelt = Anfahrwege / Rückzug
+  - Gestrichelt = Anfahrwege / Rückzug ✅
 - [x] Bohrpunkte als Kreise mit Durchmesser-Darstellung ✅
 - [x] Maschinen-Makros (CLAMEX, RNT) als vereinfachte Pfade ✅
 - [x] Preview-Layer ein/ausblenden über Rhino-Layerbaum; "Vorschau löschen" im Panel ✅

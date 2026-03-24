@@ -51,6 +51,30 @@ public class ToolLibraryTests
     }
 
     [Fact]
+    public void SuggestTool_GrooveRntPrefersRueckwandnuterSaw()
+    {
+        var library = ToolLibrary.CreateDefault("xilog");
+        var machining = new GrooveRntMachining
+        {
+            Name = "Rueckwandnut",
+            Axis = RhinoCNCExporter.Core.LayerParser.Axis.X,
+            XStart = 10,
+            YStart = 60,
+            Length = 500,
+            Width = 5.5,
+            Depth = 8.3,
+            RntCode = "066"
+        };
+
+        var tool = library.SuggestTool(machining, new MaestroCadTProfile());
+
+        Assert.NotNull(tool);
+        Assert.Equal(ToolKind.Saw, tool!.Kind);
+        Assert.Equal("RNT066", tool.TechCode);
+        Assert.True(tool.IsFixedAggregate);
+    }
+
+    [Fact]
     public void ToolLibrary_RoundTripsJson()
     {
         var library = ToolLibrary.CreateDefault("xilog").AddOrUpdate(new ToolDefinition
@@ -193,6 +217,29 @@ public class ToolpathPlannerTests
     }
 
     [Fact]
+    public void MachiningStrategy_CreateDefault_GrooveRntUsesSawWithoutRoughingPass()
+    {
+        var library = ToolLibrary.CreateDefault("xilog");
+        var machining = new GrooveRntMachining
+        {
+            Name = "Rueckwandnut",
+            Axis = RhinoCNCExporter.Core.LayerParser.Axis.Y,
+            XStart = 50,
+            YStart = 20,
+            Length = 700,
+            Width = 5.5,
+            Depth = 8,
+            RntCode = "066"
+        };
+
+        var strategy = MachiningStrategy.CreateDefault(machining, library);
+
+        Assert.False(strategy.HasRoughingPass);
+        Assert.Equal("RNT066", strategy.FinishingTool?.TechCode);
+        Assert.Null(strategy.RoughingTool);
+    }
+
+    [Fact]
     public void PlanPlate_CreatesRapidAndRoughFinishOperations()
     {
         var library = ToolLibrary.CreateDefault("xilog");
@@ -293,5 +340,39 @@ public class ToolpathPlannerTests
         Assert.Equal(ToolpathPassType.Macro, operation.PassType);
         Assert.Contains(operation.Primitives, primitive => primitive is ToolpathCirclePrimitive);
         Assert.Contains(operation.Primitives, primitive => primitive is ToolpathLinePrimitive);
+    }
+
+    [Fact]
+    public void PlanPlate_GrooveRntUsesSawToolAndSingleFeedPass()
+    {
+        var library = ToolLibrary.CreateDefault("xilog");
+        var plate = new Plate
+        {
+            Name = "GroovePlate",
+            LengthX = 800,
+            WidthY = 400,
+            Thickness = 19,
+            Machinings = new Machining[]
+            {
+                new GrooveRntMachining
+                {
+                    Name = "Rueckwandnut",
+                    Axis = RhinoCNCExporter.Core.LayerParser.Axis.X,
+                    XStart = 15,
+                    YStart = 45,
+                    Length = 600,
+                    Width = 5.5,
+                    Depth = 8.3,
+                    RntCode = "066"
+                }
+            }
+        };
+
+        var plan = ToolpathPlanner.PlanPlate(plate, library);
+        var operation = Assert.Single(plan.Operations);
+
+        Assert.Equal(ToolpathPassType.Feed, operation.PassType);
+        Assert.Equal("RNT066", operation.Tool?.TechCode);
+        Assert.IsType<ToolpathLinePrimitive>(Assert.Single(operation.Primitives));
     }
 }

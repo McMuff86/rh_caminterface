@@ -226,6 +226,7 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
   - Tool-Library Import / Export / Defaults ✅
   - `Werkzeugmanager`-Dialog für CRUD von Werkzeugen und Haltern mit Parameterformularen ✅
   - Resizable Split-Views in beiden Tabs; Listenbereich, Editor und Preview können separat skaliert werden ✅
+  - Listenbereiche in beiden Tabs bleiben bei engem Splitter horizontal/vertikal scrollbar, statt Spalten einfach abzuschneiden ✅
   - Live-Preview für Werkzeug-/Halter-Assembly als schematische CAD/CAM-Ansicht im Dialog; `CornerRadius` wird in Kontur und Preview-Text dargestellt ✅
   - `RNT066` ist jetzt in der Tool-Library als Rueckwandnuter-Scheibe modelliert; fixer Bohr-/Saegeaggregat-Einsatz und nur lineare X/Y-Bewegung werden in Default-Daten und Preview-Summary berücksichtigt ✅
   - Bohrer werden in der Tool-Library als fixe Werkzeuge im Bohraggregat geführt; die Vorschau zeigt sie als Zylinder mit Schaft statt als Fraeserprofil ✅
@@ -238,6 +239,8 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
   - Neue `ToolLibraryTests` + `ToolpathPlannerTests` grün ✅
   - Regressionsläufe `ProductionReferenceValidationTests`, `PipelineTests`, `EmitterTests` weiter grün ✅
 - **Wichtig**:
+  - `ToolLibrary.SuggestTool()` und `MachiningStrategy.CreateDefault()` erzwingen jetzt Kompatibilität nach `ToolKind` + `ToolMotionProfile` + Aggregatbindung; `GrooveRntMachining` nimmt dadurch die Rueckwandnuter-Säge (`RNT066`) statt eines Routers ✅
+  - RNT-Grooves werden in der Preview-Planung nicht mehr als Rough/Finish-Routing behandelt; sie laufen als einzelner kompatibler Feed-Pass mit Sägewerkzeug ✅
   - Rough/Finish ist aktuell **Preview-/Planungslogik**, noch keine echte CNC-Multi-Pass-Ausgabe ✅/⚠
   - Kein per-Operation Override fuer Werkzeug/Halter im UI; aktuelle Auswahl bleibt library-/heuristikbasiert ⚠
   - Keine echte Offset-Geometrie für Schruppbahnen; aktuelle Roughing-Pässe nutzen gleiche Grundgeometrie mit separater Pass-/Werkzeugsemantik ⚠
@@ -286,8 +289,9 @@ RhinoCNCExporter.Tests/
 3. **GeometryUtils Arc Detection** — `ToPolySegments()` für RhinoCommon ArcCurve-Erkennung
 4. **BppLib Integration** — BppLib NuGet Package als Biesse-Abhängigkeit
 5. **Homag-Emitter** (.mpr) — Noch nicht begonnen, aber Research vorhanden
-6. **UI Improvements** — Maschinenformat-Auswahl, Profile-Konfiguration
-7. **Yak Package Build** — Finaler Package-Build und Test-Installation
+6. **Nächster sauberer Ausbau in Sprint 6/7** — per-Operation Werkzeug-/Halter-Override im Preview/UI, damit Rough/Finish nicht nur heuristisch aus der Library kommt
+7. **UI Improvements** — Maschinenformat-Auswahl, Profile-Konfiguration
+8. **Yak Package Build** — Finaler Package-Build und Test-Installation
 
 ## Schlüsseldateien
 

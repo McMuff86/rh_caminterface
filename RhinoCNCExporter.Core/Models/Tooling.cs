@@ -255,16 +255,27 @@ public sealed record ToolLibrary
     {
         ArgumentNullException.ThrowIfNull(machining);
 
-        var kind = GetExpectedKind(machining);
-        var byTechCode = FindByTechCode(machining.TechCode ?? profile?.DefaultTech, kind);
+        var compatibleTools = GetCompatibleTools(machining);
+        if (compatibleTools.Count == 0)
+            return null;
+
+        var hintedTechCode = GetSuggestedTechCode(machining, profile);
+        var byTechCode = compatibleTools.FirstOrDefault(tool =>
+            string.Equals(tool.TechCode, hintedTechCode, StringComparison.OrdinalIgnoreCase));
         if (byTechCode != null)
             return byTechCode;
 
         var targetDiameter = GetTargetDiameter(machining);
         if (targetDiameter.HasValue)
-            return FindClosestDiameter(targetDiameter.Value, kind);
+        {
+            return compatibleTools
+                .OrderBy(tool => Math.Abs(tool.NominalDiameter - targetDiameter.Value))
+                .ThenBy(tool => tool.NominalDiameter)
+                .ThenBy(tool => tool.Name, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+        }
 
-        return Tools.FirstOrDefault(tool => tool.Kind == kind);
+        return compatibleTools[0];
     }
 
     public ToolDefinition? SuggestRoughingTool(Machining machining, ToolDefinition? finishTool)
@@ -280,12 +291,39 @@ public sealed record ToolLibrary
             return null;
 
         return Tools
-            .Where(tool => tool.Kind == kind)
+            .Where(tool => IsCompatible(machining, tool))
             .Where(tool => finishTool == null || !string.Equals(tool.Id, finishTool.Id, StringComparison.OrdinalIgnoreCase))
             .Where(tool => tool.NominalDiameter > targetDiameter.Value + 0.2)
             .Where(tool => tool.NominalDiameter <= targetDiameter.Value * 1.75 + 0.5)
             .OrderBy(tool => tool.NominalDiameter)
             .FirstOrDefault();
+    }
+
+    public IReadOnlyList<ToolDefinition> GetCompatibleTools(Machining machining)
+    {
+        ArgumentNullException.ThrowIfNull(machining);
+
+        return Tools
+            .Where(tool => IsCompatible(machining, tool))
+            .ToArray();
+    }
+
+    public bool IsCompatible(Machining machining, ToolDefinition tool)
+    {
+        ArgumentNullException.ThrowIfNull(machining);
+        ArgumentNullException.ThrowIfNull(tool);
+
+        if (tool.Kind != GetExpectedKind(machining))
+            return false;
+
+        if (tool.MotionProfile != GetRequiredMotionProfile(machining))
+            return false;
+
+        return machining switch
+        {
+            DrillMachining or DrillPatternMachining or HorizontalDrillMachining or GrooveRntMachining => tool.IsFixedAggregate,
+            _ => true
+        };
     }
 
     public string ToJson()
@@ -365,8 +403,19 @@ public sealed record ToolLibrary
         DrillMachining => ToolKind.Drill,
         DrillPatternMachining => ToolKind.Drill,
         HorizontalDrillMachining => ToolKind.Drill,
+        GrooveRntMachining => ToolKind.Saw,
         MacroMachining => ToolKind.Macro,
         _ => ToolKind.Router
+    };
+
+    private static ToolMotionProfile GetRequiredMotionProfile(Machining machining) => machining switch
+    {
+        DrillMachining => ToolMotionProfile.PointOnly,
+        DrillPatternMachining => ToolMotionProfile.PointOnly,
+        HorizontalDrillMachining => ToolMotionProfile.PointOnly,
+        GrooveRntMachining => ToolMotionProfile.LinearXyOnly,
+        MacroMachining => ToolMotionProfile.MacroDriven,
+        _ => ToolMotionProfile.Freeform2D
     };
 
     private static double? GetTargetDiameter(Machining machining) => machining switch
@@ -380,6 +429,30 @@ public sealed record ToolLibrary
         GrooveRntMachining groove => groove.Width,
         _ => null
     };
+
+    private static string? GetSuggestedTechCode(Machining machining, IMachineProfile? profile)
+    {
+        if (!string.IsNullOrWhiteSpace(machining.TechCode))
+            return machining.TechCode;
+
+        if (machining is GrooveRntMachining groove && !string.IsNullOrWhiteSpace(groove.RntCode))
+        {
+            var normalized = NormalizeTechCodeDigits(groove.RntCode);
+            if (!string.IsNullOrWhiteSpace(normalized))
+                return $"RNT{normalized}";
+        }
+
+        return profile?.DefaultTech;
+    }
+
+    private static string NormalizeTechCodeDigits(string code)
+    {
+        var digits = new string(code.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(digits))
+            return string.Empty;
+
+        return digits.PadLeft(3, '0');
+    }
 
     private static string NormalizeMachineKey(string? machineKey)
     {
@@ -694,8 +767,7 @@ public sealed record MachiningStrategy
         var finishingTool = toolLibrary.SuggestTool(machining);
         var isRoutingLike = machining is RoutingMachining
             or RoutingWithArcsMachining
-            or PocketMachining
-            or GrooveRntMachining;
+            or PocketMachining;
 
         if (!options.EnableRoughingStrategies || !isRoutingLike)
         {

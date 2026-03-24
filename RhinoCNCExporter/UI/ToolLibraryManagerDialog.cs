@@ -7,6 +7,9 @@ namespace RhinoCNCExporter.UI;
 
 public sealed class ToolLibraryManagerDialog : Dialog<ToolLibrary?>
 {
+    private const int ToolGridContentWidth = 860;
+    private const int HolderGridContentWidth = 780;
+
     private readonly Label _summaryLabel;
     private readonly GridView _toolGrid;
     private readonly GridView _holderGrid;
@@ -187,7 +190,8 @@ public sealed class ToolLibraryManagerDialog : Dialog<ToolLibrary?>
                     Items = { newButton, duplicateButton, deleteButton }
                 },
                 CreateHintLabel("`Neu` und `Duplizieren` legen sofort Datensätze an. Formularänderungen werden mit `Änderungen übernehmen` gespeichert."),
-                new StackLayoutItem(_toolGrid, true)
+                CreateHintLabel("Die Werkzeugliste bleibt bei schmalem Splitter horizontal und vertikal scrollbar."),
+                new StackLayoutItem(CreateScrollableGridPane(_toolGrid, ToolGridContentWidth), true)
             }
         };
 
@@ -299,7 +303,8 @@ public sealed class ToolLibraryManagerDialog : Dialog<ToolLibrary?>
                     Items = { newButton, duplicateButton, deleteButton }
                 },
                 CreateHintLabel("Neue Halter werden sofort angelegt. Beim Löschen werden referenzierte Werkzeuge auf `kein Halter` zurückgesetzt."),
-                new StackLayoutItem(_holderGrid, true)
+                CreateHintLabel("Die Halterliste bleibt bei schmalem Splitter horizontal und vertikal scrollbar."),
+                new StackLayoutItem(CreateScrollableGridPane(_holderGrid, HolderGridContentWidth), true)
             }
         };
 
@@ -394,6 +399,25 @@ public sealed class ToolLibraryManagerDialog : Dialog<ToolLibrary?>
             HeaderText = header,
             Width = width,
             DataCell = new TextBoxCell(index)
+        };
+    }
+
+    private static Control CreateScrollableGridPane(GridView grid, int contentWidth)
+    {
+        grid.Size = new Size(contentWidth, 260);
+
+        return new Scrollable
+        {
+            Border = BorderType.None,
+            Content = new StackLayout
+            {
+                Spacing = 0,
+                MinimumSize = new Size(contentWidth, 260),
+                Items =
+                {
+                    new StackLayoutItem(grid, true)
+                }
+            }
         };
     }
 
