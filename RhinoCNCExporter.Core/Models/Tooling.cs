@@ -757,14 +757,21 @@ public sealed record MachiningStrategy
     public static MachiningStrategy CreateDefault(
         Machining machining,
         ToolLibrary toolLibrary,
-        ToolpathPlanningOptions? options = null)
+        ToolpathPlanningOptions? options = null,
+        MachiningToolOverride? strategyOverride = null)
     {
         ArgumentNullException.ThrowIfNull(machining);
         ArgumentNullException.ThrowIfNull(toolLibrary);
 
         options ??= new ToolpathPlanningOptions();
 
-        var finishingTool = toolLibrary.SuggestTool(machining);
+        var finishingTool = ResolveToolOverride(
+                toolLibrary,
+                machining,
+                strategyOverride?.FinishingToolId)
+            ?? toolLibrary.SuggestTool(machining);
+        finishingTool = ApplyHolderOverride(toolLibrary, finishingTool, strategyOverride?.FinishingHolderId);
+
         var isRoutingLike = machining is RoutingMachining
             or RoutingWithArcsMachining
             or PocketMachining;
@@ -778,7 +785,13 @@ public sealed record MachiningStrategy
             };
         }
 
-        var roughingTool = toolLibrary.SuggestRoughingTool(machining, finishingTool);
+        var roughingTool = ResolveToolOverride(
+                toolLibrary,
+                machining,
+                strategyOverride?.RoughingToolId)
+            ?? toolLibrary.SuggestRoughingTool(machining, finishingTool);
+        roughingTool = ApplyHolderOverride(toolLibrary, roughingTool, strategyOverride?.RoughingHolderId);
+
         return new MachiningStrategy
         {
             RoughingTool = roughingTool,
@@ -788,6 +801,46 @@ public sealed record MachiningStrategy
             FinishingStepDown = finishingTool?.DefaultStepDown
         };
     }
+
+    private static ToolDefinition? ResolveToolOverride(
+        ToolLibrary toolLibrary,
+        Machining machining,
+        string? toolId)
+    {
+        if (string.IsNullOrWhiteSpace(toolId))
+            return null;
+
+        var tool = toolLibrary.FindById(toolId);
+        return tool != null && toolLibrary.IsCompatible(machining, tool) ? tool : null;
+    }
+
+    private static ToolDefinition? ApplyHolderOverride(
+        ToolLibrary toolLibrary,
+        ToolDefinition? tool,
+        string? holderId)
+    {
+        if (tool == null || string.IsNullOrWhiteSpace(holderId))
+            return tool;
+
+        return toolLibrary.FindHolderById(holderId) != null
+            ? tool with { HolderId = holderId }
+            : tool;
+    }
+}
+
+public sealed record MachiningToolOverride
+{
+    public required string OperationKey { get; init; }
+    public string? RoughingToolId { get; init; }
+    public string? RoughingHolderId { get; init; }
+    public string? FinishingToolId { get; init; }
+    public string? FinishingHolderId { get; init; }
+
+    public bool HasOverride =>
+        !string.IsNullOrWhiteSpace(RoughingToolId)
+        || !string.IsNullOrWhiteSpace(RoughingHolderId)
+        || !string.IsNullOrWhiteSpace(FinishingToolId)
+        || !string.IsNullOrWhiteSpace(FinishingHolderId);
 }
 
 public sealed record ToolpathPlanningOptions
@@ -795,6 +848,13 @@ public sealed record ToolpathPlanningOptions
     public bool IncludeRapidMoves { get; init; } = true;
     public bool EnableRoughingStrategies { get; init; } = true;
     public double DefaultStockToLeave { get; init; } = 0.3;
+    public IReadOnlyList<MachiningToolOverride> StrategyOverrides { get; init; } = Array.Empty<MachiningToolOverride>();
+
+    public MachiningToolOverride? FindOverride(string operationKey)
+    {
+        return StrategyOverrides.FirstOrDefault(item =>
+            string.Equals(item.OperationKey, operationKey, StringComparison.OrdinalIgnoreCase));
+    }
 }
 
 public sealed record ToolpathPlan
@@ -808,6 +868,7 @@ public sealed record ToolpathPlan
 
 public sealed record ToolpathOperationPlan
 {
+    public string? OperationKey { get; init; }
     public required string Name { get; init; }
     public required MachiningType MachiningType { get; init; }
     public required ToolpathPassType PassType { get; init; }

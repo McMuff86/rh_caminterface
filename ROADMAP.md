@@ -232,10 +232,10 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [x] Werkzeug-Vorschläge pro Bearbeitungstyp (Tasche → Fräser, Bohrung → Bohrer) ✅
 - [x] Kompatibilitätsprüfung nach `ToolMotionProfile`/Aggregat: RNT nutzt Rueckwandnuter-Säge, Bohrer bleiben Punkt-/Aggregat-Werkzeuge ✅
 - [x] ExportPanel UI-Polish: 2-Spalten-Dashboard, einklappbare Bereiche und Status-Tabs für Report/Log ✅
-- [ ] Mehrfach-Werkzeug pro Operation: Schruppfräser (E010) + Schlichtfräser (E015)
+- [x] Mehrfach-Werkzeug pro Operation im Preview/UI: Schruppfräser + Schlichtfräser auswählbar ✅
 
 ### Schrupp-/Schlicht-Strategie
-- [ ] Pro Bearbeitung: Schrupp-Werkzeug + Schlicht-Werkzeug wählbar
+- [x] Pro Bearbeitung im Preview/UI: Schrupp-Werkzeug + Schlicht-Werkzeug wählbar ✅
 - [x] Aufmass-Parameter für Schruppen (globales Preview-Aufmass im Panel) ✅
 - [x] Zustellung (Stepdown) pro Werkzeug konfigurierbar im Datenmodell ✅
 - [x] Automatische Multi-Pass Generierung (heuristische Rough/Finish-Preview-Planung) ✅
@@ -259,7 +259,7 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [ ] Bearbeitungsreihenfolge per Drag&Drop ändern
 - [ ] Anfahrstrategie pro Operation wählen (direkt, tangential, helikal)
 - [ ] Zustellung visuell anpassen
-- [ ] Werkzeug-Auswahl pro Operation im Preview ändern
+- [x] Werkzeug-/Halter-Auswahl pro Operation im Preview ändern ✅
 - [ ] Simulation: Schritt-für-Schritt durchspielen (wie Video-Player)
 
 ### Core UI

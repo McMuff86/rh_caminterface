@@ -38,7 +38,7 @@ RhinoCNCExporter.Core/
 │   ├── FittingBlock.cs
 │   ├── ExportJob.cs
 │   ├── ExportAnalysis.cs
-│   └── Tooling.cs         # ToolHolderDefinition, ToolDefinition, ToolLibrary, MachiningStrategy, ToolpathPlan
+│   └── Tooling.cs         # ToolHolderDefinition, ToolDefinition, ToolLibrary, MachiningStrategy, MachiningToolOverride, ToolpathPlan
 │
 ├── Blocks/                🆕 Block-Logik (ohne Rhino)
 │   ├── IBlockDefinition.cs
@@ -59,7 +59,7 @@ RhinoCNCExporter.Core/
 ```
 RhinoCNCExporter/
 ├── Commands/              ✅ BESTEHT
-├── UI/                    ✅ BESTEHT — ExportPanel, ExportDialog, ToolLibraryManagerDialog
+├── UI/                    ✅ BESTEHT — ExportPanel, ExportDialog, ToolLibraryManagerDialog, ToolStrategyDialog
 ├── Services/              ✅ BESTEHT — ExportService, BlockAwareExportService, ExportService3D
 │   ├── ToolLibraryStore.cs
 │   └── ToolpathPreviewService.cs

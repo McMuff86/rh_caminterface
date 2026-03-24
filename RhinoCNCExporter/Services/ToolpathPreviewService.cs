@@ -131,6 +131,7 @@ public sealed class ToolpathPreviewService
             attributes.SetUserString("RhinoCNC.MachiningType", operation.MachiningType.ToString());
             attributes.SetUserString("RhinoCNC.Tool", operation.Tool?.Name ?? string.Empty);
             attributes.SetUserString("RhinoCNC.TechCode", operation.Tool?.TechCode ?? string.Empty);
+            attributes.SetUserString("RhinoCNC.OperationKey", operation.OperationKey ?? string.Empty);
             attributes.SetUserString("RhinoCNC.Depth", operation.Depth.ToString("0.###"));
             if (operation.StockToLeave.HasValue)
             {

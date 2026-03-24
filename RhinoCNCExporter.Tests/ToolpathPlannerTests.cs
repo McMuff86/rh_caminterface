@@ -240,6 +240,44 @@ public class ToolpathPlannerTests
     }
 
     [Fact]
+    public void MachiningStrategy_CreateDefault_UsesExplicitToolAndHolderOverrides()
+    {
+        var library = ToolLibrary.CreateDefault("xilog");
+        var machining = new RoutingMachining
+        {
+            Name = "Contour",
+            Points = new[] { (0.0, 0.0), (250.0, 0.0), (0.0, 0.0) },
+            Depth = 19,
+            ToolDiameter = 9.5,
+            TechCode = "E010",
+            IsClosed = true
+        };
+
+        var strategy = MachiningStrategy.CreateDefault(
+            machining,
+            library,
+            new ToolpathPlanningOptions
+            {
+                EnableRoughingStrategies = true,
+                DefaultStockToLeave = 0.3
+            },
+            new MachiningToolOverride
+            {
+                OperationKey = "plate::0000::Routing::Contour",
+                FinishingToolId = "scm_router_3",
+                FinishingHolderId = "scm_macro_aggregate",
+                RoughingToolId = "scm_router_12",
+                RoughingHolderId = "scm_er32_collet"
+            });
+
+        Assert.True(strategy.HasRoughingPass);
+        Assert.Equal("E015", strategy.FinishingTool?.TechCode);
+        Assert.Equal("scm_macro_aggregate", strategy.FinishingTool?.HolderId);
+        Assert.Equal("E013", strategy.RoughingTool?.TechCode);
+        Assert.Equal("scm_er32_collet", strategy.RoughingTool?.HolderId);
+    }
+
+    [Fact]
     public void PlanPlate_CreatesRapidAndRoughFinishOperations()
     {
         var library = ToolLibrary.CreateDefault("xilog");
@@ -340,6 +378,56 @@ public class ToolpathPlannerTests
         Assert.Equal(ToolpathPassType.Macro, operation.PassType);
         Assert.Contains(operation.Primitives, primitive => primitive is ToolpathCirclePrimitive);
         Assert.Contains(operation.Primitives, primitive => primitive is ToolpathLinePrimitive);
+    }
+
+    [Fact]
+    public void PlanPlate_UsesOperationSpecificOverride()
+    {
+        var library = ToolLibrary.CreateDefault("xilog");
+        var plate = new Plate
+        {
+            Name = "OverridePlate",
+            LengthX = 800,
+            WidthY = 400,
+            Thickness = 19,
+            LayerPath = @"Korpus::OverridePlate",
+            Machinings = new Machining[]
+            {
+                new RoutingMachining
+                {
+                    Name = "Contour",
+                    Points = new[] { (0.0, 0.0), (100.0, 0.0), (0.0, 0.0) },
+                    Depth = 19,
+                    ToolDiameter = 9.5,
+                    TechCode = "E010",
+                    IsClosed = true
+                }
+            }
+        };
+
+        var operationKey = ToolpathPlanner.BuildOperationKey(plate, plate.Machinings[0], 0);
+        var plan = ToolpathPlanner.PlanPlate(
+            plate,
+            library,
+            new ToolpathPlanningOptions
+            {
+                EnableRoughingStrategies = false,
+                StrategyOverrides = new[]
+                {
+                    new MachiningToolOverride
+                    {
+                        OperationKey = operationKey,
+                        FinishingToolId = "scm_router_3",
+                        FinishingHolderId = "scm_macro_aggregate"
+                    }
+                }
+            });
+
+        var operation = Assert.Single(plan.Operations);
+
+        Assert.Equal(operationKey, operation.OperationKey);
+        Assert.Equal("E015", operation.Tool?.TechCode);
+        Assert.Equal("scm_macro_aggregate", operation.Tool?.HolderId);
     }
 
     [Fact]

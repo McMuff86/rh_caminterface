@@ -225,6 +225,7 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
 - **ExportPanel erweitert**:
   - Tool-Library Import / Export / Defaults ✅
   - `Werkzeugmanager`-Dialog für CRUD von Werkzeugen und Haltern mit Parameterformularen ✅
+  - `Werkzeugzuordnung`-Dialog für per-Operation Rough/Finish-/Holder-Overrides auf Basis der aktuell gewählten Platten ✅
   - Resizable Split-Views in beiden Tabs; Listenbereich, Editor und Preview können separat skaliert werden ✅
   - Listenbereiche in beiden Tabs bleiben bei engem Splitter horizontal/vertikal scrollbar, statt Spalten einfach abzuschneiden ✅
   - Live-Preview für Werkzeug-/Halter-Assembly als schematische CAD/CAM-Ansicht im Dialog; `CornerRadius` wird in Kontur und Preview-Text dargestellt ✅
@@ -232,6 +233,7 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
   - Bohrer werden in der Tool-Library als fixe Werkzeuge im Bohraggregat geführt; die Vorschau zeigt sie als Zylinder mit Schaft statt als Fraeserprofil ✅
   - Migration älterer Tool-Libraries ohne Halterdaten beim Laden/Import via `ToolLibraryStore.MergeDefaults(...)` ✅
   - Rough/Finish Preview Toggle + Aufmass-Feld ✅
+  - Speichern der Werkzeugzuordnung triggert direkt ein Replan der Rhino-Vorschau mit den neuen session-basierten Overrides ✅
   - Vorschau generieren / Vorschau löschen ✅
   - 2-Spalten-Dashboard statt reiner Vertikal-Stack; `Modus`, `Dokumentanalyse`, `Legacy-Layer`, `Einstellungen`, `Aktionen` und `Status` sind als einklappbare Bereiche organisiert ✅
   - Export-Report + Log in gemeinsamer Status-Ansicht mit Tabs; Tool-/Preview-/Export-Aktionen im rechten Sidebar-Block gebündelt ✅
@@ -241,8 +243,9 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
 - **Wichtig**:
   - `ToolLibrary.SuggestTool()` und `MachiningStrategy.CreateDefault()` erzwingen jetzt Kompatibilität nach `ToolKind` + `ToolMotionProfile` + Aggregatbindung; `GrooveRntMachining` nimmt dadurch die Rueckwandnuter-Säge (`RNT066`) statt eines Routers ✅
   - RNT-Grooves werden in der Preview-Planung nicht mehr als Rough/Finish-Routing behandelt; sie laufen als einzelner kompatibler Feed-Pass mit Sägewerkzeug ✅
+  - `ToolpathPlanner` vergibt jetzt stabile `OperationKey`s pro Platte/Bearbeitung; `MachiningToolOverride` kann dadurch exakt auf einzelne Bearbeitungen angewendet werden ✅
+  - Per-Operation Rough/Finish-/Holder-Overrides sind jetzt im Preview/UI verfügbar; sie wirken aktuell auf Toolpath-Planung und Rhino-Vorschau, noch nicht auf die finale CNC-Ausgabe ✅/⚠
   - Rough/Finish ist aktuell **Preview-/Planungslogik**, noch keine echte CNC-Multi-Pass-Ausgabe ✅/⚠
-  - Kein per-Operation Override fuer Werkzeug/Halter im UI; aktuelle Auswahl bleibt library-/heuristikbasiert ⚠
   - Keine echte Offset-Geometrie für Schruppbahnen; aktuelle Roughing-Pässe nutzen gleiche Grundgeometrie mit separater Pass-/Werkzeugsemantik ⚠
   - Preview im Werkzeugmanager ist aktuell schematisch 2D, noch kein echtes Rhino-3D-Tool-Assembly-Rendering ⚠
 
@@ -289,7 +292,7 @@ RhinoCNCExporter.Tests/
 3. **GeometryUtils Arc Detection** — `ToPolySegments()` für RhinoCommon ArcCurve-Erkennung
 4. **BppLib Integration** — BppLib NuGet Package als Biesse-Abhängigkeit
 5. **Homag-Emitter** (.mpr) — Noch nicht begonnen, aber Research vorhanden
-6. **Nächster sauberer Ausbau in Sprint 6/7** — per-Operation Werkzeug-/Halter-Override im Preview/UI, damit Rough/Finish nicht nur heuristisch aus der Library kommt
+6. **Nächster sauberer Ausbau in Sprint 6/7** — Preview-Overrides in echte Export-/CNC-Strategien überführen und Roughing-Geometrie mit realem Offset statt nur Pass-Semantik erzeugen
 7. **UI Improvements** — Maschinenformat-Auswahl, Profile-Konfiguration
 8. **Yak Package Build** — Finaler Package-Build und Test-Installation
 

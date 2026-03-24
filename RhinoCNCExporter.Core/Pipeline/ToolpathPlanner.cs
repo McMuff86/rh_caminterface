@@ -1,3 +1,4 @@
+using System.Globalization;
 using RhinoCNCExporter.Core.LayerParser;
 using RhinoCNCExporter.Core.Models;
 
@@ -20,6 +21,12 @@ public static class ToolpathPlanner
 
         options ??= new ToolpathPlanningOptions();
 
+        var originalIndices = new Dictionary<Machining, int>(ReferenceEqualityComparer.Instance);
+        for (var index = 0; index < plate.Machinings.Count; index++)
+        {
+            originalIndices[plate.Machinings[index]] = index;
+        }
+
         var sequence = plate.PreserveMachiningOrder
             ? plate.Machinings
             : EmitterRouter.OrderMachinings(plate.Machinings).ToArray();
@@ -29,7 +36,11 @@ public static class ToolpathPlanner
 
         foreach (var machining in sequence)
         {
-            var planned = PlanMachining(machining, toolLibrary, options);
+            var machiningIndex = originalIndices.TryGetValue(machining, out var index)
+                ? index
+                : 0;
+            var operationKey = BuildOperationKey(plate, machining, machiningIndex);
+            var planned = PlanMachining(operationKey, machining, toolLibrary, options);
             if (planned.Count == 0)
                 continue;
 
@@ -75,27 +86,43 @@ public static class ToolpathPlanner
         };
     }
 
+    public static string BuildOperationKey(Plate plate, Machining machining, int machiningIndex)
+    {
+        ArgumentNullException.ThrowIfNull(plate);
+        ArgumentNullException.ThrowIfNull(machining);
+
+        var plateKey = !string.IsNullOrWhiteSpace(plate.LayerPath)
+            ? plate.LayerPath!
+            : string.Create(
+                CultureInfo.InvariantCulture,
+                $"{plate.Name}|{plate.LengthX:0.###}|{plate.WidthY:0.###}|{plate.Thickness:0.###}|{plate.Origin.OriginX:0.###}|{plate.Origin.OriginY:0.###}|{plate.Origin.OriginZ:0.###}");
+
+        return $"{plateKey}::{machiningIndex:0000}::{GetMachiningType(machining)}::{machining.Name}";
+    }
+
     private static IReadOnlyList<ToolpathOperationPlan> PlanMachining(
+        string operationKey,
         Machining machining,
         ToolLibrary toolLibrary,
         ToolpathPlanningOptions options)
     {
-        var strategy = MachiningStrategy.CreateDefault(machining, toolLibrary, options);
+        var strategyOverride = options.FindOverride(operationKey);
+        var strategy = MachiningStrategy.CreateDefault(machining, toolLibrary, options, strategyOverride);
         return machining switch
         {
-            DrillMachining drill => new[] { PlanDrill(drill, strategy.FinishingTool) },
-            DrillPatternMachining pattern => new[] { PlanDrillPattern(pattern, strategy.FinishingTool) },
-            HorizontalDrillMachining horizontal => new[] { PlanHorizontalDrill(horizontal, strategy.FinishingTool) },
-            RoutingMachining routing => PlanRouting(routing, strategy),
-            RoutingWithArcsMachining routingWithArcs => PlanRoutingWithArcs(routingWithArcs, strategy),
-            PocketMachining pocket => PlanPocket(pocket, strategy),
-            GrooveRntMachining groove => PlanGroove(groove, strategy),
-            MacroMachining macro => new[] { PlanMacro(macro, strategy.FinishingTool) },
+            DrillMachining drill => new[] { PlanDrill(operationKey, drill, strategy.FinishingTool) },
+            DrillPatternMachining pattern => new[] { PlanDrillPattern(operationKey, pattern, strategy.FinishingTool) },
+            HorizontalDrillMachining horizontal => new[] { PlanHorizontalDrill(operationKey, horizontal, strategy.FinishingTool) },
+            RoutingMachining routing => PlanRouting(operationKey, routing, strategy),
+            RoutingWithArcsMachining routingWithArcs => PlanRoutingWithArcs(operationKey, routingWithArcs, strategy),
+            PocketMachining pocket => PlanPocket(operationKey, pocket, strategy),
+            GrooveRntMachining groove => PlanGroove(operationKey, groove, strategy),
+            MacroMachining macro => new[] { PlanMacro(operationKey, macro, strategy.FinishingTool) },
             _ => Array.Empty<ToolpathOperationPlan>()
         };
     }
 
-    private static IReadOnlyList<ToolpathOperationPlan> PlanRouting(RoutingMachining routing, MachiningStrategy strategy)
+    private static IReadOnlyList<ToolpathOperationPlan> PlanRouting(string operationKey, RoutingMachining routing, MachiningStrategy strategy)
     {
         var primitives = new ToolpathPrimitive[]
         {
@@ -107,6 +134,7 @@ public static class ToolpathPlanner
         };
 
         return BuildRoutingPasses(
+            operationKey,
             routing.Name,
             MachiningType.Routing,
             routing.Depth,
@@ -116,6 +144,7 @@ public static class ToolpathPlanner
     }
 
     private static IReadOnlyList<ToolpathOperationPlan> PlanRoutingWithArcs(
+        string operationKey,
         RoutingWithArcsMachining routing,
         MachiningStrategy strategy)
     {
@@ -130,6 +159,7 @@ public static class ToolpathPlanner
         };
 
         return BuildRoutingPasses(
+            operationKey,
             routing.Name,
             MachiningType.RoutingWithArcs,
             routing.Depth,
@@ -138,7 +168,7 @@ public static class ToolpathPlanner
             strategy);
     }
 
-    private static IReadOnlyList<ToolpathOperationPlan> PlanPocket(PocketMachining pocket, MachiningStrategy strategy)
+    private static IReadOnlyList<ToolpathOperationPlan> PlanPocket(string operationKey, PocketMachining pocket, MachiningStrategy strategy)
     {
         var primitives = pocket.Loops
             .Where(loop => loop.Count > 1)
@@ -150,6 +180,7 @@ public static class ToolpathPlanner
             .ToArray();
 
         return BuildRoutingPasses(
+            operationKey,
             pocket.Name,
             MachiningType.Pocket,
             pocket.Depth,
@@ -158,7 +189,7 @@ public static class ToolpathPlanner
             strategy);
     }
 
-    private static IReadOnlyList<ToolpathOperationPlan> PlanGroove(GrooveRntMachining groove, MachiningStrategy strategy)
+    private static IReadOnlyList<ToolpathOperationPlan> PlanGroove(string operationKey, GrooveRntMachining groove, MachiningStrategy strategy)
     {
         var (endX, endY) = groove.Axis == Axis.X
             ? (groove.XStart + groove.Length, groove.YStart)
@@ -176,6 +207,7 @@ public static class ToolpathPlanner
         };
 
         return BuildRoutingPasses(
+            operationKey,
             groove.Name,
             MachiningType.GrooveRnt,
             groove.Depth,
@@ -185,6 +217,7 @@ public static class ToolpathPlanner
     }
 
     private static IReadOnlyList<ToolpathOperationPlan> BuildRoutingPasses(
+        string operationKey,
         string name,
         MachiningType machiningType,
         double depth,
@@ -198,6 +231,7 @@ public static class ToolpathPlanner
         {
             operations.Add(new ToolpathOperationPlan
             {
+                OperationKey = operationKey,
                 Name = $"{name}_rough",
                 MachiningType = machiningType,
                 PassType = ToolpathPassType.Roughing,
@@ -211,6 +245,7 @@ public static class ToolpathPlanner
 
         operations.Add(new ToolpathOperationPlan
         {
+            OperationKey = operationKey,
             Name = strategy.HasRoughingPass ? $"{name}_finish" : name,
             MachiningType = machiningType,
             PassType = strategy.HasRoughingPass ? ToolpathPassType.Finishing : ToolpathPassType.Feed,
@@ -226,10 +261,11 @@ public static class ToolpathPlanner
         return operations;
     }
 
-    private static ToolpathOperationPlan PlanDrill(DrillMachining drill, ToolDefinition? tool)
+    private static ToolpathOperationPlan PlanDrill(string operationKey, DrillMachining drill, ToolDefinition? tool)
     {
         return new ToolpathOperationPlan
         {
+            OperationKey = operationKey,
             Name = drill.Name,
             MachiningType = MachiningType.Drill,
             PassType = ToolpathPassType.Drill,
@@ -248,7 +284,7 @@ public static class ToolpathPlanner
         };
     }
 
-    private static ToolpathOperationPlan PlanDrillPattern(DrillPatternMachining pattern, ToolDefinition? tool)
+    private static ToolpathOperationPlan PlanDrillPattern(string operationKey, DrillPatternMachining pattern, ToolDefinition? tool)
     {
         var circles = new List<ToolpathPrimitive>();
         for (var x = 0; x < pattern.CountX; x++)
@@ -266,6 +302,7 @@ public static class ToolpathPlanner
 
         return new ToolpathOperationPlan
         {
+            OperationKey = operationKey,
             Name = pattern.Name,
             MachiningType = MachiningType.DrillPattern,
             PassType = ToolpathPassType.Drill,
@@ -276,7 +313,7 @@ public static class ToolpathPlanner
         };
     }
 
-    private static ToolpathOperationPlan PlanHorizontalDrill(HorizontalDrillMachining horizontal, ToolDefinition? tool)
+    private static ToolpathOperationPlan PlanHorizontalDrill(string operationKey, HorizontalDrillMachining horizontal, ToolDefinition? tool)
     {
         var (offsetX, offsetY) = horizontal.DrillSide switch
         {
@@ -289,6 +326,7 @@ public static class ToolpathPlanner
 
         return new ToolpathOperationPlan
         {
+            OperationKey = operationKey,
             Name = horizontal.Name,
             MachiningType = MachiningType.HorizontalDrill,
             PassType = ToolpathPassType.Drill,
@@ -314,7 +352,7 @@ public static class ToolpathPlanner
         };
     }
 
-    private static ToolpathOperationPlan PlanMacro(MacroMachining macro, ToolDefinition? tool)
+    private static ToolpathOperationPlan PlanMacro(string operationKey, MacroMachining macro, ToolDefinition? tool)
     {
         var point = ExtractMacroPosition(macro.Parameters);
         var angleDeg = ExtractMacroAngle(macro.Parameters);
@@ -328,6 +366,7 @@ public static class ToolpathPlanner
 
         return new ToolpathOperationPlan
         {
+            OperationKey = operationKey,
             Name = macro.Name,
             MachiningType = MachiningType.Macro,
             PassType = ToolpathPassType.Macro,
@@ -353,7 +392,7 @@ public static class ToolpathPlanner
         };
     }
 
-    private static MachiningType GetMachiningType(Machining machining) => machining switch
+    public static MachiningType GetMachiningType(Machining machining) => machining switch
     {
         DrillMachining => MachiningType.Drill,
         DrillPatternMachining => MachiningType.DrillPattern,

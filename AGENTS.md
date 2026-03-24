@@ -34,7 +34,7 @@ RhinoCNCExporter.Core/                 # Core-Logik OHNE RhinoCommon
 │   ├── Machining.cs                   # Base + 8 subtypes (Drill, DrillPattern, etc.)
 │   ├── FittingBlock.cs                # Parsed block with CNC_* attributes
 │   ├── ExportJob.cs                   # Export orchestration record
-│   └── Tooling.cs                     # 🆕 Sprint 6-8: ToolHolderDefinition, ToolDefinition, ToolLibrary, Strategy, ToolpathPlan
+│   └── Tooling.cs                     # 🆕 Sprint 6-8: ToolHolderDefinition, ToolDefinition, ToolLibrary, StrategyOverrides, ToolpathPlan
 ├── Blocks/                            # 🆕 Sprint 1: Block-Logik (ohne Rhino)
 │   ├── BlockUserTextSchema.cs         # CNC_* key constants + validation
 │   ├── CncUserTextParser.cs           # UserText dict → FittingBlock
@@ -60,7 +60,8 @@ RhinoCNCExporter/                      # Plugin MIT RhinoCommon
 ├── UI/                                # Eto.Forms UI
 │   ├── ExportPanel.cs                 # Produktives Export-Panel
 │   ├── ExportDialog.cs                # Legacy Quick-Export Dialog
-│   └── ToolLibraryManagerDialog.cs    # 🆕 Werkzeug-/Halter-Manager für Tool Library CRUD
+│   ├── ToolLibraryManagerDialog.cs    # 🆕 Werkzeug-/Halter-Manager für Tool Library CRUD
+│   └── ToolStrategyDialog.cs          # 🆕 Per-Operation Rough/Finish-/Holder-Overrides für Preview/UI
 ├── BlockScanning/                     # 🆕 Sprint 2: Block-Inserts scannen & parsen
 │   ├── BlockScanner.cs                # RhinoDoc → List<FittingBlock>
 │   └── AssignmentResolver.cs          # Layer + proximity-based block-to-plate assignment

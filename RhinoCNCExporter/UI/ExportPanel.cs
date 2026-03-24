@@ -32,6 +32,7 @@ public sealed class ExportPanel : Panel
     private readonly ListBox _operationsListBox;
     private readonly TreeGridView _plateTreeView;
     private readonly Label _toolLibraryLabel;
+    private readonly Label _strategySummaryLabel;
     private readonly TextBox _exportPathTextBox;
     private readonly TextBox _stepdownTextBox;
     private readonly TextBox _toleranceTextBox;
@@ -48,6 +49,7 @@ public sealed class ExportPanel : Panel
 
     private TreeGridItemCollection _plateTreeItems = new();
     private DocumentExportAnalysis? _latestAnalysis;
+    private Dictionary<string, MachiningToolOverride> _strategyOverrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly ToolLibraryStore _toolLibraryStore = new();
     private readonly ToolpathPreviewService _toolpathPreviewService = new();
 
@@ -179,8 +181,11 @@ public sealed class ExportPanel : Panel
             expanded: true);
 
         _toolLibraryLabel = CreateLabel("Werkzeugdatenbank: —", 9, false);
+        _strategySummaryLabel = CreateLabel("Strategien: Auto-Heuristik", 9, false);
         var manageToolsButton = new Button { Text = "Werkzeugmanager", Height = 30 };
         manageToolsButton.Click += (_, _) => OpenToolLibraryManager();
+        var strategyButton = new Button { Text = "Werkzeugzuordnung", Height = 30 };
+        strategyButton.Click += (_, _) => OpenToolStrategyDialog();
         var importToolsButton = new Button { Text = "Importieren", Height = 26 };
         importToolsButton.Click += (_, _) => ImportToolLibrary();
         var exportToolsButton = new Button { Text = "Exportieren", Height = 26 };
@@ -228,7 +233,9 @@ public sealed class ExportPanel : Panel
                 Items =
                 {
                     _toolLibraryLabel,
+                    _strategySummaryLabel,
                     manageToolsButton,
+                    strategyButton,
                     toolButtons,
                     previewButtons,
                     CreateLabel("Export-Ziel", 9, false),
@@ -342,6 +349,7 @@ public sealed class ExportPanel : Panel
         RefreshOperations();
         RefreshDocumentAnalysis();
         RefreshToolLibrarySummary();
+        RefreshStrategySummary();
     }
 
     private static Label CreateLabel(string text, float size, bool bold)
@@ -438,6 +446,7 @@ public sealed class ExportPanel : Panel
 
         _exportPathTextBox.Text = string.Empty;
         RefreshToolLibrarySummary();
+        RefreshStrategySummary();
     }
 
     private void OnModeChanged()
@@ -783,6 +792,7 @@ public sealed class ExportPanel : Panel
         if (!TryGetCurrentProfile(out var profile, out var error))
         {
             _toolLibraryLabel.Text = $"Werkzeugdatenbank: {error}";
+            RefreshStrategySummary();
             return;
         }
 
@@ -796,6 +806,8 @@ public sealed class ExportPanel : Panel
         {
             _toolLibraryLabel.Text = $"Werkzeugdatenbank: Fehler ({ex.Message})";
         }
+
+        RefreshStrategySummary();
     }
 
     private void ImportToolLibrary()
@@ -903,6 +915,60 @@ public sealed class ExportPanel : Panel
         }
     }
 
+    private void OpenToolStrategyDialog()
+    {
+        if (!TryGetCurrentProfile(out var profile, out var error))
+        {
+            Log($"❌ {error}");
+            return;
+        }
+
+        try
+        {
+            EnsureAnalysis();
+            if (_latestAnalysis == null)
+            {
+                Log("❌ Keine Dokumentanalyse verfügbar.");
+                return;
+            }
+
+            var previews = GetSelectedOrAllPreviews(_latestAnalysis);
+            if (previews.Count == 0)
+            {
+                Log("❌ Keine Bearbeitungen für die Werkzeugzuordnung gefunden.");
+                return;
+            }
+
+            var library = _toolLibraryStore.LoadOrCreate(profile!);
+            var baseOptions = CreatePreviewPlanningOptions(includeOverrides: false);
+            var items = BuildOperationStrategyItems(library, previews, baseOptions);
+            if (items.Count == 0)
+            {
+                Log("❌ Keine Bearbeitungen für die Werkzeugzuordnung gefunden.");
+                return;
+            }
+
+            var dialog = new ToolStrategyDialog(
+                library,
+                items,
+                _strategyOverrides.Values.ToArray(),
+                baseOptions);
+
+            var result = dialog.ShowModal(this);
+            if (result == null)
+                return;
+
+            _strategyOverrides = result.ToDictionary(item => item.OperationKey, item => item, StringComparer.OrdinalIgnoreCase);
+            RefreshStrategySummary();
+            Log($"✅ Werkzeugzuordnung gespeichert: {_strategyOverrides.Count} Override(s)");
+            GeneratePreview();
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Werkzeugzuordnung fehlgeschlagen: {ex.Message}");
+        }
+    }
+
     private void GeneratePreview()
     {
         try
@@ -922,11 +988,7 @@ public sealed class ExportPanel : Panel
             }
 
             var selectedPlateKeys = new HashSet<string>(GetSelectedPlateKeys(), StringComparer.OrdinalIgnoreCase);
-            var options = new ToolpathPlanningOptions
-            {
-                EnableRoughingStrategies = _roughFinishPreviewCheckBox.Checked ?? true,
-                DefaultStockToLeave = ParseDoubleOrDefault(_roughAllowanceTextBox.Text, 0.3)
-            };
+            var options = CreatePreviewPlanningOptions(includeOverrides: true);
 
             var result = _toolpathPreviewService.GeneratePreview(
                 doc,
@@ -1068,6 +1130,74 @@ public sealed class ExportPanel : Panel
             return 1;
 
         return block.CncType.Equals("DRILLPATTERN", StringComparison.OrdinalIgnoreCase) ? 1 : 1;
+    }
+
+    private ToolpathPlanningOptions CreatePreviewPlanningOptions(bool includeOverrides)
+    {
+        return new ToolpathPlanningOptions
+        {
+            EnableRoughingStrategies = _roughFinishPreviewCheckBox.Checked ?? true,
+            DefaultStockToLeave = ParseDoubleOrDefault(_roughAllowanceTextBox.Text, 0.3),
+            StrategyOverrides = includeOverrides
+                ? _strategyOverrides.Values.ToArray()
+                : Array.Empty<MachiningToolOverride>()
+        };
+    }
+
+    private IReadOnlyList<PlatePreview> GetSelectedOrAllPreviews(DocumentExportAnalysis analysis)
+    {
+        var selectedPlateKeys = new HashSet<string>(GetSelectedPlateKeys(), StringComparer.OrdinalIgnoreCase);
+        if (selectedPlateKeys.Count == 0)
+            return analysis.Plates;
+
+        return analysis.Plates
+            .Where(preview => selectedPlateKeys.Contains(BuildPlateSelectionKey(preview.Plate.Name, preview.Plate.LayerPath)))
+            .ToList();
+    }
+
+    private IReadOnlyList<OperationStrategyItem> BuildOperationStrategyItems(
+        ToolLibrary library,
+        IReadOnlyList<PlatePreview> previews,
+        ToolpathPlanningOptions baseOptions)
+    {
+        var items = new List<OperationStrategyItem>();
+
+        foreach (var preview in previews)
+        {
+            var plate = preview.Plate with
+            {
+                Machinings = ExportService3D.BuildMachiningsForPlate(preview.Plate, preview.Blocks)
+            };
+
+            for (var index = 0; index < plate.Machinings.Count; index++)
+            {
+                var machining = plate.Machinings[index];
+                items.Add(new OperationStrategyItem
+                {
+                    OperationKey = ToolpathPlanner.BuildOperationKey(plate, machining, index),
+                    PlateName = plate.Name,
+                    OperationName = machining.Name,
+                    MachiningType = ToolpathPlanner.GetMachiningType(machining),
+                    Machining = machining,
+                    AutoStrategy = MachiningStrategy.CreateDefault(machining, library, baseOptions),
+                    SupportsRoughing = baseOptions.EnableRoughingStrategies
+                        && (machining is RoutingMachining or RoutingWithArcsMachining or PocketMachining)
+                });
+            }
+        }
+
+        return items;
+    }
+
+    private void RefreshStrategySummary()
+    {
+        if (_strategyOverrides.Count == 0)
+        {
+            _strategySummaryLabel.Text = "Strategien: Auto-Heuristik";
+            return;
+        }
+
+        _strategySummaryLabel.Text = $"Strategien: {_strategyOverrides.Count} Override(s) aktiv";
     }
 
     private static double ParseDoubleOrDefault(string? text, double fallback)
