@@ -179,6 +179,8 @@ public sealed class ExportPanel : Panel
             expanded: true);
 
         _toolLibraryLabel = CreateLabel("Werkzeugdatenbank: —", 9, false);
+        var manageToolsButton = new Button { Text = "Werkzeugmanager", Height = 30 };
+        manageToolsButton.Click += (_, _) => OpenToolLibraryManager();
         var importToolsButton = new Button { Text = "Importieren", Height = 26 };
         importToolsButton.Click += (_, _) => ImportToolLibrary();
         var exportToolsButton = new Button { Text = "Exportieren", Height = 26 };
@@ -226,6 +228,7 @@ public sealed class ExportPanel : Panel
                 Items =
                 {
                     _toolLibraryLabel,
+                    manageToolsButton,
                     toolButtons,
                     previewButtons,
                     CreateLabel("Export-Ziel", 9, false),
@@ -787,7 +790,7 @@ public sealed class ExportPanel : Panel
         {
             var library = _toolLibraryStore.LoadOrCreate(profile!);
             _toolLibraryLabel.Text =
-                $"Werkzeugdatenbank: {library.Tools.Count} Werkzeuge ({profile!.MachineKey})";
+                $"Werkzeugdatenbank: {library.Tools.Count} Werkzeuge · {library.Holders.Count} Halter ({profile!.MachineKey})";
         }
         catch (Exception ex)
         {
@@ -871,6 +874,32 @@ public sealed class ExportPanel : Panel
         catch (Exception ex)
         {
             Log($"❌ Default-Werkzeuge konnten nicht geladen werden: {ex.Message}");
+        }
+    }
+
+    private void OpenToolLibraryManager()
+    {
+        if (!TryGetCurrentProfile(out var profile, out var error))
+        {
+            Log($"❌ {error}");
+            return;
+        }
+
+        try
+        {
+            var library = _toolLibraryStore.LoadOrCreate(profile!);
+            var dialog = new ToolLibraryManagerDialog(library);
+            var result = dialog.ShowModal(this);
+            if (result == null)
+                return;
+
+            _toolLibraryStore.Save(profile!, result);
+            RefreshToolLibrarySummary();
+            Log($"✅ Werkzeugmanager gespeichert: {result.Tools.Count} Werkzeuge, {result.Holders.Count} Halter");
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Werkzeugmanager-Fehler: {ex.Message}");
         }
     }
 

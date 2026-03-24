@@ -25,11 +25,16 @@ public sealed class ToolLibraryStore
 
         var path = GetDefaultPath(profile);
         if (File.Exists(path))
-            return ToolLibrary.LoadFromFile(path);
+        {
+            var defaults = ToolLibrary.CreateDefault(profile);
+            var library = ToolLibrary.LoadFromFile(path).MergeDefaults(defaults);
+            Save(profile, library);
+            return library;
+        }
 
-        var library = ToolLibrary.CreateDefault(profile);
-        library.SaveToFile(path);
-        return library;
+        var defaultLibrary = ToolLibrary.CreateDefault(profile);
+        defaultLibrary.SaveToFile(path);
+        return defaultLibrary;
     }
 
     public ToolLibrary Import(IMachineProfile profile, string sourcePath)
@@ -37,7 +42,7 @@ public sealed class ToolLibraryStore
         ArgumentNullException.ThrowIfNull(profile);
         EnsureNotBlank(sourcePath, nameof(sourcePath));
 
-        var library = ToolLibrary.LoadFromFile(sourcePath) with
+        var library = ToolLibrary.LoadFromFile(sourcePath).MergeDefaults(ToolLibrary.CreateDefault(profile)) with
         {
             MachineKey = profile.MachineKey
         };

@@ -223,9 +223,10 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 > Ohne visuelle Kontrolle = Black Box. Kein Schreiner vertraut einer Black Box.
 
 ### Werkzeug-Datenbank (Tool Library)
-- [x] `ToolDefinition` Datenmodell: Name, Typ (Fräser/Bohrer/Säge), Nenndurchmesser, Schneidenlänge, Gesamtlänge, Drehzahl, Vorschub, E-Code ✅
+- [x] `ToolDefinition` Datenmodell: Name, Typ (Fräser/Bohrer/Säge), Halter-Zuordnung, Nenndurchmesser, Schneidenlänge, Gesamtlänge, Drehzahl, Vorschub, E-Code ✅
 - [x] Werkzeug-Datenbank pro MachineProfile (JSON Import/Export + Persistenz unter `%AppData%`) ✅
-- [ ] Werkzeug-Manager Panel im Plugin (CRUD für Werkzeuge)
+- [x] Werkzeug-Manager Panel im Plugin (CRUD für Werkzeuge + Halter) ✅
+- [x] Resizable Tool-Manager mit Assembly-Vorschau für Halter + Werkzeug ✅
 - [x] E-Code → Werkzeug Mapping in ToolLibrary/Preview-Planung ✅
 - [x] Werkzeug-Vorschläge pro Bearbeitungstyp (Tasche → Fräser, Bohrung → Bohrer) ✅
 - [x] ExportPanel UI-Polish: 2-Spalten-Dashboard, einklappbare Bereiche und Status-Tabs für Report/Log ✅

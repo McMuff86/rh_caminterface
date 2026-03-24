@@ -318,13 +318,13 @@ Diese Tasks bringen sofort Mehrwert und können jederzeit parallel gemacht werde
 
 **Ziel:** Werkzeugverwaltung im Plugin — E-Codes werden zu echten Werkzeugen mit Parametern
 
-**Status 24.03.2026:** Fundament implementiert. `ToolDefinition`, `ToolLibrary`, JSON-Persistenz, Default-Libraries pro Maschine und Panel-Import/Export/Reset sind im Code. Ein echter CRUD-Werkzeugmanager fehlt noch.
+**Status 24.03.2026:** Werkzeug-DB als echte Basis implementiert. `ToolDefinition` wurde um Halter-Zuordnung und Schnittparameter erweitert, `ToolHolderDefinition` ergänzt die Library, Default-Libraries enthalten jetzt Werkzeuge + Halter pro Maschine, und ein Eto-basierter Werkzeugmanager für CRUD von Werkzeugen/Haltern ist aus dem `ExportPanel` erreichbar. Der Dialog nutzt jetzt resizable Split-Views plus schematische Live-Vorschau für Halter/Werkzeug inklusive Corner-Radius-Darstellung. `RNT066` wird in den Defaults als Rueckwandnuter-Scheibe mit fixer Aggregatbindung und nur linearen X/Y-Fahrwegen geführt; Bohrer werden als feste Werkzeuge im Bohraggregat mit zylindrischer Darstellung geführt. Noch offen sind per-Operation Overrides, echte Tool-Assembly-/Magazinlogik und ein vollwertiges 3D-Preview der Assemblies.
 
 | Task | Beschreibung | Aufwand |
 |------|-------------|---------|
 | 6.1 | `ToolDefinition` Record: Name, Typ, Ø, Schneidenlänge, Drehzahl, Vorschub, E-Code | 2h |
 | 6.2 | `ToolLibrary` Klasse: CRUD, JSON Import/Export, pro MachineProfile | 4h |
-| 6.3 | Werkzeug-Manager Panel (Eto.Forms): Liste, Add/Edit/Delete, Import/Export | 6h |
+| 6.3 | Werkzeug-Manager Panel (Eto.Forms): Liste, Add/Edit/Delete, Halter-Zuordnung, Parameter-Editor | 6h |
 | 6.4 | E-Code → Werkzeug Mapping in Emittern | 3h |
 | 6.5 | Werkzeug-Vorschläge pro Bearbeitungstyp (Default-Zuordnung) | 3h |
 | 6.6 | Tests | 3h |

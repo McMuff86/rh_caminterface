@@ -14,6 +14,7 @@ public sealed class NameService
     private readonly HashSet<string> _used = new();
     private readonly Dictionary<string, int> _counts = new();
     private readonly int _maxLen;
+    private readonly object _sync = new();
 
     public NameService(int maxLength = 31)
     {
@@ -26,28 +27,31 @@ public sealed class NameService
     /// </summary>
     public string CreateUnique(string baseName)
     {
-        var @base = Sanitize(baseName);
-
-        // First use — no suffix needed
-        if (!_used.Contains(@base) && _counts.GetValueOrDefault(@base, 0) == 0)
+        lock (_sync)
         {
-            _used.Add(@base);
-            _counts[@base] = 1;
-            return @base;
-        }
+            var @base = Sanitize(baseName);
 
-        // Collision — append _N suffix
-        int n = _counts.GetValueOrDefault(@base, 1) + 1;
-        while (true)
-        {
-            var candidate = CreateSuffixedCandidate(@base, n);
-            if (!_used.Contains(candidate))
+            // First use — no suffix needed
+            if (!_used.Contains(@base) && _counts.GetValueOrDefault(@base, 0) == 0)
             {
-                _used.Add(candidate);
-                _counts[@base] = n;
-                return candidate;
+                _used.Add(@base);
+                _counts[@base] = 1;
+                return @base;
             }
-            n++;
+
+            // Collision — append _N suffix
+            int n = _counts.GetValueOrDefault(@base, 1) + 1;
+            while (true)
+            {
+                var candidate = CreateSuffixedCandidate(@base, n);
+                if (!_used.Contains(candidate))
+                {
+                    _used.Add(candidate);
+                    _counts[@base] = n;
+                    return candidate;
+                }
+                n++;
+            }
         }
     }
 

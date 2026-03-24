@@ -217,13 +217,19 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
   - Rhino-Smoke-Tests und DWG-basierte Referenzvergleiche noch offen ⚠
 
 ### Sprint 6-8 Foundation — Werkzeug-DB + Strategie + Rhino-Preview (IN ARBEIT 🟡, 24.03.2026)
-- **Tooling Core eingeführt**: `RhinoCNCExporter.Core/Models/Tooling.cs` enthält `ToolDefinition`, `ToolLibrary`, `MachiningStrategy`, `ToolpathPlan`, `ToolpathPrimitive` ✅
-- **Per-Machine Tool Libraries**: Default-Werkzeuge für SCM/Xilog und Biesse, JSON Import/Export + Persistenz via `ToolLibraryStore` unter `%AppData%\\RhinoCNCExporter\\ToolLibraries` ✅
+- **Tooling Core erweitert**: `RhinoCNCExporter.Core/Models/Tooling.cs` enthält jetzt `ToolHolderDefinition`, zusätzliche Werkzeugparameter (Halter, Material, Schneiden, StepOver, PlungeFeed) sowie `ToolLibrary`, `MachiningStrategy`, `ToolpathPlan`, `ToolpathPrimitive` ✅
+- **Per-Machine Tool Libraries**: Default-Werkzeuge und Default-Halter für SCM/Xilog und Biesse, JSON Import/Export + Persistenz via `ToolLibraryStore` unter `%AppData%\\RhinoCNCExporter\\ToolLibraries` ✅
 - **Profile erweitert**: `IMachineProfile` hat jetzt `MachineKey` für stabile Tool-Library-Zuordnung ✅
 - **ToolpathPlanner**: Preview-Planung aus `Plate.Machinings` inklusive Rapid-, Drill-, Feed-, Roughing- und Finishing-Pässen ✅
 - **Rhino Preview Service**: `ToolpathPreviewService` erzeugt farbkodierte Preview-Curves auf `RhinoCNC Preview::...` Layern; Bohrungen als Kreise, CLAMEX/RNT als vereinfachte Pfade ✅
 - **ExportPanel erweitert**:
   - Tool-Library Import / Export / Defaults ✅
+  - `Werkzeugmanager`-Dialog für CRUD von Werkzeugen und Haltern mit Parameterformularen ✅
+  - Resizable Split-Views in beiden Tabs; Listenbereich, Editor und Preview können separat skaliert werden ✅
+  - Live-Preview für Werkzeug-/Halter-Assembly als schematische CAD/CAM-Ansicht im Dialog; `CornerRadius` wird in Kontur und Preview-Text dargestellt ✅
+  - `RNT066` ist jetzt in der Tool-Library als Rueckwandnuter-Scheibe modelliert; fixer Bohr-/Saegeaggregat-Einsatz und nur lineare X/Y-Bewegung werden in Default-Daten und Preview-Summary berücksichtigt ✅
+  - Bohrer werden in der Tool-Library als fixe Werkzeuge im Bohraggregat geführt; die Vorschau zeigt sie als Zylinder mit Schaft statt als Fraeserprofil ✅
+  - Migration älterer Tool-Libraries ohne Halterdaten beim Laden/Import via `ToolLibraryStore.MergeDefaults(...)` ✅
   - Rough/Finish Preview Toggle + Aufmass-Feld ✅
   - Vorschau generieren / Vorschau löschen ✅
   - 2-Spalten-Dashboard statt reiner Vertikal-Stack; `Modus`, `Dokumentanalyse`, `Legacy-Layer`, `Einstellungen`, `Aktionen` und `Status` sind als einklappbare Bereiche organisiert ✅
@@ -233,8 +239,9 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
   - Regressionsläufe `ProductionReferenceValidationTests`, `PipelineTests`, `EmitterTests` weiter grün ✅
 - **Wichtig**:
   - Rough/Finish ist aktuell **Preview-/Planungslogik**, noch keine echte CNC-Multi-Pass-Ausgabe ✅/⚠
-  - Kein CRUD-Werkzeugmanager und keine per-Operation manuelle Werkzeugwahl im UI ⚠
+  - Kein per-Operation Override fuer Werkzeug/Halter im UI; aktuelle Auswahl bleibt library-/heuristikbasiert ⚠
   - Keine echte Offset-Geometrie für Schruppbahnen; aktuelle Roughing-Pässe nutzen gleiche Grundgeometrie mit separater Pass-/Werkzeugsemantik ⚠
+  - Preview im Werkzeugmanager ist aktuell schematisch 2D, noch kein echtes Rhino-3D-Tool-Assembly-Rendering ⚠
 
 ### Architektur-Klärung (23.03.2026)
 - `docs/ARCHITECTURE-3D-TO-CNC.md` legt das **künftige** Face-Tagging-/Plugin-Command-Konzept fest

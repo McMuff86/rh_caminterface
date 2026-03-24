@@ -14,6 +14,19 @@ public class ToolLibraryTests
 
         Assert.Contains(library.Tools, tool => tool.TechCode == "E010" && tool.Kind == ToolKind.Router);
         Assert.Contains(library.Tools, tool => tool.TechCode == "D5" && tool.Kind == ToolKind.Drill);
+        Assert.Contains(library.Holders, holder => holder.Id == "scm_er32_collet");
+        Assert.Contains(library.Tools, tool => tool.HolderId == "scm_er32_collet");
+        Assert.Contains(library.Holders, holder => holder.Name.Contains("HSK63F", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(library.Holders, holder => holder.Id == "scm_vertical_drill_bank" && holder.Name.Contains("Bohraggregat", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(library.Tools, tool =>
+            tool.TechCode == "D5"
+            && tool.MotionProfile == ToolMotionProfile.PointOnly
+            && tool.IsFixedAggregate);
+        Assert.Contains(library.Tools, tool =>
+            tool.TechCode == "RNT066"
+            && tool.Name.Contains("Rueckwandnuter", StringComparison.OrdinalIgnoreCase)
+            && tool.MotionProfile == ToolMotionProfile.LinearXyOnly
+            && tool.IsFixedAggregate);
     }
 
     [Fact]
@@ -40,13 +53,119 @@ public class ToolLibraryTests
     [Fact]
     public void ToolLibrary_RoundTripsJson()
     {
-        var library = ToolLibrary.CreateDefault("xilog");
+        var library = ToolLibrary.CreateDefault("xilog").AddOrUpdate(new ToolDefinition
+        {
+            Id = "radius_tool",
+            Name = "Radius Tool",
+            Kind = ToolKind.Router,
+            HolderId = "scm_er32_collet",
+            TechCode = "ER_TEST",
+            NominalDiameter = 12.0,
+            CornerRadius = 1.5,
+            Material = ToolMaterial.Carbide
+        });
 
         var roundTripped = ToolLibrary.FromJson(library.ToJson());
 
         Assert.Equal(library.Name, roundTripped.Name);
         Assert.Equal(library.MachineKey, roundTripped.MachineKey);
+        Assert.Equal(library.Holders.Count, roundTripped.Holders.Count);
         Assert.Equal(library.Tools.Count, roundTripped.Tools.Count);
+        Assert.All(roundTripped.Tools, tool => Assert.Equal(ToolMaterial.Carbide, tool.Material));
+        Assert.Contains(roundTripped.Tools, tool => tool.Id == "radius_tool" && tool.CornerRadius == 1.5);
+    }
+
+    [Fact]
+    public void RemoveHolder_ClearsAssignmentsOnReferencedTools()
+    {
+        var library = ToolLibrary.CreateDefault("xilog");
+
+        var updated = library.RemoveHolder("scm_er32_collet");
+
+        Assert.DoesNotContain(updated.Holders, holder => holder.Id == "scm_er32_collet");
+        Assert.DoesNotContain(updated.Tools, tool => tool.HolderId == "scm_er32_collet");
+    }
+
+    [Fact]
+    public void FromJson_LegacyPayloadWithoutHolders_RemainsCompatible()
+    {
+        const string json = """
+            {
+              "name": "Legacy Tools",
+              "machineKey": "xilog",
+              "tools": [
+                {
+                  "id": "legacy_router",
+                  "name": "Legacy Router",
+                  "kind": "Router",
+                  "nominalDiameter": 8.0,
+                  "techCode": "E008"
+                }
+              ]
+            }
+            """;
+
+        var library = ToolLibrary.FromJson(json);
+        var tool = Assert.Single(library.Tools);
+
+        Assert.Empty(library.Holders);
+        Assert.Equal("legacy_router", tool.Id);
+        Assert.Null(tool.HolderId);
+        Assert.Equal(ToolMaterial.Carbide, tool.Material);
+    }
+
+    [Fact]
+    public void MergeDefaults_BackfillsLegacyLibrariesWithHoldersAndAssignments()
+    {
+        var defaults = ToolLibrary.CreateDefault("xilog");
+        var legacy = new ToolLibrary
+        {
+            Name = "Legacy Tools",
+            MachineKey = "xilog",
+            Holders = new[]
+            {
+                new ToolHolderDefinition
+                {
+                    Id = "scm_er32_collet",
+                    Name = "SCM ER32 Spannzange",
+                    Kind = HolderKind.ColletChuck,
+                    GaugeLength = 120,
+                    GaugeDiameter = 48,
+                    ProjectionLength = 65
+                }
+            },
+            Tools = defaults.Tools
+                .Select(tool =>
+                {
+                    var legacyTool = tool with
+                    {
+                        HolderId = null,
+                        ShankDiameter = null,
+                        FluteCount = null,
+                        DefaultStepOver = null,
+                        PlungeFeedRate = null,
+                        MotionProfile = ToolMotionProfile.Freeform2D,
+                        IsFixedAggregate = false
+                    };
+
+                    return tool.Id == "scm_saw_5_5"
+                        ? legacyTool with { Name = "SCM Saw 5.5mm" }
+                        : legacyTool;
+                })
+                .ToArray()
+        };
+
+        var merged = legacy.MergeDefaults(defaults);
+
+        Assert.NotEmpty(merged.Holders);
+        Assert.All(merged.Tools, tool => Assert.False(string.IsNullOrWhiteSpace(tool.HolderId)));
+        Assert.All(merged.Tools.Where(tool => tool.Kind == ToolKind.Router), tool => Assert.True(tool.DefaultStepOver > 0));
+        Assert.Contains(merged.Holders, holder => holder.Id == "scm_er32_collet" && holder.Name.Contains("HSK63F", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(merged.Tools, tool =>
+            tool.Id == "scm_saw_5_5"
+            && tool.Name.Contains("Rueckwandnuter", StringComparison.OrdinalIgnoreCase)
+            && tool.MotionProfile == ToolMotionProfile.LinearXyOnly
+            && tool.IsFixedAggregate);
     }
 }
 
