@@ -9,6 +9,7 @@ using Eto.Forms;
 using Rhino;
 using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Pipeline;
+using RhinoCNCExporter.Core.Profiles;
 using RhinoCNCExporter.Services;
 
 namespace RhinoCNCExporter.UI;
@@ -30,20 +31,25 @@ public sealed class ExportPanel : Panel
     private readonly Label _capabilityLabel;
     private readonly ListBox _operationsListBox;
     private readonly TreeGridView _plateTreeView;
+    private readonly Label _toolLibraryLabel;
     private readonly TextBox _exportPathTextBox;
     private readonly TextBox _stepdownTextBox;
     private readonly TextBox _toleranceTextBox;
     private readonly TextBox _toolDiaTextBox;
+    private readonly TextBox _roughAllowanceTextBox;
     private readonly TextBox _zugabeXTextBox;
     private readonly TextBox _zugabeYTextBox;
     private readonly CheckBox _layerStepdownCheckBox;
     private readonly CheckBox _onlySelectionCheckBox;
     private readonly CheckBox _blockDetectionCheckBox;
+    private readonly CheckBox _roughFinishPreviewCheckBox;
     private readonly TextArea _reportArea;
     private readonly TextArea _logArea;
 
     private TreeGridItemCollection _plateTreeItems = new();
     private DocumentExportAnalysis? _latestAnalysis;
+    private readonly ToolLibraryStore _toolLibraryStore = new();
+    private readonly ToolpathPreviewService _toolpathPreviewService = new();
 
     private static readonly Color BgDark = Color.FromArgb(45, 45, 48);
     private static readonly Color FgText = Color.FromArgb(220, 220, 220);
@@ -128,11 +134,13 @@ public sealed class ExportPanel : Panel
         _stepdownTextBox = new TextBox { PlaceholderText = "Stepdown (mm)", Text = "3.0" };
         _toleranceTextBox = new TextBox { PlaceholderText = "Toleranz (mm)", Text = "0.05" };
         _toolDiaTextBox = new TextBox { PlaceholderText = "Tool Ø (mm)", Text = "9.5" };
+        _roughAllowanceTextBox = new TextBox { PlaceholderText = "Aufmass (mm)", Text = "0.3" };
         _zugabeXTextBox = new TextBox { PlaceholderText = "Zugabe X (mm)", Text = "2.5" };
         _zugabeYTextBox = new TextBox { PlaceholderText = "Zugabe Y (mm)", Text = "2.5" };
         _layerStepdownCheckBox = new CheckBox { Text = "Layer-Stepdown (_Sxx)", Checked = false, TextColor = FgText };
         _onlySelectionCheckBox = new CheckBox { Text = "Nur selektierte Geometrie", Checked = false, TextColor = FgText };
         _blockDetectionCheckBox = new CheckBox { Text = "Block-Detection aktivieren", Checked = true, TextColor = FgText };
+        _roughFinishPreviewCheckBox = new CheckBox { Text = "Schrupp/Schlicht Vorschau", Checked = true, TextColor = FgText };
 
         var settingsLayout = new TableLayout
         {
@@ -142,14 +150,49 @@ public sealed class ExportPanel : Panel
                 new TableRow(CreateLabel("Stepdown (mm):", 9, false), new TableCell(_stepdownTextBox, true)),
                 new TableRow(CreateLabel("Toleranz (mm):", 9, false), new TableCell(_toleranceTextBox, true)),
                 new TableRow(CreateLabel("Tool Ø (mm):", 9, false), new TableCell(_toolDiaTextBox, true)),
+                new TableRow(CreateLabel("Aufmass (mm):", 9, false), new TableCell(_roughAllowanceTextBox, true)),
                 new TableRow(CreateLabel("Zugabe X (mm):", 9, false), new TableCell(_zugabeXTextBox, true)),
                 new TableRow(CreateLabel("Zugabe Y (mm):", 9, false), new TableCell(_zugabeYTextBox, true)),
                 new TableRow(new TableCell(_layerStepdownCheckBox) { ScaleWidth = true }),
                 new TableRow(new TableCell(_onlySelectionCheckBox) { ScaleWidth = true }),
-                new TableRow(new TableCell(_blockDetectionCheckBox) { ScaleWidth = true })
+                new TableRow(new TableCell(_blockDetectionCheckBox) { ScaleWidth = true }),
+                new TableRow(new TableCell(_roughFinishPreviewCheckBox) { ScaleWidth = true })
             }
         };
         var settingsSection = CreateSection("Einstellungen", settingsLayout);
+
+        _toolLibraryLabel = CreateLabel("Werkzeugdatenbank: —", 9, false);
+        var importToolsButton = new Button { Text = "Importieren", Height = 26 };
+        importToolsButton.Click += (_, _) => ImportToolLibrary();
+        var exportToolsButton = new Button { Text = "Exportieren", Height = 26 };
+        exportToolsButton.Click += (_, _) => ExportToolLibrary();
+        var resetToolsButton = new Button { Text = "Defaults", Height = 26 };
+        resetToolsButton.Click += (_, _) => ResetToolLibrary();
+        var previewButton = new Button { Text = "Vorschau generieren", Height = 30 };
+        previewButton.Click += (_, _) => GeneratePreview();
+        var clearPreviewButton = new Button { Text = "Vorschau löschen", Height = 30 };
+        clearPreviewButton.Click += (_, _) => ClearPreview();
+
+        var toolButtons = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Items = { importToolsButton, exportToolsButton, resetToolsButton }
+        };
+
+        var previewButtons = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Items = { previewButton, clearPreviewButton }
+        };
+
+        var previewSection = CreateSection("Werkzeuge & Vorschau",
+            new StackLayout
+            {
+                Spacing = 6,
+                Items = { _toolLibraryLabel, toolButtons, previewButtons }
+            });
 
         _exportPathTextBox = new TextBox { PlaceholderText = "Export-Ziel...", ReadOnly = true };
         var browseButton = new Button { Text = "...", Width = 36, Height = 26 };
@@ -205,6 +248,7 @@ public sealed class ExportPanel : Panel
                     operationsSection,
                     plateSection,
                     settingsSection,
+                    previewSection,
                     exportSection,
                     reportSection,
                     logSection
@@ -214,6 +258,7 @@ public sealed class ExportPanel : Panel
 
         RefreshOperations();
         RefreshDocumentAnalysis();
+        RefreshToolLibrarySummary();
     }
 
     private static Label CreateLabel(string text, float size, bool bold)
@@ -288,6 +333,7 @@ public sealed class ExportPanel : Panel
         }
 
         _exportPathTextBox.Text = string.Empty;
+        RefreshToolLibrarySummary();
     }
 
     private void OnModeChanged()
@@ -626,6 +672,191 @@ public sealed class ExportPanel : Panel
         {
             RefreshDocumentAnalysis();
         }
+    }
+
+    private void RefreshToolLibrarySummary()
+    {
+        if (!TryGetCurrentProfile(out var profile, out var error))
+        {
+            _toolLibraryLabel.Text = $"Werkzeugdatenbank: {error}";
+            return;
+        }
+
+        try
+        {
+            var library = _toolLibraryStore.LoadOrCreate(profile!);
+            _toolLibraryLabel.Text =
+                $"Werkzeugdatenbank: {library.Tools.Count} Werkzeuge ({profile!.MachineKey})";
+        }
+        catch (Exception ex)
+        {
+            _toolLibraryLabel.Text = $"Werkzeugdatenbank: Fehler ({ex.Message})";
+        }
+    }
+
+    private void ImportToolLibrary()
+    {
+        if (!TryGetCurrentProfile(out var profile, out var error))
+        {
+            Log($"❌ {error}");
+            return;
+        }
+
+        try
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Werkzeugdatenbank importieren"
+            };
+            dialog.Filters.Add(new FileFilter("JSON Datei (*.json)", ".json"));
+
+            if (dialog.ShowDialog(this) != DialogResult.Ok || string.IsNullOrWhiteSpace(dialog.FileName))
+                return;
+
+            var library = _toolLibraryStore.Import(profile!, dialog.FileName);
+            RefreshToolLibrarySummary();
+            Log($"✅ Werkzeugdatenbank importiert: {library.Tools.Count} Werkzeuge");
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Werkzeug-Import fehlgeschlagen: {ex.Message}");
+        }
+    }
+
+    private void ExportToolLibrary()
+    {
+        if (!TryGetCurrentProfile(out var profile, out var error))
+        {
+            Log($"❌ {error}");
+            return;
+        }
+
+        try
+        {
+            var library = _toolLibraryStore.LoadOrCreate(profile!);
+            var dialog = new SaveFileDialog
+            {
+                Title = "Werkzeugdatenbank exportieren",
+                FileName = $"{profile!.MachineKey}-tools.json"
+            };
+            dialog.Filters.Add(new FileFilter("JSON Datei (*.json)", ".json"));
+
+            if (dialog.ShowDialog(this) != DialogResult.Ok || string.IsNullOrWhiteSpace(dialog.FileName))
+                return;
+
+            _toolLibraryStore.Export(dialog.FileName, library);
+            Log($"✅ Werkzeugdatenbank exportiert: {dialog.FileName}");
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Werkzeug-Export fehlgeschlagen: {ex.Message}");
+        }
+    }
+
+    private void ResetToolLibrary()
+    {
+        if (!TryGetCurrentProfile(out var profile, out var error))
+        {
+            Log($"❌ {error}");
+            return;
+        }
+
+        try
+        {
+            var library = _toolLibraryStore.ResetToDefaults(profile!);
+            RefreshToolLibrarySummary();
+            Log($"✅ Default-Werkzeuge geladen: {library.Tools.Count} Werkzeuge");
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Default-Werkzeuge konnten nicht geladen werden: {ex.Message}");
+        }
+    }
+
+    private void GeneratePreview()
+    {
+        try
+        {
+            var doc = RhinoDoc.ActiveDoc;
+            if (doc == null)
+            {
+                Log("❌ Kein aktives Rhino-Dokument.");
+                return;
+            }
+
+            EnsureAnalysis();
+            if (_latestAnalysis == null)
+            {
+                Log("❌ Keine Dokumentanalyse verfügbar.");
+                return;
+            }
+
+            var selectedPlateKeys = new HashSet<string>(GetSelectedPlateKeys(), StringComparer.OrdinalIgnoreCase);
+            var options = new ToolpathPlanningOptions
+            {
+                EnableRoughingStrategies = _roughFinishPreviewCheckBox.Checked ?? true,
+                DefaultStockToLeave = ParseDoubleOrDefault(_roughAllowanceTextBox.Text, 0.3)
+            };
+
+            var result = _toolpathPreviewService.GeneratePreview(
+                doc,
+                GetMachineFormat(),
+                _latestAnalysis,
+                selectedPlateKeys,
+                options);
+
+            if (!result.Success)
+            {
+                Log($"❌ Vorschau fehlgeschlagen: {result.Error ?? "Unbekannter Fehler"}");
+                return;
+            }
+
+            RefreshToolLibrarySummary();
+            Log($"✅ Vorschau erstellt: {result.PlateCount} Platte(n), {result.OperationCount} Pfade, {result.ObjectCount} Objekte");
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Vorschau-Fehler: {ex.Message}");
+        }
+    }
+
+    private void ClearPreview()
+    {
+        try
+        {
+            var doc = RhinoDoc.ActiveDoc;
+            if (doc == null)
+            {
+                Log("❌ Kein aktives Rhino-Dokument.");
+                return;
+            }
+
+            var removed = _toolpathPreviewService.ClearPreview(doc);
+            Log($"✅ Vorschau gelöscht: {removed} Objekt(e)");
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Vorschau konnte nicht gelöscht werden: {ex.Message}");
+        }
+    }
+
+    private bool TryGetCurrentProfile(out IMachineProfile? profile, out string? error)
+    {
+        error = null;
+        profile = GetMachineFormat() switch
+        {
+            MachineFormat.Xilog => new MaestroCadTProfile(),
+            MachineFormat.Biesse => new BiesseProfile(),
+            _ => null
+        };
+
+        if (profile == null)
+        {
+            error = "Maschinenprofil ist noch nicht implementiert.";
+            return false;
+        }
+
+        return true;
     }
 
     private ExportModeDecision GetCurrentDecision()

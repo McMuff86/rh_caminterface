@@ -6,6 +6,7 @@ namespace RhinoCNCExporter.Core.Profiles;
 /// </summary>
 public abstract class MachineProfile : IMachineProfile
 {
+    public virtual string MachineKey => "xilog";
     public virtual double DefaultDz => 19.0;
     public virtual double DefaultToolDiameter => 9.5;
     public virtual double GrooveOvertravel => 5.0;

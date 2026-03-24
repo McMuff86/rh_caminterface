@@ -317,6 +317,8 @@ Diese Tasks bringen sofort Mehrwert und können jederzeit parallel gemacht werde
 
 **Ziel:** Werkzeugverwaltung im Plugin — E-Codes werden zu echten Werkzeugen mit Parametern
 
+**Status 24.03.2026:** Fundament implementiert. `ToolDefinition`, `ToolLibrary`, JSON-Persistenz, Default-Libraries pro Maschine und Panel-Import/Export/Reset sind im Code. Ein echter CRUD-Werkzeugmanager fehlt noch.
+
 | Task | Beschreibung | Aufwand |
 |------|-------------|---------|
 | 6.1 | `ToolDefinition` Record: Name, Typ, Ø, Schneidenlänge, Drehzahl, Vorschub, E-Code | 2h |
@@ -332,6 +334,8 @@ Diese Tasks bringen sofort Mehrwert und können jederzeit parallel gemacht werde
 
 **Ziel:** Pro Bearbeitung Schrupp- und Schlichtwerkzeug + Aufmass konfigurierbar
 
+**Status 24.03.2026:** Fundament implementiert. `MachiningStrategy` + heuristische Rough/Finish-Planung existieren im Core; das ist aktuell Preview-/Planungslogik, noch keine echte Export-Multi-Pass-Geometrie mit Offset-Konturen.
+
 | Task | Beschreibung | Aufwand |
 |------|-------------|---------|
 | 7.1 | `MachiningStrategy` Record: RoughTool, FinishTool, Allowance, StepDown | 2h |
@@ -346,6 +350,8 @@ Diese Tasks bringen sofort Mehrwert und können jederzeit parallel gemacht werde
 ## Sprint 8: Toolpath-Visualisierung (nach Sprint 7)
 
 **Ziel:** Werkzeugbahnen als farbkodierte Curves im Rhino-Viewport sichtbar machen
+
+**Status 24.03.2026:** Stufe 1 teilweise umgesetzt. `ToolpathPreviewService` erzeugt farbkodierte Preview-Curves auf Rhino-Layern, inklusive Bohrpunkte, Rapid-Linien und vereinfachter Makro-Pfade; Buttons "Vorschau generieren" / "Vorschau löschen" sind im `ExportPanel`. Interaktive Bearbeitung/Simulation fehlt noch.
 
 | Task | Beschreibung | Aufwand |
 |------|-------------|---------|

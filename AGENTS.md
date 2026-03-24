@@ -33,7 +33,8 @@ RhinoCNCExporter.Core/                 # Core-Logik OHNE RhinoCommon
 │   ├── PlateOrigin.cs                 # Coordinate system origin for plate
 │   ├── Machining.cs                   # Base + 8 subtypes (Drill, DrillPattern, etc.)
 │   ├── FittingBlock.cs                # Parsed block with CNC_* attributes
-│   └── ExportJob.cs                   # Export orchestration record
+│   ├── ExportJob.cs                   # Export orchestration record
+│   └── Tooling.cs                     # 🆕 Sprint 6-8: ToolDefinition, ToolLibrary, Strategy, ToolpathPlan
 ├── Blocks/                            # 🆕 Sprint 1: Block-Logik (ohne Rhino)
 │   ├── BlockUserTextSchema.cs         # CNC_* key constants + validation
 │   ├── CncUserTextParser.cs           # UserText dict → FittingBlock
@@ -48,7 +49,8 @@ RhinoCNCExporter.Core/                 # Core-Logik OHNE RhinoCommon
     ├── IEmitterRouter.cs              # Interface: route to emitter
     ├── IPlateExporter.cs              # Interface: export single plate
     ├── MachiningBuilder.cs            # Merge legacy + block machinings
-    └── EmitterRouter.cs               # Route Machining → IEmitter calls
+    ├── EmitterRouter.cs               # Route Machining → IEmitter calls
+    └── ToolpathPlanner.cs             # 🆕 Sprint 7-8: Preview toolpath planning
 
 RhinoCNCExporter/                      # Plugin MIT RhinoCommon
 ├── PlugIn.cs                          # Rhino Plugin Entry
@@ -65,7 +67,9 @@ RhinoCNCExporter/                      # Plugin MIT RhinoCommon
 │   └── PlateDetector.cs               # Solid/Extrusion → Plate (RhinoCommon)
 ├── Services/
 │   ├── ExportService.cs               # Orchestrierung: Geometrie → Emitter → Datei
-│   └── BlockAwareExportService.cs     # Block-aware + multi-plate export pipeline
+│   ├── BlockAwareExportService.cs     # Block-aware + multi-plate export pipeline
+│   ├── ToolLibraryStore.cs            # 🆕 Sprint 6: per-machine JSON tool library persistence
+│   └── ToolpathPreviewService.cs      # 🆕 Sprint 8: Rhino preview layers/curves
 ├── Core/
 │   ├── LayerParser/                   # Layer-Namen → DTOs (CutSpec, PocketSpec, ...)
 │   │   ├── Specs.cs
@@ -101,7 +105,8 @@ RhinoCNCExporter.Tests/                # xUnit Tests (OHNE RhinoCommon)
 ├── LayerRegexTests.cs                 # Layer pattern parsing
 ├── NameServiceTests.cs                # Name generation + sanitization
 ├── SpecsTests.cs                      # Spec defaults + validation
-└── ProductionReferenceValidationTests.cs  # Sprint 5: DWG-linked vs production XCS (normalized)
+├── ProductionReferenceValidationTests.cs  # Sprint 5: DWG-linked vs production XCS (normalized)
+└── ToolpathPlannerTests.cs            # 🆕 Sprint 6-8: Tool library + preview planning
 ```
 
 ## Layer-Konventionen (universell für alle Maschinen)

@@ -6,6 +6,7 @@ namespace RhinoCNCExporter.Core.Profiles;
 /// </summary>
 public class BiesseProfile : MachineProfile
 {
+    public override string MachineKey => "biesse";
     public override double DefaultDz => 18.0; // Common panel thickness for Biesse
     public override double DefaultToolDiameter => 10.0; // Standard Biesse cutter
     public override double GrooveOvertravel => 3.0; // Tighter tolerances

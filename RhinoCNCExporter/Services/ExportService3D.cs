@@ -284,7 +284,7 @@ public static class ExportService3D
             .ToList();
     }
 
-    private static List<Machining> BuildMachiningsForPlate(
+    internal static List<Machining> BuildMachiningsForPlate(
         Plate plate,
         IReadOnlyList<FittingBlock> blocks)
     {

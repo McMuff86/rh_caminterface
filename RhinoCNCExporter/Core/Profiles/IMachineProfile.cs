@@ -6,6 +6,9 @@ namespace RhinoCNCExporter.Core.Profiles;
 /// </summary>
 public interface IMachineProfile
 {
+    /// <summary>Stable key used for tool-library persistence and defaults.</summary>
+    string MachineKey { get; }
+
     /// <summary>Default workpiece thickness (Z-dimension).</summary>
     double DefaultDz { get; }
     

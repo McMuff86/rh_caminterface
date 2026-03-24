@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-24, Sprint 5 Validation In Progress)
+## Aktueller Stand (zuletzt aktualisiert: 2026-03-24, Sprint 5 Validation + Sprint 6-8 Foundation In Progress)
 
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -210,6 +210,24 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter ProductionReferenceValidationTests` grün ✅
   - `dotnet build RhinoCNCExporter/RhinoCNCExporter.csproj` grün ✅
   - Rhino-Smoke-Tests und DWG-basierte Referenzvergleiche noch offen ⚠
+
+### Sprint 6-8 Foundation — Werkzeug-DB + Strategie + Rhino-Preview (IN ARBEIT 🟡, 24.03.2026)
+- **Tooling Core eingeführt**: `RhinoCNCExporter.Core/Models/Tooling.cs` enthält `ToolDefinition`, `ToolLibrary`, `MachiningStrategy`, `ToolpathPlan`, `ToolpathPrimitive` ✅
+- **Per-Machine Tool Libraries**: Default-Werkzeuge für SCM/Xilog und Biesse, JSON Import/Export + Persistenz via `ToolLibraryStore` unter `%AppData%\\RhinoCNCExporter\\ToolLibraries` ✅
+- **Profile erweitert**: `IMachineProfile` hat jetzt `MachineKey` für stabile Tool-Library-Zuordnung ✅
+- **ToolpathPlanner**: Preview-Planung aus `Plate.Machinings` inklusive Rapid-, Drill-, Feed-, Roughing- und Finishing-Pässen ✅
+- **Rhino Preview Service**: `ToolpathPreviewService` erzeugt farbkodierte Preview-Curves auf `RhinoCNC Preview::...` Layern; Bohrungen als Kreise, CLAMEX/RNT als vereinfachte Pfade ✅
+- **ExportPanel erweitert**:
+  - Tool-Library Import / Export / Defaults ✅
+  - Rough/Finish Preview Toggle + Aufmass-Feld ✅
+  - Vorschau generieren / Vorschau löschen ✅
+- **Tests**:
+  - Neue `ToolLibraryTests` + `ToolpathPlannerTests` grün ✅
+  - Regressionsläufe `ProductionReferenceValidationTests`, `PipelineTests`, `EmitterTests` weiter grün ✅
+- **Wichtig**:
+  - Rough/Finish ist aktuell **Preview-/Planungslogik**, noch keine echte CNC-Multi-Pass-Ausgabe ✅/⚠
+  - Kein CRUD-Werkzeugmanager und keine per-Operation manuelle Werkzeugwahl im UI ⚠
+  - Keine echte Offset-Geometrie für Schruppbahnen; aktuelle Roughing-Pässe nutzen gleiche Grundgeometrie mit separater Pass-/Werkzeugsemantik ⚠
 
 ### Architektur-Klärung (23.03.2026)
 - `docs/ARCHITECTURE-3D-TO-CNC.md` legt das **künftige** Face-Tagging-/Plugin-Command-Konzept fest

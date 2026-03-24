@@ -37,7 +37,8 @@ RhinoCNCExporter.Core/
 │   ├── Machining.cs
 │   ├── FittingBlock.cs
 │   ├── ExportJob.cs
-│   └── ExportAnalysis.cs
+│   ├── ExportAnalysis.cs
+│   └── Tooling.cs         # ToolDefinition, ToolLibrary, MachiningStrategy, ToolpathPlan
 │
 ├── Blocks/                🆕 Block-Logik (ohne Rhino)
 │   ├── IBlockDefinition.cs
@@ -49,7 +50,8 @@ RhinoCNCExporter.Core/
     ├── ExportModeResolver.cs
     ├── IPipelineStep.cs
     ├── MachiningBuilder.cs
-    └── EmitterRouter.cs
+    ├── EmitterRouter.cs
+    └── ToolpathPlanner.cs
 ```
 
 ### 2.2 Neue Module im Plugin (mit RhinoCommon)
@@ -59,6 +61,8 @@ RhinoCNCExporter/
 ├── Commands/              ✅ BESTEHT
 ├── UI/                    ✅ BESTEHT
 ├── Services/              ✅ BESTEHT — ExportService, BlockAwareExportService, ExportService3D
+│   ├── ToolLibraryStore.cs
+│   └── ToolpathPreviewService.cs
 ├── Core/                  ✅ BESTEHT — Emitters, Geometry, LayerParser, etc.
 │
 ├── BlockLibrary/          🆕 Block-Definitionen laden & verwalten

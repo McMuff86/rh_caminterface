@@ -22,6 +22,7 @@ public sealed class ConfigurableMachineProfile : IMachineProfile
     }
 
     public double DefaultDz => _innerProfile.DefaultDz;
+    public string MachineKey => _innerProfile.MachineKey;
     public double DefaultToolDiameter => _innerProfile.DefaultToolDiameter;
     public double GrooveOvertravel => _innerProfile.GrooveOvertravel;
     public double DefaultPocketStepover => _innerProfile.DefaultPocketStepover;

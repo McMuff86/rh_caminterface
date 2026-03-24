@@ -214,28 +214,28 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 
 ## Phase 5: Toolpath-Visualisierung & Werkzeug-Datenbank
 
-**Status**: Geplant — KRITISCH für professionellen Einsatz
+**Status**: IN ARBEIT 🟡 (24.03.2026) — KRITISCH für professionellen Einsatz
 
 > **Entscheidung 23.03.2026:** Toolpath-Preview und Werkzeug-Datenbank sind nicht optional.
 > Ohne visuelle Kontrolle = Black Box. Kein Schreiner vertraut einer Black Box.
 
 ### Werkzeug-Datenbank (Tool Library)
-- [ ] `ToolDefinition` Datenmodell: Name, Typ (Fräser/Bohrer/Säge), Nenndurchmesser, Schneidenlänge, Gesamtlänge, Drehzahl, Vorschub, E-Code
-- [ ] Werkzeug-Datenbank pro MachineProfile (JSON/CSV Import/Export)
+- [x] `ToolDefinition` Datenmodell: Name, Typ (Fräser/Bohrer/Säge), Nenndurchmesser, Schneidenlänge, Gesamtlänge, Drehzahl, Vorschub, E-Code ✅
+- [x] Werkzeug-Datenbank pro MachineProfile (JSON Import/Export + Persistenz unter `%AppData%`) ✅
 - [ ] Werkzeug-Manager Panel im Plugin (CRUD für Werkzeuge)
-- [ ] E-Code → Werkzeug Mapping (E010 = "Schaftfräser HW 10mm")
-- [ ] Werkzeug-Vorschläge pro Bearbeitungstyp (Tasche → Fräser, Bohrung → Bohrer)
+- [x] E-Code → Werkzeug Mapping in ToolLibrary/Preview-Planung ✅
+- [x] Werkzeug-Vorschläge pro Bearbeitungstyp (Tasche → Fräser, Bohrung → Bohrer) ✅
 - [ ] Mehrfach-Werkzeug pro Operation: Schruppfräser (E010) + Schlichtfräser (E015)
 
 ### Schrupp-/Schlicht-Strategie
 - [ ] Pro Bearbeitung: Schrupp-Werkzeug + Schlicht-Werkzeug wählbar
-- [ ] Aufmass-Parameter für Schruppen (z.B. 0.3mm stehen lassen)
-- [ ] Zustellung (Stepdown) pro Werkzeug konfigurierbar
-- [ ] Automatische Multi-Pass Generierung (Schrubben → Schlichten)
-- [ ] Reihenfolge: Alle Schruppoperationen zuerst, dann alle Schlichtoperationen
+- [x] Aufmass-Parameter für Schruppen (globales Preview-Aufmass im Panel) ✅
+- [x] Zustellung (Stepdown) pro Werkzeug konfigurierbar im Datenmodell ✅
+- [x] Automatische Multi-Pass Generierung (heuristische Rough/Finish-Preview-Planung) ✅
+- [x] Reihenfolge: Alle Schrupp-Ops zuerst, dann Schlicht-Ops im Preview-Plan ✅
 
 ### Toolpath-Preview (Stufe 1 — Visualisierung)
-- [ ] Nach Berechnung: Werkzeugbahnen als Rhino-Curves auf Preview-Layer generieren
+- [x] Nach Berechnung: Werkzeugbahnen als Rhino-Curves auf Preview-Layer generieren ✅
 - [ ] Farbkodierung:
   - Blau = Eilgang (Rapid)
   - Rot = Vorschub-Fräsen (Feed)
@@ -243,10 +243,10 @@ Block detection, starter block definitions, assignment resolver, UI integration:
   - Grün = Schlichten
   - Gelb = Bohren (Eintauchen)
   - Gestrichelt = Anfahrwege / Rückzug
-- [ ] Bohrpunkte als Kreise mit Durchmesser-Darstellung
-- [ ] Maschinen-Makros (CLAMEX, RNT) als vereinfachte Pfade
-- [ ] Preview-Layer ein/ausblenden
-- [ ] "Vorschau generieren" Button im Panel
+- [x] Bohrpunkte als Kreise mit Durchmesser-Darstellung ✅
+- [x] Maschinen-Makros (CLAMEX, RNT) als vereinfachte Pfade ✅
+- [x] Preview-Layer ein/ausblenden über Rhino-Layerbaum; "Vorschau löschen" im Panel ✅
+- [x] "Vorschau generieren" Button im Panel ✅
 
 ### Toolpath-Preview (Stufe 2 — Interaktiv)
 - [ ] Bearbeitungsreihenfolge per Drag&Drop ändern
