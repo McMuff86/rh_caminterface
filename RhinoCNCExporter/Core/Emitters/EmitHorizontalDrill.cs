@@ -14,12 +14,12 @@ public static class EmitHorizontalDrill
 {
     /// <summary>
     /// Get workplane rotation angles for a given side.
-    /// L=Links(-X, rot -90,90), R=Rechts(+X, rot -90,90), V=Vorne(-Y), H=Hinten(+Y)
+    /// L=Links(-X, rot -90,90), R=Rechts(+X, rot 90,90), V=Vorne(-Y), H=Hinten(+Y)
     /// </summary>
     private static (double RotX, double RotY) GetSideRotation(char side) => side switch
     {
         'L' => (-90.0, 90.0),   // Links: bore into -X face
-        'R' => (-90.0, -90.0),  // Rechts: bore into +X face  (verified from production: 90° difference)
+        'R' => (90.0, 90.0),    // Rechts: verified against production XCS references
         'V' => (-90.0, 0.0),    // Vorne: bore into -Y face
         'H' => (-90.0, 180.0),  // Hinten: bore into +Y face
         _ => throw new ArgumentException($"Unknown drill side: {side}. Expected L/R/V/H.")
@@ -69,9 +69,8 @@ public static class EmitHorizontalDrill
         var parts = new List<string>
         {
             emitter.EmitWorkplane(wpName, wpX, wpY, wpZ, rotX, rotY),
-            emitter.EmitSelectWorkplane(wpName),
-            // Drill at local origin (0,0) — the workplane is positioned at the hole location
-            emitter.EmitDrill(drillName, 0, 0, spec.Depth, spec.Diameter, wpName, "P")
+            // Drill at local origin (0,0) — the workplane is positioned at the hole location.
+            emitter.EmitHorizontalDrill(drillName, spec.Depth, spec.Diameter, wpName, "P")
         };
 
         return string.Join("", parts);

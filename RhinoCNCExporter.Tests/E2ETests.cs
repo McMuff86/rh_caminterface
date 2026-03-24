@@ -162,6 +162,18 @@ public class E2ETests
         Assert.Contains("CreateWorkplane(\"Freie Ebene_803\",0,43,9.5,-90,90);", wp);
     }
 
+    [Fact]
+    public void XilogEmitter_HorizontalDrill_Uses_Production_Signature()
+    {
+        var nameService = new NameService(31);
+        var emitter = new XilogEmitter(nameService);
+
+        var drill = emitter.EmitHorizontalDrill("Horizontal freie Bohrung_1_L", 30, 8, "Freie_Ebene_803");
+
+        Assert.Contains("SelectWorkplane(\"Freie_Ebene_803\");", drill);
+        Assert.Contains("CreateDrill(\"Horizontal freie Bohrung_1_L\",0.000,0.000,30.000,8.000,\"\",TypeOfProcess.Drilling,\"\",\"-1\",1,-1,-1,\"P\",0,0);", drill);
+    }
+
     [Theory]
     [InlineData("test_01.xcs")]
     [InlineData("test_02.xcs")]

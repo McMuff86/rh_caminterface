@@ -249,13 +249,13 @@ public class EmitterRouterTests
         var plate = new Plate
         {
             Name = "TestPlate",
-            LengthX = 800, WidthY = 400, Thickness = 19,
+            LengthX = 813.5, WidthY = 380, Thickness = 19,
             Machinings = new Machining[]
             {
                 new HorizontalDrillMachining
                 {
                     Name = "HDrill_L",
-                    X = 50, Y = 100, Depth = 30, Diameter = 8,
+                    X = 0, Y = 43, Depth = 30, Diameter = 8,
                     DrillSide = 'L', Side = MachiningSide.Left
                 }
             }
@@ -263,8 +263,11 @@ public class EmitterRouterTests
 
         var result = router.GenerateProgram(plate);
         Assert.Contains("CreateWorkplane", result);
-        Assert.Contains("SelectWorkplane", result);
+        Assert.Contains(",0,43,9.5,-90,90);", result);
+        Assert.Contains("SelectWorkplane(\"Freie_Ebene_", result);
         Assert.Contains("CreateDrill", result);
+        Assert.Equal(1, result.Split("SelectWorkplane(\"Freie_Ebene_", StringSplitOptions.None).Length - 1);
+        Assert.DoesNotContain("SelectWorkplane(\"Top\");\nCreateDrill(\"HDrill_L", result, StringComparison.Ordinal);
     }
 
     [Fact]

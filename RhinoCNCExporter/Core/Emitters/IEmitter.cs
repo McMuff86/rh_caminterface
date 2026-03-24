@@ -45,6 +45,13 @@ public interface IEmitter
         string plane = "Top", string side = "P");
 
     /// <summary>
+    /// Emit a horizontal (side) drill on a previously created workplane.
+    /// Xilog uses a slightly different CreateDrill signature than top drilling.
+    /// </summary>
+    string EmitHorizontalDrill(string name, double depth, double dia,
+        string plane, string side = "P");
+
+    /// <summary>
     /// Emit a drill pattern (grid of holes).
     /// Creates one drill + pattern repeat + reset.
     /// </summary>

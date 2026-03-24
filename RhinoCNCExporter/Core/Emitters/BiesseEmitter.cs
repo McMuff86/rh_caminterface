@@ -222,6 +222,12 @@ public sealed class BiesseEmitter : IEmitter
         return string.Join("\r\n", lines);
     }
 
+    public string EmitHorizontalDrill(string name, double depth, double dia,
+        string plane, string side = "P")
+    {
+        return EmitDrill(name, 0, 0, depth, dia, plane, side);
+    }
+
     /// <summary>
     /// Emit a drill pattern using BG macro with RTY repeat.
     /// Biesse uses RTY=rpGRD for grid patterns with DX/DY spacing and NRX/NRY counts.

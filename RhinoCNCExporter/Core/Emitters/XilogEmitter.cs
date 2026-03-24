@@ -162,6 +162,23 @@ public sealed class XilogEmitter : IEmitter
     }
 
     /// <summary>
+    /// Emit a horizontal drill on a custom workplane.
+    /// Production format adds two trailing zero parameters and uses an empty tool-string field.
+    /// </summary>
+    public string EmitHorizontalDrill(string name, double depth, double dia,
+        string plane, string side = "P")
+    {
+        var lines = new List<string>
+        {
+            F($"SelectWorkplane(\"{plane}\");"),
+            F($"CreateDrill(\"{name}\",0.000,0.000,{depth:F3},{dia:F3},\"\",TypeOfProcess.Drilling,\"\",\"-1\",1,-1,-1,\"{side}\",0,0);"),
+            "ResetPattern();",
+            ""
+        };
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>
     /// Emit a drill pattern (grid array).
     /// Production format (CAD+T Staub / Mittelseite references):
     /// CreatePattern(xCount, yCount, xSpacing, ySpacing, angle, direction) → CreateDrill → ResetPattern.

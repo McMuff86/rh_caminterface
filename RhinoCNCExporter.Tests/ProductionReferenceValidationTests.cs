@@ -73,6 +73,23 @@ public class ProductionReferenceValidationTests
     }
 
     [Fact]
+    public void Putzschrank_Boden_DwgFixture_MatchesProductionReference()
+    {
+        var fixture = ProductionValidationFixtures.CreatePutzschrankBoden();
+
+        Assert.True(File.Exists(fixture.SourceDwgPath), $"Missing DWG fixture source: {fixture.SourceDwgPath}");
+        Assert.True(File.Exists(fixture.ReferenceXcsPath), $"Missing XCS reference: {fixture.ReferenceXcsPath}");
+
+        var reference = File.ReadAllText(fixture.ReferenceXcsPath);
+        Assert.DoesNotContain("CreateBladeCut", reference, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateSectioningMillingStrategy", reference, StringComparison.Ordinal);
+
+        var generated = GenerateProgram(fixture.Plate);
+
+        AssertNormalizedProgramEquals(reference, generated);
+    }
+
+    [Fact]
     public void Legrabox_SchubladenDoppel_Reference_DocumentsCurrentBladeCutGap()
     {
         var referencePath = Path.Combine(ReferencesPath, "NEW_Schubladen_Doppel_1.xcs");
@@ -103,17 +120,18 @@ public class ProductionReferenceValidationTests
 
     private static string NormalizeProgram(string program)
     {
+        var dzValue = TryExtractDzValue(program);
         var lines = program
             .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(static line => line.Trim())
             .Where(static line => !string.IsNullOrWhiteSpace(line))
             .Where(static line => !line.StartsWith("//", StringComparison.Ordinal))
-            .Select(NormalizeMeaningfulLine);
+            .Select(line => NormalizeMeaningfulLine(line, dzValue));
 
         return string.Join("\n", lines);
     }
 
-    private static string NormalizeMeaningfulLine(string line)
+    private static string NormalizeMeaningfulLine(string line, double? dzValue)
     {
         if (line.StartsWith("SetMachiningParameters(", StringComparison.Ordinal))
             line = ReplaceFirstQuotedArgument(line, "MP");
@@ -128,7 +146,13 @@ public class ProductionReferenceValidationTests
             line = ReplaceFirstQuotedArgument(line, "NAME");
         }
 
-        return NormalizeOutsideQuotes(line);
+        if (line.StartsWith("SelectWorkplane(", StringComparison.Ordinal)
+            && !StartsWithAny(line, "SelectWorkplane(\"Top\")", "SelectWorkplane(\"Bottom\")"))
+        {
+            line = ReplaceFirstQuotedArgument(line, "WORKPLANE");
+        }
+
+        return NormalizeOutsideQuotes(line, dzValue);
     }
 
     private static bool StartsWithAny(string value, params string[] prefixes)
@@ -158,7 +182,7 @@ public class ProductionReferenceValidationTests
             line.AsSpan(secondQuote));
     }
 
-    private static string NormalizeOutsideQuotes(string line)
+    private static string NormalizeOutsideQuotes(string line, double? dzValue)
     {
         var result = new StringBuilder();
         var segment = new StringBuilder();
@@ -174,7 +198,7 @@ public class ProductionReferenceValidationTests
                 }
                 else
                 {
-                    result.Append(NormalizeOutsideSegment(segment.ToString()));
+                    result.Append(NormalizeOutsideSegment(segment.ToString(), dzValue));
                 }
 
                 segment.Clear();
@@ -190,15 +214,20 @@ public class ProductionReferenceValidationTests
         {
             result.Append(inQuotes
                 ? segment.ToString()
-                : NormalizeOutsideSegment(segment.ToString()));
+                : NormalizeOutsideSegment(segment.ToString(), dzValue));
         }
 
         return result.ToString();
     }
 
-    private static string NormalizeOutsideSegment(string segment)
+    private static string NormalizeOutsideSegment(string segment, double? dzValue)
     {
         segment = Regex.Replace(segment, @"\s+", string.Empty);
+
+        if (dzValue.HasValue)
+        {
+            segment = DzRegex.Replace(segment, FormatNumber(dzValue.Value));
+        }
 
         while (true)
         {
@@ -222,6 +251,15 @@ public class ProductionReferenceValidationTests
             FormatNumber(double.Parse(match.Value, CultureInfo.InvariantCulture)));
     }
 
+    private static double? TryExtractDzValue(string program)
+    {
+        var match = DzDeclarationRegex.Match(program);
+        if (!match.Success)
+            return null;
+
+        return double.Parse(match.Groups["value"].Value, CultureInfo.InvariantCulture);
+    }
+
     private static string FormatNumber(double value)
     {
         if (value == Math.Truncate(value))
@@ -236,6 +274,14 @@ public class ProductionReferenceValidationTests
 
     private static readonly Regex NumberRegex = new(
         @"(?<![A-Za-z_])[-+]?\d+(?:\.\d+)?(?![A-Za-z_])",
+        RegexOptions.Compiled);
+
+    private static readonly Regex DzDeclarationRegex = new(
+        @"double\s+DZ\s*=\s*(?<value>-?\d+(?:\.\d+)?)\s*;",
+        RegexOptions.Compiled);
+
+    private static readonly Regex DzRegex = new(
+        @"(?<![A-Za-z_])DZ(?![A-Za-z_])",
         RegexOptions.Compiled);
 
     private sealed record ProductionFixture(
@@ -410,6 +456,175 @@ public class ProductionReferenceValidationTests
                 WidthY = 380,
                 Thickness = 19,
                 LayerPath = @"Putz-Schrank::Seite_links",
+                Source = PlateSource.SolidDetection,
+                PreserveMachiningOrder = true,
+                Machinings = machinings
+            };
+
+            return new ProductionFixture(sourceDwgPath, referenceXcsPath, plate);
+        }
+
+        /// <summary>
+        /// Hand-built <see cref="Plate"/> matching production <c>Staub_Boden.xcs</c>.
+        /// Covers horizontal drills via <c>CreateWorkplane()</c>, an RNT groove and vertical cup drills.
+        /// Order matches CAD+T; the production file emits side drilling before groove + top drills.
+        /// </summary>
+        public static ProductionFixture CreatePutzschrankBoden()
+        {
+            var sourceDwgPath = Path.Combine(ReferencesPath, "cadt", "Putz-Schrank.dwg");
+            var referenceXcsPath = Path.Combine(ReferencesPath, "Staub_Boden.xcs");
+
+            var machinings = new List<Machining>
+            {
+                new RoutingMachining
+                {
+                    Name = "Aussenkontur_1",
+                    Points = new[]
+                    {
+                        (416.75, 380.0),
+                        (0.0, 380.0),
+                        (0.0, 0.0),
+                        (813.5, 0.0),
+                        (813.5, 380.0),
+                        (396.75, 380.0)
+                    },
+                    Depth = 9.5,
+                    ToolDiameter = 9.5,
+                    TechCode = "E010",
+                    IsClosed = true
+                },
+                new HorizontalDrillMachining
+                {
+                    Name = "Horizontal freie Bohrung_1_L",
+                    X = 0,
+                    Y = 43,
+                    Depth = 30,
+                    Diameter = 8,
+                    DrillSide = 'L',
+                    Side = MachiningSide.Left
+                },
+                new HorizontalDrillMachining
+                {
+                    Name = "Horizontal freie Bohrung_2_L",
+                    X = 0,
+                    Y = 75,
+                    Depth = 20,
+                    Diameter = 8,
+                    DrillSide = 'L',
+                    Side = MachiningSide.Left
+                },
+                new HorizontalDrillMachining
+                {
+                    Name = "Horizontal freie Bohrung_3_L",
+                    X = 0,
+                    Y = 305,
+                    Depth = 20,
+                    Diameter = 8,
+                    DrillSide = 'L',
+                    Side = MachiningSide.Left
+                },
+                new HorizontalDrillMachining
+                {
+                    Name = "Horizontal freie Bohrung_4_L",
+                    X = 0,
+                    Y = 337,
+                    Depth = 30,
+                    Diameter = 8,
+                    DrillSide = 'L',
+                    Side = MachiningSide.Left
+                },
+                new HorizontalDrillMachining
+                {
+                    Name = "Horizontal freie Bohrung_1_R",
+                    X = 813.5,
+                    Y = 43,
+                    Depth = 30,
+                    Diameter = 8,
+                    DrillSide = 'R',
+                    Side = MachiningSide.Right
+                },
+                new HorizontalDrillMachining
+                {
+                    Name = "Horizontal freie Bohrung_2_R",
+                    X = 813.5,
+                    Y = 75,
+                    Depth = 20,
+                    Diameter = 8,
+                    DrillSide = 'R',
+                    Side = MachiningSide.Right
+                },
+                new HorizontalDrillMachining
+                {
+                    Name = "Horizontal freie Bohrung_3_R",
+                    X = 813.5,
+                    Y = 305,
+                    Depth = 20,
+                    Diameter = 8,
+                    DrillSide = 'R',
+                    Side = MachiningSide.Right
+                },
+                new HorizontalDrillMachining
+                {
+                    Name = "Horizontal freie Bohrung_4_R",
+                    X = 813.5,
+                    Y = 337,
+                    Depth = 30,
+                    Diameter = 8,
+                    DrillSide = 'R',
+                    Side = MachiningSide.Right
+                },
+                new GrooveRntMachining
+                {
+                    Name = "Nut_in_X",
+                    Axis = Core.LayerParser.Axis.X,
+                    XStart = -70,
+                    YStart = 361.5,
+                    Length = 883.5,
+                    Width = 5.5,
+                    Depth = 5,
+                    RntCode = "066"
+                },
+                new DrillMachining
+                {
+                    Name = "Vertikale Bohrung_1",
+                    X = 24,
+                    Y = 75,
+                    Depth = 14,
+                    Diameter = 15
+                },
+                new DrillMachining
+                {
+                    Name = "Vertikale Bohrung_2",
+                    X = 24,
+                    Y = 305,
+                    Depth = 14,
+                    Diameter = 15
+                },
+                new DrillMachining
+                {
+                    Name = "Vertikale Bohrung_3",
+                    X = 789.5,
+                    Y = 305,
+                    Depth = 14,
+                    Diameter = 15
+                },
+                new DrillMachining
+                {
+                    Name = "Vertikale Bohrung_4",
+                    X = 789.5,
+                    Y = 75,
+                    Depth = 14,
+                    Diameter = 15
+                }
+            };
+
+            var plate = new Plate
+            {
+                Name = "Boden",
+                LengthX = 813.5,
+                WidthY = 380,
+                Thickness = 19,
+                LayerPath = @"Putz-Schrank::Boden",
                 Source = PlateSource.SolidDetection,
                 PreserveMachiningOrder = true,
                 Machinings = machinings

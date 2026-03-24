@@ -186,7 +186,7 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 ## Sprint 5: Testing gegen echte Produktionsdaten
 
 **Ziel:** Validierung der gesamten Pipeline gegen echte CAD+T DWGs und bekannte XCS-Referenzdateien.
-**Zwischenstand (24.03.2026):** Automatisierte Batch-Validierung gestartet. Duplicate-sichere Dateinamen für gleichnamige Produktionsplatten, LayerPath-basierte Selektion, echter `AssignmentResolver`-Test gegen die Plugin-Klasse und ein 24-Platten-Regressionstest sind umgesetzt. DWG-abgeleitete Fixtures: `Staub_SockelMont.xcs`, `NEW_Fertigauszug_Legrabox.xcs`, und **`Staub_Seite_links.xcs`** (Kontur + RNT + Bohrungen + Lochreihen; `Plate.PreserveMachiningOrder` + korrigierte `CreatePattern`/`CreateDrill`-Reihenfolge im `XilogEmitter`). Komplexe Produktionsplatten mit `CreateBladeCut` / `CreateSectioningMillingStrategy` bleiben offen; der Gap ist über `NEW_Schubladen_Doppel_1.xcs` dokumentiert. Rhino-Smoke-Tests bleiben offen.
+**Zwischenstand (24.03.2026):** Automatisierte Batch-Validierung gestartet. Duplicate-sichere Dateinamen für gleichnamige Produktionsplatten, LayerPath-basierte Selektion, echter `AssignmentResolver`-Test gegen die Plugin-Klasse und ein 24-Platten-Regressionstest sind umgesetzt. DWG-abgeleitete Fixtures: `Staub_SockelMont.xcs`, `NEW_Fertigauszug_Legrabox.xcs`, **`Staub_Seite_links.xcs`** (Kontur + RNT + Bohrungen + Lochreihen; `Plate.PreserveMachiningOrder` + korrigierte `CreatePattern`/`CreateDrill`-Reihenfolge im `XilogEmitter`) sowie **`Staub_Boden.xcs`** für `CreateWorkplane()`-basierte Horizontalbohrungen. Dabei wurde der `EmitterRouter` auf den produktionskonformen Horizontaldrill-Pfad umgestellt (korrekte L/R-Rotationen, kein doppeltes `SelectWorkplane`) und ein `NameService`-Bug bei truncierten 31-Zeichen-Kollisionen behoben, der sonst bei freien Ebenen in einen Endlos-Loop lief. Komplexe Produktionsplatten mit `CreateBladeCut` / `CreateSectioningMillingStrategy` bleiben offen; der Gap ist über `NEW_Schubladen_Doppel_1.xcs` dokumentiert. Rhino-Smoke-Tests bleiben offen.
 
 ### Tasks
 
@@ -219,6 +219,7 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 - Proximity-Zuweisung für Blöcke zwischen zwei Platten auf closest-face Logik umgestellt
 - DWG-abgeleitete Fixtures + Produktionsvergleichstests für `SockelMont` und `Fertigauszug_Legrabox`
 - BladeCut-/Sectioning-Gap für `Schubladen_Doppel` als expliziter Referenztest abgesichert
+- Produktionsvergleich für `Staub_Boden` deckt jetzt Horizontalbohrungen (`CreateWorkplane`) inkl. korrekter Router-Emission ab
 
 **Risiko:** Echte Produktionsdaten können Fälle enthalten die wir nicht bedacht haben. Mitigation: Inkrementell testen, Fehler dokumentieren, in nächsten Sprint-Zyklus aufnehmen.
 
@@ -352,6 +353,8 @@ Diese Tasks bringen sofort Mehrwert und können jederzeit parallel gemacht werde
 **Ziel:** Werkzeugbahnen als farbkodierte Curves im Rhino-Viewport sichtbar machen
 
 **Status 24.03.2026:** Stufe 1 teilweise umgesetzt. `ToolpathPreviewService` erzeugt farbkodierte Preview-Curves auf Rhino-Layern, inklusive Bohrpunkte, Rapid-Linien und vereinfachter Makro-Pfade; Buttons "Vorschau generieren" / "Vorschau löschen" sind im `ExportPanel`. Interaktive Bearbeitung/Simulation fehlt noch.
+
+**UI-Polish 24.03.2026:** Das `ExportPanel` wurde auf ein kompakteres 2-Spalten-Dashboard refactored. Analyse-/Setup-Bereiche sind jetzt einklappbar, die rechte Sidebar bündelt Einstellungen + Aktionen, und Report/Log liegen gemeinsam in einer Status-Ansicht mit Tabs. Ziel: weniger vertikales Scrollen bei gleicher Funktionsdichte.
 
 | Task | Beschreibung | Aufwand |
 |------|-------------|---------|

@@ -122,4 +122,31 @@ public class NameServiceTests
         Assert.True(b.Length <= 6);
         Assert.NotEqual(a, b);
     }
+
+    [Fact]
+    public async Task CreateUnique_TruncatedDuplicate_PreservesSuffixAndDoesNotHang()
+    {
+        var svc = new NameService(maxLength: 31);
+        var longName = "Freie Ebene_Horizontal freie Bohrung_1_L";
+
+        var firstTask = Task.Run(() => svc.CreateUnique(longName));
+        var secondTask = Task.Run(() => svc.CreateUnique(longName));
+
+        Assert.True(await CompletesWithin(firstTask, TimeSpan.FromSeconds(2)), "First CreateUnique call hung unexpectedly.");
+        Assert.True(await CompletesWithin(secondTask, TimeSpan.FromSeconds(2)), "Second CreateUnique call hung on truncated collision.");
+
+        var first = await firstTask;
+        var second = await secondTask;
+
+        Assert.True(first.Length <= 31);
+        Assert.True(second.Length <= 31);
+        Assert.NotEqual(first, second);
+        Assert.EndsWith("_2", second);
+    }
+
+    private static async Task<bool> CompletesWithin(Task task, TimeSpan timeout)
+    {
+        var completed = await Task.WhenAny(task, Task.Delay(timeout));
+        return completed == task;
+    }
 }

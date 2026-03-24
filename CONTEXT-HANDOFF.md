@@ -201,13 +201,18 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
 - **Normalisierte Produktionsvergleiche aktiv**: 3D-/Plate-basierter XCS-Output wird für heute unterstützte Referenzteile nach Normalisierung nicht-semantischer Unterschiede direkt gegen Produktions-XCS verglichen ✅
 - **Feature-Gap formalisiert**: `NEW_Schubladen_Doppel_1.xcs` ist jetzt als BladeCut-/Sectioning-Referenz abgesichert, damit der offene MSL-Block nicht nur in Doku, sondern auch in Tests sichtbar bleibt ✅
 - **Komplexere Putz-Schrank-Platte**: `Staub_Seite_links.xcs` (Aussenkontur E010, RNT 066, Einzelbohrungen, Lochreihen, System-32) ist als DWG-verknüpfter Produktionsvergleich mit handgebautem `Plate` + `PreserveMachiningOrder` abgedeckt ✅
+- **Horizontale Produktionsvalidierung ergänzt**: `Staub_Boden.xcs` validiert jetzt `CreateWorkplane()`-basierte Horizontalbohrungen + RNT + Top-Bohrungen gegen eine DWG-abgeleitete Fixture ✅
 - **XilogEmitter Lochreihen-Reihenfolge**: `EmitDrillPattern` emittiert jetzt wie CAD+T-Staub/Mittelseite — `CreatePattern` vor `CreateDrill` (vorher war die Reihenfolge invertiert) ✅
+- **HorizontalDrill Routing korrigiert**: `EmitterRouter` nutzt jetzt den echten Horizontalbohrungs-Emitterpfad; freie Ebenen verwenden produktionskonforme L/R-Rotationen und kein doppeltes `SelectWorkplane` mehr ✅
+- **NameService Hänger beseitigt**: truncierte Namenskollisionen (31-Zeichen-Limit + Suffix) führen nicht mehr in eine Endlosschleife; Regressionstest für freie Ebenen ergänzt ✅
 - **`Plate.PreserveMachiningOrder`**: Optional, damit die Router-Ausgabe die Listenreihenfolge beibehält (nötig wenn Bohrungen und Lochreihen gemischt sind wie in Produktions-XCS) ✅
 - **Normalisierung in Produktionsvergleichen**: Erstes Argument von `SetMachiningParameters` (`IJ`/`IL`/…) wird für den Diff neutralisiert ✅
 - **Build/Test-Status**:
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter BatchExportPlannerTests` grün ✅
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter AssignmentResolverTests` grün ✅
   - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter ProductionReferenceValidationTests` grün ✅
+  - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter NameServiceTests` grün ✅
+  - `dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj --filter "EmitterTests|EmitterRouterTests"` grün ✅
   - `dotnet build RhinoCNCExporter/RhinoCNCExporter.csproj` grün ✅
   - Rhino-Smoke-Tests und DWG-basierte Referenzvergleiche noch offen ⚠
 
@@ -221,6 +226,8 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
   - Tool-Library Import / Export / Defaults ✅
   - Rough/Finish Preview Toggle + Aufmass-Feld ✅
   - Vorschau generieren / Vorschau löschen ✅
+  - 2-Spalten-Dashboard statt reiner Vertikal-Stack; `Modus`, `Dokumentanalyse`, `Legacy-Layer`, `Einstellungen`, `Aktionen` und `Status` sind als einklappbare Bereiche organisiert ✅
+  - Export-Report + Log in gemeinsamer Status-Ansicht mit Tabs; Tool-/Preview-/Export-Aktionen im rechten Sidebar-Block gebündelt ✅
 - **Tests**:
   - Neue `ToolLibraryTests` + `ToolpathPlannerTests` grün ✅
   - Regressionsläufe `ProductionReferenceValidationTests`, `PipelineTests`, `EmitterTests` weiter grün ✅

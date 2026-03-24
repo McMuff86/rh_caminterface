@@ -40,7 +40,7 @@ public sealed class NameService
         int n = _counts.GetValueOrDefault(@base, 1) + 1;
         while (true)
         {
-            var candidate = Sanitize($"{@base}_{n}");
+            var candidate = CreateSuffixedCandidate(@base, n);
             if (!_used.Contains(candidate))
             {
                 _used.Add(candidate);
@@ -59,5 +59,19 @@ public sealed class NameService
     {
         s = SanitizeRegex.Replace(s, "_");
         return s.Length > _maxLen ? s[.._maxLen] : s;
+    }
+
+    private string CreateSuffixedCandidate(string sanitizedBase, int index)
+    {
+        var suffix = $"_{index}";
+        if (_maxLen <= suffix.Length)
+            return suffix[^_maxLen..];
+
+        var maxBaseLength = _maxLen - suffix.Length;
+        var trimmedBase = sanitizedBase.Length > maxBaseLength
+            ? sanitizedBase[..maxBaseLength]
+            : sanitizedBase;
+
+        return trimmedBase + suffix;
     }
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using RhinoCNCExporter.Core.Emitters;
+using RhinoCNCExporter.Core.LayerParser;
 using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Naming;
 using RhinoCNCExporter.Core.Profiles;
@@ -45,7 +46,7 @@ public class EmitterRouter : IEmitterRouter
 
         foreach (var machining in sequence)
         {
-            var emitted = EmitMachining(machining);
+            var emitted = EmitMachining(plate, machining);
             if (!string.IsNullOrEmpty(emitted))
                 parts.Add(emitted);
         }
@@ -56,7 +57,7 @@ public class EmitterRouter : IEmitterRouter
         return string.Join("\n", parts);
     }
 
-    private string EmitMachining(Machining m) => m switch
+    private string EmitMachining(Plate plate, Machining m) => m switch
     {
         DrillMachining d => _emitter.EmitDrill(
             _nameService.CreateUnique(d.Name),
@@ -86,7 +87,7 @@ public class EmitterRouter : IEmitterRouter
             : _emitter.EmitRntY(_nameService.CreateUnique(g.Name),
                 g.XStart, g.YStart, g.Width, g.Length, g.Depth, g.RntCode),
 
-        HorizontalDrillMachining h => EmitHorizontalDrill(h),
+        HorizontalDrillMachining h => EmitHorizontalDrillMachining(plate, h),
 
         MacroMachining macro => EmitMacroRaw(macro),
 
@@ -95,25 +96,19 @@ public class EmitterRouter : IEmitterRouter
         _ => $"// UNSUPPORTED: {m.GetType().Name}"
     };
 
-    private string EmitHorizontalDrill(HorizontalDrillMachining h)
+    private string EmitHorizontalDrillMachining(Plate plate, HorizontalDrillMachining h)
     {
-        var wpName = _nameService.CreateUnique($"WP_{h.DrillSide}_{h.Name}");
-        var sb = new StringBuilder();
-
-        // Create workplane based on drill side
-        var (rotX, rotY) = h.DrillSide switch
-        {
-            'L' => (0.0, -90.0),  // Left side (-X)
-            'R' => (0.0, 90.0),   // Right side (+X)
-            'V' => (90.0, 0.0),   // Front side (-Y)
-            'H' => (-90.0, 0.0),  // Back side (+Y)
-            _ => (0.0, -90.0)
-        };
-
-        sb.AppendLine(_emitter.EmitWorkplane(wpName, h.X, h.Y, 0, rotX, rotY));
-        sb.AppendLine(_emitter.EmitSelectWorkplane(wpName));
-        sb.Append(_emitter.EmitDrill(_nameService.CreateUnique(h.Name), 0, 0, h.Depth, h.Diameter));
-        return sb.ToString();
+        var spec = new HorizontalDrillSpec(h.Diameter, h.Depth, h.DrillSide);
+        return EmitHorizontalDrill.Emit(
+            _emitter,
+            _nameService,
+            h.Name,
+            h.X,
+            h.Y,
+            plate.Thickness,
+            plate.LengthX,
+            plate.WidthY,
+            spec);
     }
 
     private string EmitMacroRaw(MacroMachining macro)

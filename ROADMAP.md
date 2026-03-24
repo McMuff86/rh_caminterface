@@ -132,6 +132,9 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [x] Normalisierte 3D-vs.-Produktions-XCS Vergleiche für aktuell unterstützte Referenzteile ergänzt ✅
 - [x] Produktions-Gap für `Schubladen_Doppel` via BladeCut-/Sectioning-Referenztest dokumentiert ✅
 - [x] Fixture für `Putz-Schrank.dwg` / `Staub_Seite_links.xcs` (RNT + Drill + Lochreihen, `PreserveMachiningOrder`) ✅
+- [x] Fixture für `Putz-Schrank.dwg` / `Staub_Boden.xcs` (`CreateWorkplane`-Horizontalbohrungen + RNT + Top-Bohrungen) ✅
+- [x] Horizontaldrill-Router auf produktionskonformen `CreateWorkplane`-Pfad umgestellt (korrekte L/R-Rotation, kein doppeltes `SelectWorkplane`) ✅
+- [x] `NameService` für truncierte 31-Zeichen-Kollisionen gehärtet (Suffix bleibt erhalten, kein Endlos-Loop bei freien Ebenen) ✅
 - [ ] Fixtures auf weitere komplexe Produktionsplatten (z. B. BladeCut-lastig) erweitern
 - [ ] Rhino Smoke-Tests des neuen ExportPanels
 - [ ] Face-Tagging/Plugin-Commands (`AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`) von ADR zu erster Code-Implementierung bringen
@@ -225,6 +228,7 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [ ] Werkzeug-Manager Panel im Plugin (CRUD für Werkzeuge)
 - [x] E-Code → Werkzeug Mapping in ToolLibrary/Preview-Planung ✅
 - [x] Werkzeug-Vorschläge pro Bearbeitungstyp (Tasche → Fräser, Bohrung → Bohrer) ✅
+- [x] ExportPanel UI-Polish: 2-Spalten-Dashboard, einklappbare Bereiche und Status-Tabs für Report/Log ✅
 - [ ] Mehrfach-Werkzeug pro Operation: Schruppfräser (E010) + Schlichtfräser (E015)
 
 ### Schrupp-/Schlicht-Strategie

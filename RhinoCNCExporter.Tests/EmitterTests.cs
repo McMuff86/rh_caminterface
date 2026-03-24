@@ -298,8 +298,10 @@ public class EmitterTests
         Assert.Contains("-90", result); // rotX
         Assert.Contains("90", result);  // rotY
         Assert.Contains("CreateDrill(", result);
+        Assert.Contains("TypeOfProcess.Drilling,\"\",\"-1\",1,-1,-1,\"P\",0,0);", result);
         Assert.Contains("30.000", result); // depth
         Assert.Contains("8.000", result);  // diameter
+        Assert.Equal(1, result.Split("SelectWorkplane(\"Freie_Ebene_", StringSplitOptions.None).Length - 1);
     }
 
     [Fact]
@@ -311,7 +313,9 @@ public class EmitterTests
             300, 100, dz: 19, dx: 300, dy: 280, spec);
 
         Assert.Contains("CreateWorkplane(", result);
+        Assert.Contains(",300,100,9.5,90,90);", result);
         Assert.Contains("CreateDrill(", result);
+        Assert.Equal(1, result.Split("SelectWorkplane(\"Freie_Ebene_", StringSplitOptions.None).Length - 1);
     }
 
     #endregion

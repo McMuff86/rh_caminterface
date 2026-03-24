@@ -53,12 +53,13 @@ public sealed class ExportPanel : Panel
 
     private static readonly Color BgDark = Color.FromArgb(45, 45, 48);
     private static readonly Color FgText = Color.FromArgb(220, 220, 220);
+    private const int SidebarWidth = 340;
 
     public ExportPanel()
     {
         BackgroundColor = BgDark;
 
-        var headerLabel = CreateLabel("RhinoCNC Export", 13, true);
+        var headerLabel = CreateLabel("RhinoCNC Export", 14, true);
 
         _machineDropDown = new DropDown();
         _machineDropDown.Items.Add("SCM Maestro (.xcs)");
@@ -87,30 +88,40 @@ public sealed class ExportPanel : Panel
                 new TableRow(new TableCell(scan3dButton) { ScaleWidth = true })
             }
         };
-        var modeSection = CreateSection("Modus", modeLayout);
+        var modeSection = CreateSection(
+            "Modus",
+            modeLayout,
+            subtitle: "Maschine, Modus und Dokument-Scan",
+            expanded: true);
 
         _summaryLabel = CreateLabel("Dokument: —", 10, false);
         _recommendationLabel = CreateLabel("Empfehlung: —", 10, false);
         _capabilityLabel = CreateLabel("Capabilities: —", 9, false);
-        var summarySection = CreateSection("Dokumentanalyse",
+        var summarySection = CreateSection(
+            "Dokumentanalyse",
             new StackLayout
             {
                 Spacing = 4,
                 Items = { _summaryLabel, _recommendationLabel, _capabilityLabel }
-            });
+            },
+            subtitle: "Auto-Erkennung und Exportempfehlung",
+            expanded: true);
 
-        _operationsListBox = new ListBox { Height = 110 };
-        var refreshOpsButton = new Button { Text = "↻ Layer scannen", Height = 26 };
+        _operationsListBox = new ListBox { Height = 150 };
+        var refreshOpsButton = new Button { Text = "↻ Layer neu laden", Height = 26 };
         refreshOpsButton.Click += (_, _) => RefreshOperations();
-        var operationsSection = CreateSection("Legacy-Operationen",
+        var operationsSection = CreateSection(
+            "Legacy-Layer",
             new StackLayout
             {
                 Spacing = 4,
                 Items = { _operationsListBox, refreshOpsButton }
-            });
+            },
+            subtitle: "2D-Operationen aus Layernamen",
+            expanded: false);
 
         _plateTreeView = CreatePlateTreeView();
-        var scanPlatesButton = new Button { Text = "↻ 3D Vorschau", Height = 26 };
+        var scanPlatesButton = new Button { Text = "↻ Analyse aktualisieren", Height = 26 };
         scanPlatesButton.Click += (_, _) => RefreshDocumentAnalysis();
         var selectAllButton = new Button { Text = "Alle", Height = 26, Width = 60 };
         selectAllButton.Click += (_, _) => SetAllPlateSelections(true);
@@ -129,7 +140,9 @@ public sealed class ExportPanel : Panel
             {
                 Spacing = 4,
                 Items = { _plateTreeView, plateActions }
-            });
+            },
+            subtitle: "3D-Platten, Blocks und Exportauswahl",
+            expanded: true);
 
         _stepdownTextBox = new TextBox { PlaceholderText = "Stepdown (mm)", Text = "3.0" };
         _toleranceTextBox = new TextBox { PlaceholderText = "Toleranz (mm)", Text = "0.05" };
@@ -159,7 +172,11 @@ public sealed class ExportPanel : Panel
                 new TableRow(new TableCell(_roughFinishPreviewCheckBox) { ScaleWidth = true })
             }
         };
-        var settingsSection = CreateSection("Einstellungen", settingsLayout);
+        var settingsSection = CreateSection(
+            "Einstellungen",
+            settingsLayout,
+            subtitle: "Toleranzen, Vorschau und Exportoptionen",
+            expanded: true);
 
         _toolLibraryLabel = CreateLabel("Werkzeugdatenbank: —", 9, false);
         var importToolsButton = new Button { Text = "Importieren", Height = 26 };
@@ -168,7 +185,7 @@ public sealed class ExportPanel : Panel
         exportToolsButton.Click += (_, _) => ExportToolLibrary();
         var resetToolsButton = new Button { Text = "Defaults", Height = 26 };
         resetToolsButton.Click += (_, _) => ResetToolLibrary();
-        var previewButton = new Button { Text = "Vorschau generieren", Height = 30 };
+        var previewButton = new Button { Text = "Vorschau erzeugen", Height = 30 };
         previewButton.Click += (_, _) => GeneratePreview();
         var clearPreviewButton = new Button { Text = "Vorschau löschen", Height = 30 };
         clearPreviewButton.Click += (_, _) => ClearPreview();
@@ -187,13 +204,6 @@ public sealed class ExportPanel : Panel
             Items = { previewButton, clearPreviewButton }
         };
 
-        var previewSection = CreateSection("Werkzeuge & Vorschau",
-            new StackLayout
-            {
-                Spacing = 6,
-                Items = { _toolLibraryLabel, toolButtons, previewButtons }
-            });
-
         _exportPathTextBox = new TextBox { PlaceholderText = "Export-Ziel...", ReadOnly = true };
         var browseButton = new Button { Text = "...", Width = 36, Height = 26 };
         browseButton.Click += (_, _) => BrowseExportTarget();
@@ -205,53 +215,123 @@ public sealed class ExportPanel : Panel
             Items = { new StackLayoutItem(_exportPathTextBox, true), browseButton }
         };
 
-        var exportButton = new Button { Text = "▶ EXPORT", Height = 36 };
+        var exportButton = new Button { Text = "▶ Export starten", Height = 36 };
         exportButton.Click += (_, _) => RunExport();
 
-        var exportSection = CreateSection("Export",
+        var actionsSection = CreateSection(
+            "Aktionen",
             new StackLayout
             {
-                Spacing = 6,
-                Items = { pathRow, exportButton }
-            });
+                Spacing = 8,
+                Items =
+                {
+                    _toolLibraryLabel,
+                    toolButtons,
+                    previewButtons,
+                    CreateLabel("Export-Ziel", 9, false),
+                    pathRow,
+                    exportButton
+                }
+            },
+            subtitle: "Werkzeuge, Vorschau und CNC-Export",
+            expanded: true);
 
         _reportArea = new TextArea
         {
             ReadOnly = true,
-            Height = 70,
+            Height = 130,
             Font = new Font("Consolas", 9),
             Text = "Noch kein Export.\n"
         };
-        var reportSection = CreateSection("Export-Report", _reportArea);
 
         _logArea = new TextArea
         {
             ReadOnly = true,
-            Height = 100,
+            Height = 160,
             Font = new Font("Consolas", 9),
             Text = "Bereit.\n"
         };
-        var logSection = CreateSection("Log", _logArea);
+
+        var statusTabs = new TabControl
+        {
+            Height = 230,
+            Pages =
+            {
+                new TabPage
+                {
+                    Text = "Report",
+                    Content = _reportArea
+                },
+                new TabPage
+                {
+                    Text = "Log",
+                    Content = _logArea
+                }
+            }
+        };
+
+        var statusSection = CreateSection(
+            "Status",
+            statusTabs,
+            subtitle: "Export-Report und Laufzeit-Log",
+            expanded: true);
+
+        var topRow = new TableLayout
+        {
+            Spacing = new Size(12, 0),
+            Rows =
+            {
+                new TableRow(
+                    new TableCell(modeSection, true),
+                    new TableCell(summarySection, true))
+            }
+        };
+
+        var leftColumn = new StackLayout
+        {
+            Spacing = 10,
+            Items =
+            {
+                plateSection,
+                operationsSection
+            }
+        };
+
+        var rightColumn = new StackLayout
+        {
+            Width = SidebarWidth,
+            Spacing = 10,
+            Items =
+            {
+                settingsSection,
+                actionsSection,
+                statusSection
+            }
+        };
+
+        var bodyRow = new TableLayout
+        {
+            Spacing = new Size(12, 0),
+            Rows =
+            {
+                new TableRow(
+                    new TableCell(leftColumn, true),
+                    new TableCell(rightColumn, false))
+            }
+        };
 
         Content = new Scrollable
         {
             Border = BorderType.None,
             Content = new StackLayout
             {
-                Padding = new Padding(8),
-                Spacing = 6,
+                Padding = new Padding(10),
+                Spacing = 10,
                 Items =
                 {
                     headerLabel,
-                    modeSection,
-                    summarySection,
-                    operationsSection,
-                    plateSection,
-                    settingsSection,
-                    previewSection,
-                    exportSection,
-                    reportSection,
-                    logSection
+                    topRow,
+                    bodyRow
                 }
             }
         };
@@ -271,22 +351,43 @@ public sealed class ExportPanel : Panel
         };
     }
 
-    private static GroupBox CreateSection(string title, Control content)
+    private static Expander CreateSection(string title, Control content, string? subtitle, bool expanded)
     {
-        return new GroupBox
+        return new Expander
         {
-            Text = title,
-            TextColor = FgText,
-            Padding = new Padding(8, 6),
-            Content = content
+            Expanded = expanded,
+            Header = CreateSectionHeader(title, subtitle),
+            Content = new StackLayout
+            {
+                Padding = new Padding(8, 6, 8, 2),
+                Spacing = 0,
+                Items = { content }
+            }
         };
+    }
+
+    private static Control CreateSectionHeader(string title, string? subtitle)
+    {
+        var header = new StackLayout
+        {
+            Spacing = 1,
+            Padding = new Padding(2, 2, 0, 0)
+        };
+
+        header.Items.Add(CreateLabel(title, 10, true));
+        if (!string.IsNullOrWhiteSpace(subtitle))
+        {
+            header.Items.Add(CreateLabel(subtitle, 8, false));
+        }
+
+        return header;
     }
 
     private static TreeGridView CreatePlateTreeView()
     {
         var view = new TreeGridView
         {
-            Height = 220
+            Height = 260
         };
 
         view.Columns.Add(new GridColumn
