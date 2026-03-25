@@ -133,7 +133,7 @@ public static class ExportService3D
             var exportedFiles = new List<string>();
             foreach (var item in plan.Plates)
             {
-                var machinings = BuildMachiningsForPlate(item.Preview.Plate, item.Preview.Blocks);
+                var machinings = BuildMachiningsForPlate(doc, item.Preview.Plate, item.Preview.Blocks);
                 var plateWithMachinings = item.Preview.Plate with { Machinings = machinings };
 
                 var names = new NameService(profile.MaxNameLength);
@@ -279,12 +279,13 @@ public static class ExportService3D
             {
                 Plate = assignment.Plate,
                 Blocks = assignment.Blocks.ToList(),
-                MachiningCount = BuildMachiningsForPlate(assignment.Plate, assignment.Blocks).Count
+                MachiningCount = BuildMachiningsForPlate(null, assignment.Plate, assignment.Blocks).Count
             })
             .ToList();
     }
 
     internal static List<Machining> BuildMachiningsForPlate(
+        RhinoDoc? doc,
         Plate plate,
         IReadOnlyList<FittingBlock> blocks)
     {
@@ -323,7 +324,139 @@ public static class ExportService3D
                 plate.Thickness));
         }
 
+        // Add face-tagged features (if document is available)
+        if (doc != null)
+        {
+            var faceTaggedMachinings = ExtractFaceTaggedFeatures(doc, plate);
+            machinings.AddRange(faceTaggedMachinings);
+        }
+
         return machinings;
+    }
+
+    /// <summary>
+    /// Extract face-tagged CNC features from objects on the plate's layer.
+    /// Finds objects that match the plate and reads their face-tagged features.
+    /// </summary>
+    private static List<Machining> ExtractFaceTaggedFeatures(RhinoDoc doc, Plate plate)
+    {
+        var faceTaggedMachinings = new List<Machining>();
+
+        try
+        {
+            // Find objects on the plate's layer that might contain face-tagged features
+            var plateObjects = FindPlateObjects(doc, plate);
+
+            foreach (var obj in plateObjects)
+            {
+                var features = FeatureReader.ReadTaggedFeatures(obj);
+                faceTaggedMachinings.AddRange(features);
+            }
+
+            RhinoApp.WriteLine($"[ExportService3D] Found {faceTaggedMachinings.Count} face-tagged features for plate '{plate.Name}'");
+        }
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[ExportService3D] Error extracting face-tagged features: {ex.Message}");
+        }
+
+        return faceTaggedMachinings;
+    }
+
+    /// <summary>
+    /// Find Rhino objects that likely belong to the given plate.
+    /// Uses layer path and geometric criteria to identify the plate objects.
+    /// </summary>
+    private static IEnumerable<RhinoObject> FindPlateObjects(RhinoDoc doc, Plate plate)
+    {
+        var objects = new List<RhinoObject>();
+
+        try
+        {
+            // Strategy 1: Find by layer path
+            if (!string.IsNullOrEmpty(plate.LayerPath))
+            {
+                // Get layer by full path
+                var layer = doc.Layers.FindByFullPath(plate.LayerPath, -1);
+                if (layer != null)
+                {
+                    // Get all objects on this layer
+                    var layerObjects = doc.Objects.FindByLayer(layer);
+                    objects.AddRange(layerObjects.Where(obj => obj?.Geometry is Brep));
+                }
+            }
+
+            // Strategy 2: If no layer path or no objects found, try by plate name
+            if (objects.Count == 0)
+            {
+                var allObjects = doc.Objects.GetObjectList(Rhino.DocObjects.ObjectType.Brep);
+                foreach (var obj in allObjects)
+                {
+                    if (obj.Name == plate.Name || 
+                        (obj.Attributes.LayerIndex >= 0 && 
+                         doc.Layers[obj.Attributes.LayerIndex]?.Name == plate.Name))
+                    {
+                        objects.Add(obj);
+                    }
+                }
+            }
+
+            // Strategy 3: If still no objects, look for objects with similar dimensions
+            if (objects.Count == 0)
+            {
+                var allBreps = doc.Objects.GetObjectList(Rhino.DocObjects.ObjectType.Brep);
+                foreach (var obj in allBreps)
+                {
+                    if (obj?.Geometry is Brep brep && IsGeometrySimilarToPlate(brep, plate))
+                    {
+                        objects.Add(obj);
+                    }
+                }
+            }
+
+            RhinoApp.WriteLine($"[ExportService3D] Found {objects.Count} candidate objects for plate '{plate.Name}'");
+        }
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[ExportService3D] Error finding plate objects: {ex.Message}");
+        }
+
+        return objects;
+    }
+
+    /// <summary>
+    /// Check if a Brep geometry has similar dimensions to the given plate.
+    /// Used as a fallback when layer-based matching fails.
+    /// </summary>
+    private static bool IsGeometrySimilarToPlate(Brep brep, Plate plate)
+    {
+        try
+        {
+            var bbox = brep.GetBoundingBox(false);
+            if (!bbox.IsValid) return false;
+
+            var dimensions = new[] 
+            { 
+                bbox.Max.X - bbox.Min.X, 
+                bbox.Max.Y - bbox.Min.Y, 
+                bbox.Max.Z - bbox.Min.Z 
+            };
+
+            Array.Sort(dimensions);
+
+            // Check if the largest two dimensions match LengthX and WidthY (within tolerance)
+            var tolerance = 1.0; // 1mm tolerance
+            var expectedDims = new[] { plate.LengthX, plate.WidthY, plate.Thickness };
+            Array.Sort(expectedDims);
+
+            return Math.Abs(dimensions[0] - expectedDims[0]) < tolerance &&
+                   Math.Abs(dimensions[1] - expectedDims[1]) < tolerance &&
+                   Math.Abs(dimensions[2] - expectedDims[2]) < tolerance;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool IsClamexMacro(FittingBlock block)
