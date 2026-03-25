@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Naming;
 
 namespace RhinoCNCExporter.Core.Emitters;
