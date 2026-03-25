@@ -112,7 +112,7 @@ public sealed class AddDrillCommand : Command
         BrepFace selectedFace, double diameter, double depth)
     {
         // Begin undo record
-        doc.BeginUndoRecord("Add Drill");
+        var undoSerial = doc.BeginUndoRecord("Add Drill");
 
         try
         {
@@ -173,7 +173,12 @@ public sealed class AddDrillCommand : Command
             var newFaceIndices = FaceTagger.FindNewFaces(plateBrep, newBrep, tolerance);
 
             // Replace the original object with the new one
-            var newObjectId = doc.Objects.Replace(plateObj.Id, newBrep);
+            if (!doc.Objects.Replace(plateObj.Id, newBrep))
+            {
+                RhinoApp.WriteLine("Failed to replace object");
+                return false;
+            }
+            var newObjectId = plateObj.Id;
             var newObject = doc.Objects.FindId(newObjectId);
 
             if (newObject == null)
@@ -207,12 +212,12 @@ public sealed class AddDrillCommand : Command
             }
 
             doc.Views.Redraw();
-            doc.EndUndoRecord();
+            doc.EndUndoRecord(undoSerial);
             return true;
         }
         catch (Exception ex)
         {
-            doc.EndUndoRecord();
+            doc.EndUndoRecord(undoSerial);
             RhinoApp.WriteLine($"Error in CreateDrillHole: {ex.Message}");
             return false;
         }

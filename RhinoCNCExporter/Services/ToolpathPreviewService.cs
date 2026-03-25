@@ -59,7 +59,7 @@ public sealed class ToolpathPreviewService
         {
             var plate = preview.Plate with
             {
-                Machinings = ExportService3D.BuildMachiningsForPlate(preview.Plate, preview.Blocks)
+                Machinings = ExportService3D.BuildMachiningsForPlate(null, preview.Plate, preview.Blocks)
             };
 
             var plan = ToolpathPlanner.PlanPlate(plate, toolLibrary, options);

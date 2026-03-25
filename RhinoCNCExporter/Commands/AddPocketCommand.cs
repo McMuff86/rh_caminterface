@@ -122,7 +122,7 @@ public sealed class AddPocketCommand : Command
         BrepFace selectedFace, double length, double width, double depth)
     {
         // Begin undo record
-        doc.BeginUndoRecord("Add Pocket");
+        var undoSerial = doc.BeginUndoRecord("Add Pocket");
 
         try
         {
@@ -136,8 +136,8 @@ public sealed class AddPocketCommand : Command
 
             // Create a local coordinate system on the face
             // Use the surface U and V directions as X and Y axes
-            var uDir = surface.UDirection(u, v);
-            var vDir = surface.VDirection(u, v);
+            surface.FrameAt(u, v, out var surfFrame);
+            var uDir = surfFrame.XAxis; var vDir = surfFrame.YAxis;
             uDir.Unitize();
             vDir.Unitize();
 
@@ -198,7 +198,12 @@ public sealed class AddPocketCommand : Command
             var newFaceIndices = FaceTagger.FindNewFaces(plateBrep, newBrep, tolerance);
 
             // Replace the original object with the new one
-            var newObjectId = doc.Objects.Replace(plateObj.Id, newBrep);
+            if (!doc.Objects.Replace(plateObj.Id, newBrep))
+            {
+                RhinoApp.WriteLine("Failed to replace object");
+                return false;
+            }
+            var newObjectId = plateObj.Id;
             var newObject = doc.Objects.FindId(newObjectId);
 
             if (newObject == null)
@@ -234,12 +239,12 @@ public sealed class AddPocketCommand : Command
             }
 
             doc.Views.Redraw();
-            doc.EndUndoRecord();
+            doc.EndUndoRecord(undoSerial);
             return true;
         }
         catch (Exception ex)
         {
-            doc.EndUndoRecord();
+            doc.EndUndoRecord(undoSerial);
             RhinoApp.WriteLine($"Error in CreatePocket: {ex.Message}");
             return false;
         }

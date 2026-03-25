@@ -1166,7 +1166,7 @@ public sealed class ExportPanel : Panel
         {
             var plate = preview.Plate with
             {
-                Machinings = ExportService3D.BuildMachiningsForPlate(preview.Plate, preview.Blocks)
+                Machinings = ExportService3D.BuildMachiningsForPlate(null, preview.Plate, preview.Blocks)
             };
 
             for (var index = 0; index < plate.Machinings.Count; index++)

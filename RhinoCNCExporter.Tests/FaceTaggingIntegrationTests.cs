@@ -302,4 +302,5 @@ public class FaceTaggingIntegrationTests : IDisposable
         
         return result?[0] ?? originalPlate;
     }
-}#endif // RHINO_AVAILABLE
+}
+#endif // RHINO_AVAILABLE

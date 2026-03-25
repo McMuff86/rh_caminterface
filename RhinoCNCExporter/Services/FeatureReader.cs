@@ -173,7 +173,7 @@ public static class FeatureReader
             return null;
         }
 
-        var stepDown = GetDoubleTag(tags, "StepDown", out var sd) ? sd : null;
+        double? stepDown = GetDoubleTag(tags, "StepDown", out var sd) ? sd : null;
 
         return new PocketMachining
         {
@@ -202,7 +202,7 @@ public static class FeatureReader
             return null;
         }
 
-        var stepDown = GetDoubleTag(tags, "StepDown", out var sd) ? sd : null;
+        double? stepDown = GetDoubleTag(tags, "StepDown", out var sd) ? sd : null;
 
         return new RoutingMachining
         {
@@ -325,10 +325,16 @@ public static class FeatureReader
             if (curve != null)
             {
                 // Sample the curve to get boundary points
-                var poly = curve.ToPolyline(0.1, 0.1, 0.01, 1000);
-                if (poly != null)
+                if (curve.TryGetPolyline(out var poly))
                 {
                     boundary.AddRange(poly.Select(pt => (pt.X, pt.Y)));
+                }
+                else
+                {
+                    // Fallback: divide curve into segments
+                    var pts = curve.DivideByCount(20, true);
+                    if (pts != null)
+                        boundary.AddRange(pts.Select(t => { var p = curve.PointAt(t); return (p.X, p.Y); }));
                 }
             }
         }

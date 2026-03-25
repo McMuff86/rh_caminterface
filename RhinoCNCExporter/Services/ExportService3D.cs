@@ -379,10 +379,11 @@ public static class ExportService3D
             if (!string.IsNullOrEmpty(plate.LayerPath))
             {
                 // Get layer by full path
-                var layer = doc.Layers.FindByFullPath(plate.LayerPath, -1);
-                if (layer != null)
+                var layerIndex = doc.Layers.FindByFullPath(plate.LayerPath, -1);
+                if (layerIndex >= 0)
                 {
                     // Get all objects on this layer
+                    var layer = doc.Layers[layerIndex];
                     var layerObjects = doc.Objects.FindByLayer(layer);
                     objects.AddRange(layerObjects.Where(obj => obj?.Geometry is Brep));
                 }
@@ -565,7 +566,7 @@ public static class ExportService3D
         {
             var fallbackName = Path.GetFileNameWithoutExtension(documentName);
             fallbackName = string.IsNullOrWhiteSpace(fallbackName) ? "CNC-Export" : fallbackName;
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), fallbackName);
+            return Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments), fallbackName);
         }
 
         if (Path.HasExtension(targetPath))
@@ -573,7 +574,7 @@ public static class ExportService3D
             var directory = Path.GetDirectoryName(targetPath);
             var folderName = Path.GetFileNameWithoutExtension(targetPath);
             if (string.IsNullOrWhiteSpace(directory))
-                directory = Environment.CurrentDirectory;
+                directory = System.Environment.CurrentDirectory;
             return Path.Combine(directory, folderName);
         }
 
@@ -588,7 +589,7 @@ public static class ExportService3D
                 ? "program"
                 : Path.GetFileNameWithoutExtension(documentName);
             return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments),
                 baseName + fileExtension);
         }
 

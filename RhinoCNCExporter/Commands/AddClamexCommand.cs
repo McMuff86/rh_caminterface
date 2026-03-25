@@ -117,7 +117,7 @@ public sealed class AddClamexCommand : Command
         BrepFace selectedFace, int orientation)
     {
         // Begin undo record
-        doc.BeginUndoRecord("Add CLAMEX");
+        var undoSerial = doc.BeginUndoRecord("Add CLAMEX");
 
         try
         {
@@ -135,8 +135,8 @@ public sealed class AddClamexCommand : Command
             normal.Unitize();
 
             // Get surface U and V directions
-            var uDir = surface.UDirection(u, v);
-            var vDir = surface.VDirection(u, v);
+            surface.FrameAt(u, v, out var surfFrame);
+            var uDir = surfFrame.XAxis; var vDir = surfFrame.YAxis;
             uDir.Unitize();
             vDir.Unitize();
 
@@ -202,7 +202,12 @@ public sealed class AddClamexCommand : Command
             var newFaceIndices = FaceTagger.FindNewFaces(plateBrep, newBrep, tolerance);
 
             // Replace the original object with the new one
-            var newObjectId = doc.Objects.Replace(plateObj.Id, newBrep);
+            if (!doc.Objects.Replace(plateObj.Id, newBrep))
+            {
+                RhinoApp.WriteLine("Failed to replace object");
+                return false;
+            }
+            var newObjectId = plateObj.Id;
             var newObject = doc.Objects.FindId(newObjectId);
 
             if (newObject == null)
@@ -236,12 +241,12 @@ public sealed class AddClamexCommand : Command
             }
 
             doc.Views.Redraw();
-            doc.EndUndoRecord();
+            doc.EndUndoRecord(undoSerial);
             return true;
         }
         catch (Exception ex)
         {
-            doc.EndUndoRecord();
+            doc.EndUndoRecord(undoSerial);
             RhinoApp.WriteLine($"Error in CreateClamexCut: {ex.Message}");
             return false;
         }
