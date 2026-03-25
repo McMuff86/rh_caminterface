@@ -45,7 +45,7 @@ public class BladeCutTests
         {
             BlockName = "TestBladeCut",
             CncType = "BLADECUT",
-            Position = (100, 200, 0),
+            InsertionPoint = (100, 200, 0),
             Rotation = 0,
             CncAttributes = new Dictionary<string, string>
             {
@@ -82,7 +82,7 @@ public class BladeCutTests
         {
             BlockName = "TestBladeCut",
             CncType = "BLADECUT",
-            Position = (50, 100, 0),
+            InsertionPoint = (50, 100, 0),
             Rotation = 0,
             CncAttributes = new Dictionary<string, string>
             {
@@ -238,7 +238,7 @@ public class BladeCutTests
         {
             BlockName = "Test",
             CncType = "BLADECUT",
-            Position = (0, 0, 0),
+            InsertionPoint = (0, 0, 0),
             Rotation = 0,
             CncAttributes = new Dictionary<string, string>
             {

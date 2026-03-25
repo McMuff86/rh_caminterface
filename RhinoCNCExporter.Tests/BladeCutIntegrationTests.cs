@@ -23,7 +23,7 @@ public class BladeCutIntegrationTests
         {
             BlockName = "SchubladenFase_1",
             CncType = "BLADECUT",
-            Position = (100, 200, 0),
+            InsertionPoint = (100, 200, 0),
             Rotation = 0,
             CncAttributes = new Dictionary<string, string>
             {
@@ -109,7 +109,7 @@ public class BladeCutIntegrationTests
         {
             BlockName = "BiesseBladeCut",
             CncType = "BLADECUT", 
-            Position = (50, 100, 0),
+            InsertionPoint = (50, 100, 0),
             Rotation = 0,
             CncAttributes = new Dictionary<string, string>
             {
@@ -217,7 +217,7 @@ public class BladeCutIntegrationTests
         {
             BlockName = "InvalidSegmentTest",
             CncType = "BLADECUT",
-            Position = (0, 0, 0),
+            InsertionPoint = (0, 0, 0),
             Rotation = 0,
             CncAttributes = new Dictionary<string, string>
             {
