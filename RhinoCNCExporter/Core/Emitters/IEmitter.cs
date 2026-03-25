@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using RhinoCNCExporter.Core.Models;
 
 namespace RhinoCNCExporter.Core.Emitters;
 
@@ -86,19 +87,3 @@ public interface IEmitter
     /// </summary>
     string EmitHelicMillingStrategy(double radius, bool direction, double depth);
 }
-
-/// <summary>
-/// Ein Liniensegment für BladeCut-Schnittführung.
-/// </summary>
-public sealed record BladeCutSegment(
-    string Name,
-    double StartX, double StartY,
-    double EndX, double EndY);
-
-/// <summary>
-/// Parameter für CreateSectioningMillingStrategy.
-/// </summary>
-public sealed record SectioningStrategy(
-    int StrategyType = 5,
-    double OffsetX = 0,
-    double OffsetY = 0);
