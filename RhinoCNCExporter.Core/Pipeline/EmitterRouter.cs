@@ -89,6 +89,12 @@ public class EmitterRouter : IEmitterRouter
 
         HorizontalDrillMachining h => EmitHorizontalDrillMachining(plate, h),
 
+        BladeCutMachining b => _emitter.EmitBladeCut(
+            _nameService.CreateUnique(b.Name),
+            b.Angle, b.Segments,
+            b.TechCode ?? _profile.DefaultTech, b.Depth, b.Strategy,
+            SideToPlane(b.Side)),
+
         MacroMachining macro => EmitMacroRaw(macro),
 
         PocketMachining p => EmitPocket(p),
@@ -177,6 +183,7 @@ public class EmitterRouter : IEmitterRouter
             {
                 RoutingMachining { IsClosed: true } => 0,
                 RoutingWithArcsMachining { IsClosed: true } => 0,
+                BladeCutMachining => 0, // Blade cuts are typically contour operations
                 DrillMachining => 1,
                 DrillPatternMachining => 2,
                 HorizontalDrillMachining => 3,

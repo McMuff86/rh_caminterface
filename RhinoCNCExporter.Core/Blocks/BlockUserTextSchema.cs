@@ -25,11 +25,13 @@ public static class BlockUserTextSchema
     public const string CNC_TOOL_DIA = "CNC_ToolDia";
     public const string CNC_THROUGH = "CNC_Through";
     public const string CNC_DESCRIPTION = "CNC_Description";
+    public const string CNC_ANGLE = "CNC_Angle";
+    public const string CNC_SEGMENTS = "CNC_Segments";
 
     // --- Valid CNC_Type values ---
     public static readonly IReadOnlySet<string> ValidTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "DRILL", "DRILLPATTERN", "MACRO", "CUT", "POCKET", "GROOVE", "HDRILL"
+        "DRILL", "DRILLPATTERN", "MACRO", "CUT", "POCKET", "GROOVE", "HDRILL", "BLADECUT"
     };
 
     // --- Valid CNC_Side values ---

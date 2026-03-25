@@ -30,6 +30,7 @@ public static class MachiningFactory
             "DRILLPATTERN" => CreateDrillPattern(block, plateLocalX, plateLocalY, plateThickness),
             "MACRO" => CreateMacro(block, plateLocalX, plateLocalY, plateThickness),
             "HDRILL" => CreateHorizontalDrill(block, plateLocalX, plateLocalY, plateThickness),
+            "BLADECUT" => CreateBladeCut(block, plateLocalX, plateLocalY, plateThickness),
             "CUT" => CreateCut(block, plateLocalX, plateLocalY, plateThickness),
             "POCKET" => CreatePocket(block, plateLocalX, plateLocalY, plateThickness),
             "GROOVE" => CreateGroove(block, plateLocalX, plateLocalY, plateThickness),
@@ -154,6 +155,42 @@ public static class MachiningFactory
         };
     }
 
+    private static IReadOnlyList<Machining> CreateBladeCut(FittingBlock b, double x, double y, double dz)
+    {
+        var angle = GetDouble(b.CncAttributes, BlockUserTextSchema.CNC_ANGLE, 45.0);
+        var depth = ResolveDepth(b, dz, defaultDepth: 15.0);
+        var side = b.CncSide ?? MachiningSide.Top;
+
+        // Parse segments from CNC_Segments attribute
+        var segments = ParseBladeCutSegments(b.CncAttributes.GetValueOrDefault(BlockUserTextSchema.CNC_SEGMENTS) ?? "", x, y);
+        
+        if (segments.Count == 0)
+        {
+            // Default segments based on block position - simple cross pattern
+            segments = new BladeCutSegment[]
+            {
+                new("Cut segment_1", x - 10, y - 10, x + 10, y - 10),
+                new("Cut segment_2", x + 10, y - 10, x + 10, y + 10),
+                new("Cut segment_3", x + 10, y + 10, x - 10, y + 10),
+                new("Cut segment_4", x - 10, y + 10, x - 10, y - 10)
+            };
+        }
+
+        return new Machining[]
+        {
+            new BladeCutMachining
+            {
+                Name = b.BlockName,
+                Angle = angle,
+                Segments = segments,
+                Depth = depth,
+                Side = side,
+                TechCode = b.CncAttributes.GetValueOrDefault(BlockUserTextSchema.CNC_TECHCODE) ?? "E015",
+                Source = MachiningSource.BlockDetection
+            }
+        };
+    }
+
     private static IReadOnlyList<Machining> CreateCut(FittingBlock b, double x, double y, double dz)
     {
         // CUT blocks generate routing machinings — placeholder for Phase 3
@@ -262,6 +299,57 @@ public static class MachiningFactory
 
     private static int GetInt(IReadOnlyDictionary<string, string> attrs, string key, int defaultValue)
         => attrs.TryGetValue(key, out var v) && int.TryParse(v, out var i) ? i : defaultValue;
+
+    /// <summary>
+    /// Parse BladeCut segments from a string representation.
+    /// Format: "name1,startX,startY,endX,endY;name2,startX,startY,endX,endY;..."
+    /// or JSON: [{"Name":"name1","StartX":10,"StartY":20,"EndX":30,"EndY":40}]
+    /// </summary>
+    private static IReadOnlyList<BladeCutSegment> ParseBladeCutSegments(string segmentsStr, double centerX, double centerY)
+    {
+        if (string.IsNullOrWhiteSpace(segmentsStr))
+            return Array.Empty<BladeCutSegment>();
+
+        var segments = new List<BladeCutSegment>();
+
+        try
+        {
+            // Try JSON format first
+            if (segmentsStr.TrimStart().StartsWith('['))
+            {
+                // JSON format - placeholder for future JSON parsing
+                return Array.Empty<BladeCutSegment>();
+            }
+
+            // Comma-separated format
+            var parts = segmentsStr.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                var segmentData = parts[i].Split(',');
+                if (segmentData.Length >= 5)
+                {
+                    var name = segmentData[0].Trim();
+                    if (string.IsNullOrEmpty(name))
+                        name = $"Cut segment_{i + 1}";
+
+                    if (double.TryParse(segmentData[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var sx) &&
+                        double.TryParse(segmentData[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var sy) &&
+                        double.TryParse(segmentData[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var ex) &&
+                        double.TryParse(segmentData[4], NumberStyles.Float, CultureInfo.InvariantCulture, out var ey))
+                    {
+                        segments.Add(new BladeCutSegment(name, sx, sy, ex, ey));
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Fall back to empty if parsing fails
+            return Array.Empty<BladeCutSegment>();
+        }
+
+        return segments;
+    }
 
     private static string Format(double v)
         => v.ToString("G", CultureInfo.InvariantCulture);

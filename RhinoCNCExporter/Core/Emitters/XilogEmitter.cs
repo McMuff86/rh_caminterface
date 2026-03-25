@@ -240,6 +240,45 @@ public sealed class XilogEmitter : IEmitter
         return F($"SelectWorkplane(\"{name}\");") + "\n";
     }
 
+    /// <summary>
+    /// Emit a complete BladeCut operation with SectioningMillingStrategy + Segments + BladeCut.
+    /// Production format based on NEW_Schubladen_Doppel_1.xcs reference.
+    /// </summary>
+    public string EmitBladeCut(string name, double angle, IReadOnlyList<BladeCutSegment> segments,
+        string tech, double depth, SectioningStrategy strategy, string plane = "Top")
+    {
+        var lines = new List<string>
+        {
+            F($"SelectWorkplane(\"{plane}\");"),
+            F($"CreateSectioningMillingStrategy({strategy.StrategyType},{FmtCompact(strategy.OffsetX)},{FmtCompact(strategy.OffsetY)});"),
+            "SetApproachStrategy(true,true,0);",
+            "SetRetractStrategy(true,true,0,0);"
+        };
+
+        // Add all segments
+        foreach (var segment in segments)
+        {
+            lines.Add(F($"CreateSegment(\"{segment.Name}\",{segment.StartX:F3},{segment.StartY:F3},{segment.EndX:F3},{segment.EndY:F3});"));
+        }
+
+        // BladeCut with production format parameters
+        lines.Add(F($"CreateBladeCut(\"{name}\",\"Blade Cut\",TypeOfProcess.GeneralRouting,\"{tech}\",\"-1\",{angle:F2},2,-1,-1,-1,2,true,true,0,{FmtCompact(depth)});"));
+        lines.Add("ResetApproachStrategy();");
+        lines.Add("ResetRetractStrategy();");
+        lines.Add("");
+
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>
+    /// Emit CreateHelicMillingStrategy for spiral machining.
+    /// Used before Rectangle macros for large cutouts.
+    /// </summary>
+    public string EmitHelicMillingStrategy(double radius, bool direction, double depth)
+    {
+        return F($"CreateHelicMillingStrategy({FmtCompact(radius)},{(direction ? "true" : "false")},{FmtCompact(depth)});") + "\n";
+    }
+
     /// <summary>Format helper — ensures invariant culture for decimal formatting.</summary>
     private static string F(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
 

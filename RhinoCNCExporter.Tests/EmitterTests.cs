@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using RhinoCNCExporter.Core.Emitters;
 using RhinoCNCExporter.Core.LayerParser;
+using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Naming;
 using RhinoCNCExporter.Core.Profiles;
 using Xunit;
@@ -572,6 +573,138 @@ public class EmitterTests
         Assert.Equal(2.5, profile.SetupOffsetY);
         Assert.Equal(0.0, profile.SetupOffsetZ);
         Assert.Equal(0.0, profile.SetupOffsetRot);
+    }
+
+    #endregion
+
+    #region New MSL Commands (Sprint 6)
+
+    [Fact]
+    public void XilogEmitter_EmitBladeCut_ProductionFormat()
+    {
+        var emitter = CreateEmitter(out _);
+        var segments = new BladeCutSegment[]
+        {
+            new("Cut segment_1", 19, 354, 19, -187.5),
+            new("Cut segment_2", 628, -187.5, 628, 354)
+        };
+        var strategy = new SectioningStrategy(5, 0, 0);
+
+        var result = emitter.EmitBladeCut("Geneigter Schnitt", 45.0, segments, "E015", 15, strategy);
+
+        // Verify production format structure
+        Assert.Contains("SelectWorkplane(\"Top\");", result);
+        Assert.Contains("CreateSectioningMillingStrategy(5,0,0);", result);
+        Assert.Contains("SetApproachStrategy(true,true,0);", result);
+        Assert.Contains("SetRetractStrategy(true,true,0,0);", result);
+        Assert.Contains("CreateSegment(\"Cut segment_1\",19.000,354.000,19.000,-187.500);", result);
+        Assert.Contains("CreateSegment(\"Cut segment_2\",628.000,-187.500,628.000,354.000);", result);
+        Assert.Contains("CreateBladeCut(\"Geneigter Schnitt\",\"Blade Cut\",TypeOfProcess.GeneralRouting,\"E015\",\"-1\",45.00,2,-1,-1,-1,2,true,true,0,15);", result);
+        Assert.Contains("ResetApproachStrategy();", result);
+        Assert.Contains("ResetRetractStrategy();", result);
+    }
+
+    [Fact]
+    public void XilogEmitter_EmitBladeCut_CustomStrategy()
+    {
+        var emitter = CreateEmitter(out _);
+        var segments = new BladeCutSegment[]
+        {
+            new("Cut segment_1", 10, 20, 30, 40)
+        };
+        var strategy = new SectioningStrategy(8, 1.5, 2.0);
+
+        var result = emitter.EmitBladeCut("Custom BladeCut", 30.0, segments, "E010", 20, strategy);
+
+        Assert.Contains("CreateSectioningMillingStrategy(8,1.5,2);", result);
+        Assert.Contains("CreateBladeCut(\"Custom BladeCut\",\"Blade Cut\",TypeOfProcess.GeneralRouting,\"E010\",\"-1\",30.00,2,-1,-1,-1,2,true,true,0,20);", result);
+    }
+
+    [Fact]
+    public void XilogEmitter_EmitHelicMillingStrategy_BasicFormat()
+    {
+        var emitter = CreateEmitter(out _);
+
+        var result = emitter.EmitHelicMillingStrategy(8.5, true, 17);
+
+        Assert.Equal("CreateHelicMillingStrategy(8.5,true,17);\n", result);
+    }
+
+    [Fact]
+    public void XilogEmitter_EmitHelicMillingStrategy_FalseDirection()
+    {
+        var emitter = CreateEmitter(out _);
+
+        var result = emitter.EmitHelicMillingStrategy(12.0, false, 25.5);
+
+        Assert.Equal("CreateHelicMillingStrategy(12,false,25.5);\n", result);
+    }
+
+    [Fact]
+    public void BiesseEmitter_EmitBladeCut_ConvertsToRouting()
+    {
+        var names = new NameService(63);
+        var emitter = new BiesseEmitter(names);
+        var segments = new BladeCutSegment[]
+        {
+            new("Cut segment_1", 10, 20, 30, 20),
+            new("Cut segment_2", 30, 20, 50, 40)
+        };
+        var strategy = new SectioningStrategy();
+
+        var result = emitter.EmitBladeCut("Test BladeCut", 45.0, segments, "T01", 15, strategy);
+
+        Assert.Contains("NAME=ROUTG", result);
+        Assert.Contains("ANG,VALUE=45.0", result);
+        Assert.Contains("DP,VALUE=15.0", result);
+        Assert.Contains("START_POINT,X=10.00000,Y=20.00000", result);
+        Assert.Contains("LINE_EP,X=30.00000,Y=20.00000", result);
+        Assert.Contains("LINE_EP,X=50.00000,Y=40.00000", result);
+        Assert.Contains("ENDPATH", result);
+    }
+
+    [Fact]
+    public void BiesseEmitter_EmitHelicMillingStrategy_PlaceholderFormat()
+    {
+        var names = new NameService(63);
+        var emitter = new BiesseEmitter(names);
+
+        var result = emitter.EmitHelicMillingStrategy(8.5, true, 17);
+
+        Assert.Contains("HelicMillingStrategy", result);
+        Assert.Contains("radius=8.5", result);
+        Assert.Contains("dir=True", result);
+        Assert.Contains("depth=17", result);
+    }
+
+    [Theory]
+    [InlineData(45.0, "45.00")]
+    [InlineData(30.5, "30.50")]
+    [InlineData(90.0, "90.00")]
+    public void BladeCut_AngleFormatting_TwoDecimals(double angle, string expected)
+    {
+        var emitter = CreateEmitter(out _);
+        var segments = new BladeCutSegment[] { new("seg1", 0, 0, 10, 10) };
+        var strategy = new SectioningStrategy();
+
+        var result = emitter.EmitBladeCut("Test", angle, segments, "E015", 15, strategy);
+
+        Assert.Contains($",{expected},", result);
+    }
+
+    [Fact]
+    public void BladeCut_EmptySegments_NoOutput()
+    {
+        var emitter = CreateEmitter(out _);
+        var segments = new BladeCutSegment[0];
+        var strategy = new SectioningStrategy();
+
+        var result = emitter.EmitBladeCut("Test", 45.0, segments, "E015", 15, strategy);
+
+        // Should still output strategy and BladeCut, but no CreateSegment calls
+        Assert.Contains("CreateSectioningMillingStrategy", result);
+        Assert.Contains("CreateBladeCut", result);
+        Assert.DoesNotContain("CreateSegment", result);
     }
 
     #endregion

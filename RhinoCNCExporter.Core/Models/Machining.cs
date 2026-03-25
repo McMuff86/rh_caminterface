@@ -102,3 +102,37 @@ public sealed record HorizontalDrillMachining : Machining
     /// <summary>Which plate edge: L=Links(-X), R=Rechts(+X), V=Vorne(-Y), H=Hinten(+Y).</summary>
     public required char DrillSide { get; init; }
 }
+
+/// <summary>
+/// Geneigte Schnitte / Fasen mit BladeCut-Befehlen.
+/// Erzeugt CreateSectioningMillingStrategy + CreateSegment + CreateBladeCut als Einheit.
+/// </summary>
+public sealed record BladeCutMachining : Machining
+{
+    /// <summary>Schnittwinkel in Grad (z.B. 45.0 für Fasen).</summary>
+    public required double Angle { get; init; }
+    /// <summary>Segmente für die Schnittführung (Start/End-Punkte).</summary>
+    public required IReadOnlyList<BladeCutSegment> Segments { get; init; }
+    /// <summary>Schnitttiefe in mm.</summary>
+    public required double Depth { get; init; }
+    /// <summary>Optionale Strategie-Parameter (default: 5, 0, 0).</summary>
+    public SectioningStrategy Strategy { get; init; } = new(5, 0, 0);
+}
+
+// --- Supporting types for BladeCut ---
+
+/// <summary>
+/// Ein Liniensegment für BladeCut-Schnittführung.
+/// </summary>
+public sealed record BladeCutSegment(
+    string Name,
+    double StartX, double StartY,
+    double EndX, double EndY);
+
+/// <summary>
+/// Parameter für CreateSectioningMillingStrategy.
+/// </summary>
+public sealed record SectioningStrategy(
+    int StrategyType = 5,
+    double OffsetX = 0,
+    double OffsetY = 0);

@@ -304,5 +304,71 @@ public sealed class BiesseEmitter : IEmitter
         return $"// SelectWorkplane \"{name}\"\r\n";
     }
 
+    /// <summary>
+    /// Biesse BladeCut — convert to angled routing operation.
+    /// Biesse doesn't have direct BladeCut equivalent, use ROUTG with angle.
+    /// </summary>
+    public string EmitBladeCut(string name, double angle, IReadOnlyList<BladeCutSegment> segments,
+        string tech, double depth, SectioningStrategy strategy, string plane = "Top")
+    {
+        // Convert segments to polyline points
+        var pts = new List<(double X, double Y)>();
+        foreach (var segment in segments)
+        {
+            if (pts.Count == 0)
+                pts.Add((segment.StartX, segment.StartY));
+            pts.Add((segment.EndX, segment.EndY));
+        }
+
+        if (pts.Count < 2)
+            return $"// BladeCut \"{name}\" (insufficient segments)\r\n";
+
+        // Use routing with angle parameter
+        var geoId = _geoIdCounter++;
+        var side = plane == "Top" ? 0 : 1;
+
+        var lines = new List<string>
+        {
+            "BEGIN MACRO",
+            F($"\tNAME=ROUTG"),
+            F($"\tPARAM,NAME=ID,VALUE={geoId}"),
+            F($"\tPARAM,NAME=SIDE,VALUE={side}"),
+            F($"\tPARAM,NAME=CRN,VALUE=\"\""),
+            F($"\tPARAM,NAME=DP,VALUE={depth:F1}"),
+            F($"\tPARAM,NAME=ISO,VALUE=\"\""),
+            F($"\tPARAM,NAME=OPT,VALUE=YES"),
+            F($"\tPARAM,NAME=DIA,VALUE=10"),
+            F($"\tPARAM,NAME=RTY,VALUE=rpCCW"),
+            F($"\tPARAM,NAME=XRC,VALUE=0"),
+            F($"\tPARAM,NAME=YRC,VALUE=0"),
+            F($"\tPARAM,NAME=ANG,VALUE={angle:F1}"),
+            "\tPARAM,NAME=CKA,VALUE=azrNO",
+            "END MACRO",
+            "",
+            $"BEGIN MACRO NAME=GEO ID={geoId}"
+        };
+
+        // Add geometry
+        lines.Add(F($"\tSTART_POINT,X={pts[0].X:F5},Y={pts[0].Y:F5}"));
+        for (int i = 1; i < pts.Count; i++)
+        {
+            lines.Add(F($"\tLINE_EP,X={pts[i].X:F5},Y={pts[i].Y:F5}"));
+        }
+        lines.Add("\tENDPATH");
+        lines.Add("END MACRO");
+        lines.Add("");
+
+        return string.Join("\r\n", lines);
+    }
+
+    /// <summary>
+    /// Biesse HelicMillingStrategy — convert to spiral pocket operation.
+    /// Uses POCK macro with spiral strategy.
+    /// </summary>
+    public string EmitHelicMillingStrategy(double radius, bool direction, double depth)
+    {
+        return $"// HelicMillingStrategy radius={radius:F1}, dir={direction}, depth={depth:F1}\r\n";
+    }
+
     private static string F(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
 }

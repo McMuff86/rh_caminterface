@@ -12,7 +12,8 @@ public enum MachiningType
     Pocket,
     GrooveRnt,
     Macro,
-    HorizontalDrill
+    HorizontalDrill,
+    BladeCut
 }
 
 /// <summary>
@@ -63,6 +64,8 @@ public enum MachiningSource
     LegacyLayer,
     /// <summary>From CNC_* block detection (Phase 2+).</summary>
     BlockDetection,
+    /// <summary>From face-tagged features created by plugin commands.</summary>
+    FaceTag,
     /// <summary>Manually assigned by user.</summary>
     Manual
 }

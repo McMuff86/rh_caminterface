@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Models;
 using Xunit;
@@ -301,5 +302,109 @@ public class MachiningFactoryTests
     {
         var result = MachiningFactory.ExpandTemplateParams("42,0,1", 19, 0, 0);
         Assert.Equal("42,0,1", result);
+    }
+
+    // --- BLADECUT ---
+
+    [Fact]
+    public void CreateFromBlock_BladeCut_ReturnsBladeCutMachining()
+    {
+        var block = CreateBlock("BLADECUT", new()
+        {
+            ["CNC_Angle"] = "45.0",
+            ["CNC_Depth"] = "15",
+            ["CNC_TechCode"] = "E015",
+            ["CNC_Segments"] = "seg1,10,20,30,40;seg2,30,40,50,60"
+        });
+
+        var machinings = MachiningFactory.CreateFromBlock(block, 100, 200, 0, 19);
+
+        Assert.Single(machinings);
+        var bladeCut = Assert.IsType<BladeCutMachining>(machinings[0]);
+        Assert.Equal("Test_BLADECUT", bladeCut.Name);
+        Assert.Equal(45.0, bladeCut.Angle);
+        Assert.Equal(15.0, bladeCut.Depth);
+        Assert.Equal("E015", bladeCut.TechCode);
+        Assert.Equal(MachiningSide.Top, bladeCut.Side);
+        Assert.Equal(MachiningSource.BlockDetection, bladeCut.Source);
+        Assert.Equal(2, bladeCut.Segments.Count);
+
+        var seg1 = bladeCut.Segments[0];
+        Assert.Equal("seg1", seg1.Name);
+        Assert.Equal(10.0, seg1.StartX);
+        Assert.Equal(20.0, seg1.StartY);
+        Assert.Equal(30.0, seg1.EndX);
+        Assert.Equal(40.0, seg1.EndY);
+    }
+
+    [Fact]
+    public void CreateFromBlock_BladeCut_DefaultValues()
+    {
+        var block = CreateBlock("BLADECUT");
+
+        var machinings = MachiningFactory.CreateFromBlock(block, 50, 100, 0, 19);
+
+        Assert.Single(machinings);
+        var bladeCut = Assert.IsType<BladeCutMachining>(machinings[0]);
+        Assert.Equal(45.0, bladeCut.Angle); // default
+        Assert.Equal(15.0, bladeCut.Depth); // default
+        Assert.Equal("E015", bladeCut.TechCode); // default
+        Assert.Equal(4, bladeCut.Segments.Count); // default cross pattern
+
+        // Verify default cross pattern around center (50, 100)
+        var seg1 = bladeCut.Segments[0];
+        Assert.Equal("Cut segment_1", seg1.Name);
+        Assert.Equal(40.0, seg1.StartX); // 50 - 10
+        Assert.Equal(90.0, seg1.StartY); // 100 - 10
+        Assert.Equal(60.0, seg1.EndX); // 50 + 10
+        Assert.Equal(90.0, seg1.EndY); // 100 - 10
+    }
+
+    [Fact]
+    public void CreateFromBlock_BladeCut_WithDepthTemplate()
+    {
+        var block = CreateBlock("BLADECUT", new()
+        {
+            ["CNC_Depth"] = "{DZ}-4",
+            ["CNC_Segments"] = "seg1,0,0,10,10"
+        });
+
+        var machinings = MachiningFactory.CreateFromBlock(block, 0, 0, 0, 19);
+
+        var bladeCut = Assert.IsType<BladeCutMachining>(machinings[0]);
+        Assert.Equal(15.0, bladeCut.Depth); // 19 - 4
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("invalid")]
+    [InlineData("seg1")]
+    [InlineData("seg1,10")]
+    public void CreateFromBlock_BladeCut_InvalidSegments_UsesDefault(string invalidSegments)
+    {
+        var block = CreateBlock("BLADECUT", new() { ["CNC_Segments"] = invalidSegments });
+
+        var machinings = MachiningFactory.CreateFromBlock(block, 0, 0, 0, 19);
+
+        var bladeCut = Assert.IsType<BladeCutMachining>(machinings[0]);
+        Assert.Equal(4, bladeCut.Segments.Count); // Should use default cross pattern
+    }
+
+    [Fact]
+    public void CreateFromBlock_BladeCut_ValidSingleSegment()
+    {
+        var block = CreateBlock("BLADECUT", new() { ["CNC_Segments"] = "Test Segment,5,10,15,20" });
+
+        var machinings = MachiningFactory.CreateFromBlock(block, 0, 0, 0, 19);
+
+        var bladeCut = Assert.IsType<BladeCutMachining>(machinings[0]);
+        Assert.Single(bladeCut.Segments);
+
+        var seg = bladeCut.Segments[0];
+        Assert.Equal("Test Segment", seg.Name);
+        Assert.Equal(5.0, seg.StartX);
+        Assert.Equal(10.0, seg.StartY);
+        Assert.Equal(15.0, seg.EndX);
+        Assert.Equal(20.0, seg.EndY);
     }
 }

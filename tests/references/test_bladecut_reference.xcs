@@ -1,0 +1,44 @@
+// *** Programm created by RhinoCNCExporter ***
+//**********************************************************
+//**********************************************************
+// *** Programmparameter setzen *** 
+SetMachiningParameters("IJ",1,10,196608,false);
+//**********************************************************
+//**********************************************************
+// *** Bauteil erstellen ***
+CreateFinishedWorkpieceBox("TestBladeCut", 200, 100, 19);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Infos ***
+//CreateMessage("Projekt","projekt_name",false,false);
+//CreateMessage("Datei","TestBladeCut.xcs",false,false);
+//CreateMessage("Bemerkung"," ",false,false);
+//**********************************************************
+//**********************************************************
+double DZ = 19;
+//AddVariable("Entnehmen",0,0,1,"",false,true);
+//**********************************************************
+//**********************************************************
+// *** Bauteil Offsets ***
+SetWorkpieceSetupPosition(2.5,2.5,0,0);
+//**********************************************************
+//**********************************************************
+
+SelectWorkplane("Top");
+CreateSectioningMillingStrategy(5,0,0);
+SetApproachStrategy(true,true,0);
+SetRetractStrategy(true,true,0,0);
+CreateSegment("Cut segment_1",19.000,354.000,19.000,-187.500);
+CreateSegment("Cut segment_2",628.000,-187.500,628.000,354.000);
+CreateBladeCut("Geneigter Schnitt in X/Y_1","Blade Cut",TypeOfProcess.GeneralRouting,"E015","-1",45.00,2,-1,-1,-1,2,true,true,0,15);
+ResetApproachStrategy();
+ResetRetractStrategy();
+
+//**********************************************************
+//**********************************************************
+
+// Macro RNT
+CreateMacro("Wegfahrschritt","XPARK");
+//**********************************************************
+//**********************************************************
+// *** Programm Ende ***

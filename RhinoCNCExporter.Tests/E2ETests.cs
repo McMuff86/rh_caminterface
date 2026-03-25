@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using RhinoCNCExporter.Core.Emitters;
+using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Naming;
 using Xunit;
 
@@ -236,5 +237,67 @@ public class E2ETests
         
         Assert.Contains("//**********************************************************", refContent);
         Assert.Contains("//**********************************************************", ourHeader);
+    }
+
+    [Fact]
+    public void BladeCut_E2E_MatchesProductionReference()
+    {
+        var nameService = new NameService(31);
+        var emitter = new XilogEmitter(nameService);
+        
+        var segments = new BladeCutSegment[]
+        {
+            new("Cut segment_1", 19, 354, 19, -187.5),
+            new("Cut segment_2", 628, -187.5, 628, 354)
+        };
+
+        var strategy = new SectioningStrategy(5, 0, 0);
+
+        var bladeCutOutput = emitter.EmitBladeCut("Geneigter Schnitt in X/Y_1", 45.0, segments, "E015", 15, strategy);
+
+        // Verify all required components are present in correct order
+        var lines = bladeCutOutput.Split('\n');
+        
+        var selectIdx = Array.FindIndex(lines, l => l.Contains("SelectWorkplane"));
+        var strategyIdx = Array.FindIndex(lines, l => l.Contains("CreateSectioningMillingStrategy"));
+        var approachIdx = Array.FindIndex(lines, l => l.Contains("SetApproachStrategy"));
+        var retractIdx = Array.FindIndex(lines, l => l.Contains("SetRetractStrategy"));
+        var segment1Idx = Array.FindIndex(lines, l => l.Contains("CreateSegment(\"Cut segment_1\""));
+        var segment2Idx = Array.FindIndex(lines, l => l.Contains("CreateSegment(\"Cut segment_2\""));
+        var bladeCutIdx = Array.FindIndex(lines, l => l.Contains("CreateBladeCut"));
+        var resetApproachIdx = Array.FindIndex(lines, l => l.Contains("ResetApproachStrategy"));
+        var resetRetractIdx = Array.FindIndex(lines, l => l.Contains("ResetRetractStrategy"));
+
+        // Verify order: Select → Strategy → Approach → Retract → Segments → BladeCut → Resets
+        Assert.True(selectIdx < strategyIdx);
+        Assert.True(strategyIdx < approachIdx);
+        Assert.True(approachIdx < retractIdx);
+        Assert.True(retractIdx < segment1Idx);
+        Assert.True(segment1Idx < segment2Idx);
+        Assert.True(segment2Idx < bladeCutIdx);
+        Assert.True(bladeCutIdx < resetApproachIdx);
+        Assert.True(resetApproachIdx < resetRetractIdx);
+
+        // Verify exact format matches production
+        Assert.Contains("SelectWorkplane(\"Top\");", bladeCutOutput);
+        Assert.Contains("CreateSectioningMillingStrategy(5,0,0);", bladeCutOutput);
+        Assert.Contains("SetApproachStrategy(true,true,0);", bladeCutOutput);
+        Assert.Contains("SetRetractStrategy(true,true,0,0);", bladeCutOutput);
+        Assert.Contains("CreateSegment(\"Cut segment_1\",19.000,354.000,19.000,-187.500);", bladeCutOutput);
+        Assert.Contains("CreateSegment(\"Cut segment_2\",628.000,-187.500,628.000,354.000);", bladeCutOutput);
+        Assert.Contains("CreateBladeCut(\"Geneigter Schnitt in X/Y_1\",\"Blade Cut\",TypeOfProcess.GeneralRouting,\"E015\",\"-1\",45.00,2,-1,-1,-1,2,true,true,0,15);", bladeCutOutput);
+        Assert.Contains("ResetApproachStrategy();", bladeCutOutput);
+        Assert.Contains("ResetRetractStrategy();", bladeCutOutput);
+    }
+
+    [Fact]  
+    public void HelicMillingStrategy_E2E_BasicFormat()
+    {
+        var nameService = new NameService(31);
+        var emitter = new XilogEmitter(nameService);
+
+        var helicOutput = emitter.EmitHelicMillingStrategy(8.5, true, 17);
+
+        Assert.Equal("CreateHelicMillingStrategy(8.5,true,17);\n", helicOutput);
     }
 }

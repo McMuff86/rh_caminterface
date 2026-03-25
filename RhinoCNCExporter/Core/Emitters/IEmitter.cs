@@ -72,4 +72,33 @@ public interface IEmitter
 
     /// <summary>Select a previously created workplane by name.</summary>
     string EmitSelectWorkplane(string name);
+
+    /// <summary>
+    /// Emit a complete BladeCut operation with SectioningMillingStrategy + Segments + BladeCut.
+    /// Creates geneigte Schnitte / Fasen for Legrabox-type applications.
+    /// </summary>
+    string EmitBladeCut(string name, double angle, IReadOnlyList<BladeCutSegment> segments,
+        string tech, double depth, SectioningStrategy strategy, string plane = "Top");
+
+    /// <summary>
+    /// Emit a CreateHelicMillingStrategy for spiral machining.
+    /// Typically used before Rectangle macros for large cutouts.
+    /// </summary>
+    string EmitHelicMillingStrategy(double radius, bool direction, double depth);
 }
+
+/// <summary>
+/// Ein Liniensegment für BladeCut-Schnittführung.
+/// </summary>
+public sealed record BladeCutSegment(
+    string Name,
+    double StartX, double StartY,
+    double EndX, double EndY);
+
+/// <summary>
+/// Parameter für CreateSectioningMillingStrategy.
+/// </summary>
+public sealed record SectioningStrategy(
+    int StrategyType = 5,
+    double OffsetX = 0,
+    double OffsetY = 0);
