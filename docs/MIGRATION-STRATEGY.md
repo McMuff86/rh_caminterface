@@ -105,6 +105,8 @@ public bool EnableBlockDetection { get; set; } = true;  // Aktueller UI-Default
 2. Aktuell: Default ON, abschaltbar
 3. Langfristig: Immer an (kein Flag mehr)
 
+**Stand 24.03.2026:** Starter-Blöcke liegen aktuell als code-definierte `CNC_*` Dictionaries in `RhinoCNCExporter.Core/Blocks/StarterBlocks/StarterBlockDefinitions.cs`. Eine `.3dm`-basierte Block-Library mit `BlockLibraryService` ist weiterhin Future Work, nicht der heutige produktive Pfad.
+
 ---
 
 ## Phase 3: Volle 3D-Pipeline
@@ -224,7 +226,7 @@ Das ExportPanel hält den Zustand aktuell nur zur Laufzeit; Persistenz bleibt ei
 | EmitterRouter implementieren | Sprint 2 | Machining → IEmitter Methoden dispatchen | M |
 | ExportService erweitern | Sprint 2 | Block-Detection als optionalen Pfad einbauen | S |
 | Feature Flag im UI | Sprint 2 | Checkbox "Block-Detection" | S |
-| Starter-Blöcke erstellen | Sprint 3 | 6 .3dm Dateien mit UserText | M |
+| Starter-Blöcke definieren | Sprint 2 | 5 code-definierte CNC_* Starter-Definitionen | M |
 | CLAMEX MachiningFactory | Sprint 3 | SawCut_Lamello Makro-Generation | L |
 | PlateDetector | Sprint 3 | Solid→Platte Erkennung | L |
 | CoordinateTransformer | Sprint 3 | 3D→Platten-Lokal Transform | L |

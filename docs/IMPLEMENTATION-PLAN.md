@@ -1,21 +1,25 @@
 # Implementation Plan: 3D-to-CNC Pipeline
 
-**Datum:** 23. März 2026  
-**Version:** 1.0  
+**Datum:** 24. März 2026  
+**Version:** 1.1  
 **Basis:** TECHNICAL-ARCHITECTURE.md, BLOCK-LIBRARY-SPEC.md, MIGRATION-STRATEGY.md
 
 ---
 
-## Übersicht: 5 Sprints
+## Übersicht: Kernplan 5 Sprints + Ausbau 6-8
 
 ```
-Sprint 1 (Foundation)     → Datenmodell + Grundgerüst         ~1 Woche
-Sprint 2 (Block-Scan)     → Starter-Blöcke + UserText-Parsing ~1.5 Wochen
-Sprint 3 (Plate-Detect)   → Platten-Erkennung + CoordTransform ~2 Wochen
-Sprint 4 (Multi-Export)   → Multi-Platte Export + UI           ~1.5 Wochen
-Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
-                                                        Total: ~7 Wochen
+Sprint 1 (Foundation)     → Datenmodell + Grundgerüst              ~1 Woche
+Sprint 2 (Block-Scan)     → Starter-Blöcke + UserText-Parsing      ~1.5 Wochen
+Sprint 3 (Plate-Detect)   → Platten-Erkennung + CoordTransform     ~2 Wochen
+Sprint 4 (Multi-Export)   → Multi-Platte Export + UI               ~1.5 Wochen
+Sprint 5 (Validation)     → Testing gegen Produktionsdaten         ~1 Woche
+Sprint 6 (Tool Library)   → Werkzeug-/Halter-DB + Manager          läuft
+Sprint 7 (Rough/Finish)   → Preview-Strategien + per-Op Overrides  läuft
+Sprint 8 (Preview)        → Rhino Toolpath-Visualisierung          läuft
 ```
+
+Der ursprüngliche Plan umfasste Sprint 1-5. Seit 24.03.2026 wurden Sprint 6-8 als laufender Ausbau ergänzt; Aufwandstabellen und historische Sprint-Tasks unten beziehen sich deshalb bewusst auf den Kernplan 1-5, sofern nicht anders vermerkt.
 
 ---
 
@@ -72,11 +76,11 @@ Sprint 5 (Validation)     → Testing gegen Produktionsdaten     ~1 Woche
 | 2.4 | `MachiningFactory.CreateDrill()` implementieren | Core/Blocks/ | Sprint 1 | 2h |
 | 2.5 | `MachiningFactory.CreateDrillPattern()` implementieren | Core/Blocks/ | Sprint 1 | 2h |
 | 2.6 | `MachiningFactory.CreateMacro()` Skeleton (CLAMEX prep) | Core/Blocks/ | Sprint 1 | 3h |
-| 2.7 | Starter-Block: `Topfband_35.3dm` erstellen | Plugin/BlockLibrary/ | — | 2h |
-| 2.8 | Starter-Block: `Lochreihe_32.3dm` erstellen | Plugin/BlockLibrary/ | — | 2h |
-| 2.9 | Starter-Block: `Duebel_8x30.3dm` erstellen | Plugin/BlockLibrary/ | — | 2h |
-| 2.10 | Starter-Block: `Montageverbinder_35.3dm` erstellen | Plugin/BlockLibrary/ | — | 1h |
-| 2.11 | `BlockLibraryService.EnsureStarterBlocks()` | Plugin/BlockLibrary/ | 2.7–2.10 | 3h |
+| 2.7 | Starter-Block `Topfband_35` als code-definierte CNC_* Definition | Core/Blocks/StarterBlocks/ | — | 2h |
+| 2.8 | Starter-Block `Lochreihe_32` als code-definierte CNC_* Definition | Core/Blocks/StarterBlocks/ | — | 2h |
+| 2.9 | Starter-Block `Duebel_8x30` + `Duebel_8x30_Stirn` als code-definierte CNC_* Definitionen | Core/Blocks/StarterBlocks/ | — | 2h |
+| 2.10 | Starter-Block `CLAMEX_P14` als code-definierte Makro-Definition | Core/Blocks/StarterBlocks/ | — | 1h |
+| 2.11 | `StarterBlockDefinitions` Sammeldefinition + Validierung | Core/Blocks/StarterBlocks/ | 2.7–2.10 | 3h |
 | 2.12 | `ExportService` erweitern: Block-Detection Pfad | Services/ | 2.1–2.6 | 4h |
 | 2.13 | Feature Flag "Block-Detection" in UI | UI/ | 2.12 | 2h |
 | 2.14 | Integration Test: Legacy + Blocks gemischt | Tests/ | 2.12 | 3h |
@@ -241,8 +245,8 @@ Sprint 2: [Block-Scan] ← abhängig von Sprint 1
     │
     ├── 2.1-2.3 BlockScanner + Resolver (parallel)
     ├── 2.4-2.6 MachiningFactory Impls (parallel mit 2.1-2.3)
-    ├── 2.7-2.10 Starter-Blöcke (unabhängig, parallel)
-    ├── 2.11 BlockLibraryService (nach 2.7-2.10)
+    ├── 2.7-2.10 Starter-Blöcke (code-definiert, unabhängig, parallel)
+    ├── 2.11 StarterBlockDefinitions (nach 2.7-2.10)
     ├── 2.12 ExportService erweitern (nach 2.1-2.6)
     ├── 2.13 UI Flag (nach 2.12)
     └── 2.14-2.15 Tests (nach alles andere)
@@ -269,7 +273,7 @@ Sprint 5: [Validation] ← abhängig von Sprint 4
 
 ---
 
-## Aufwands-Zusammenfassung
+## Aufwands-Zusammenfassung (Kernplan Sprint 1-5)
 
 | Sprint | Tasks | Geschätzter Aufwand | Kumulativ |
 |--------|-------|--------------------:|----------:|

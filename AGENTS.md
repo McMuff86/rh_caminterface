@@ -9,8 +9,8 @@
 | Hersteller | Format | Dateiendung | Emitter-Klasse |
 |------------|--------|-------------|-----------------|
 | SCM (Maestro/CAD+T) | Xilog | `.xcs` | `XilogEmitter` |
-| Biesse (bSolid) | CIX | `.cix` | `BiesseEmitter` (geplant) |
-| Biesse (BiesseWorks) | BPP | `.bpp` | `BiesseEmitter` (geplant, optional) |
+| Biesse (bSolid) | CIX | `.cix` | `BiesseEmitter` (Basis implementiert) |
+| Biesse (BiesseWorks) | BPP | `.bpp` | `BiesseEmitter` (optional, geplant) |
 | Homag (woodWOP) | MPR | `.mpr` | `HomagEmitter` (geplant) |
 | Homag (woodWOP 6+) | MPRX | `.mprx` | `HomagEmitter` (geplant, optional) |
 

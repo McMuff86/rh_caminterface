@@ -1,8 +1,8 @@
 # Technische Architektur: 3D-to-CNC Pipeline
 
-**Datum:** 23. März 2026  
-**Version:** 1.0  
-**Status:** Approved Architecture  
+**Datum:** 24. März 2026  
+**Version:** 1.1  
+**Status:** Architecture Baseline + Implemented Deltas  
 **Autoren:** Sentinel (Architect Agent)
 
 ---
@@ -41,14 +41,19 @@ RhinoCNCExporter.Core/
 │   └── Tooling.cs         # ToolHolderDefinition, ToolDefinition, ToolLibrary, MachiningStrategy, MachiningToolOverride, ToolpathPlan
 │
 ├── Blocks/                🆕 Block-Logik (ohne Rhino)
-│   ├── IBlockDefinition.cs
 │   ├── BlockUserTextSchema.cs
-│   └── MachiningFactory.cs
+│   ├── CncUserTextParser.cs
+│   ├── MachiningFactory.cs
+│   ├── ClamexMacroBuilder.cs
+│   └── StarterBlocks/
+│       └── StarterBlockDefinitions.cs
 │
 └── Pipeline/              🆕 Export-Orchestrierung (abstrakt)
     ├── BatchExportPlanner.cs
     ├── ExportModeResolver.cs
-    ├── IPipelineStep.cs
+    ├── IMachiningBuilder.cs
+    ├── IEmitterRouter.cs
+    ├── IPlateExporter.cs
     ├── MachiningBuilder.cs
     ├── EmitterRouter.cs
     └── ToolpathPlanner.cs
@@ -64,10 +69,6 @@ RhinoCNCExporter/
 │   ├── ToolLibraryStore.cs
 │   └── ToolpathPreviewService.cs
 ├── Core/                  ✅ BESTEHT — Emitters, Geometry, LayerParser, etc.
-│
-├── BlockLibrary/          🆕 Block-Definitionen laden & verwalten
-│   ├── BlockLibraryService.cs
-│   └── EmbeddedBlocks/    (Starter-Blöcke als embedded .3dm resources)
 │
 ├── PlateDetection/        🆕 Solid→Platte Erkennung
 │   ├── PlateDetector.cs
@@ -837,50 +838,11 @@ public static class CoordinateTransformer
 }
 ```
 
-### 5.5 BlockLibraryService — Block-Bibliothek verwalten
+### 5.5 StarterBlocks heute, Block-Library später
 
-```csharp
-namespace RhinoCNCExporter.BlockLibrary;
+**Stand 24.03.2026:** Der produktive Pfad nutzt aktuell **code-definierte Starter-Blöcke** in `RhinoCNCExporter.Core/Blocks/StarterBlocks/StarterBlockDefinitions.cs`. Diese Definitionen dienen Tests, Dokumentation und als Vorlage für künftige Commands oder Importpfade.
 
-using Rhino;
-
-/// <summary>
-/// Manages the CNC block library.
-/// Loads block definitions from embedded resources, user files, or Yak packages.
-///
-/// DEPENDS ON: RhinoCommon (InstanceDefinition, Block import)
-/// </summary>
-public class BlockLibraryService
-{
-    /// <summary>
-    /// Ensure all starter blocks are available in the document.
-    /// Loads from embedded resources if not already defined.
-    /// </summary>
-    public void EnsureStarterBlocks(RhinoDoc doc)
-    {
-        // Check if standard blocks exist in doc.InstanceDefinitions
-        // If not: import from embedded .3dm resource files
-        throw new NotImplementedException();
-    }
-
-    /// <summary>
-    /// Get list of available CNC blocks (name + CNC_Type + description).
-    /// </summary>
-    public IReadOnlyList<(string Name, string CncType, string Description)> GetAvailableBlocks(RhinoDoc doc)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <summary>
-    /// Import a user-created block .3dm file into the library.
-    /// Validates that required CNC_* UserText attributes exist.
-    /// </summary>
-    public bool ImportBlock(RhinoDoc doc, string filePath, out string? error)
-    {
-        throw new NotImplementedException();
-    }
-}
-```
+Eine echte `.3dm`-basierte Block-Library mit `BlockLibraryService`, Embedded Resources oder Import-Workflow ist weiterhin **Future Work** und aktuell nicht Teil des produktiven Codes.
 
 ---
 
@@ -986,7 +948,7 @@ Per Plate: .xcs / .cix / .mpr           │
 | **Block Scanning** | | ✅ BlockScanner (UserText lesen) |
 | **Plate Detection** | | ✅ PlateDetector (Brep/Solid analyse) |
 | **Assignment** | | ✅ AssignmentResolver (Layer-Zuordnung) |
-| **Block Library** | | ✅ BlockLibraryService (.3dm Import) |
+| **Starter-Blöcke / Block-Library** | ✅ `StarterBlockDefinitions` (code-definiert, schema-konform) | ⏳ spätere `.3dm`-Library/Import-Workflows |
 | **UI** | | ✅ ExportPanel, ExportDialog |
 | **Rhino Commands** | | ✅ RhinoCNCExporterCommand, ExportXilogCommand |
 
