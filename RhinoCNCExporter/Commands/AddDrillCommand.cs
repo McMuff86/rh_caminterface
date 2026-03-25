@@ -9,7 +9,6 @@ using Rhino.Input.Custom;
 using RhinoCNCExporter.Services;
 
 // Register the command
-[assembly: Rhino.Commands.CommandClass(typeof(RhinoCNCExporter.Commands.AddDrillCommand))]
 
 namespace RhinoCNCExporter.Commands;
 

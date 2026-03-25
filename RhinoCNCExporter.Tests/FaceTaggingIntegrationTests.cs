@@ -1,3 +1,4 @@
+#if RHINO_AVAILABLE
 using System;
 using System.Collections.Generic;
 using Rhino;
@@ -301,4 +302,4 @@ public class FaceTaggingIntegrationTests : IDisposable
         
         return result?[0] ?? originalPlate;
     }
-}
+}#endif // RHINO_AVAILABLE

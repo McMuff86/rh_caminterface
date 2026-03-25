@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Rhino;
 using Rhino.DocObjects;
+using Rhino.Geometry;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Models;
 

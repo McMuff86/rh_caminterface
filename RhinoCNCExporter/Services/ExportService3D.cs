@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Rhino;
+using Rhino.DocObjects;
+using Rhino.Geometry;
 using RhinoCNCExporter.BlockScanning;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Emitters;

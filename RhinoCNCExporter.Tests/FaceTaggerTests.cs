@@ -1,3 +1,4 @@
+#if RHINO_AVAILABLE
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -222,4 +223,4 @@ public class FaceTaggerTests : IDisposable
             new Interval(-5, 5), new Interval(-5, 5), new Interval(0, 10));
         return box.ToBrep();
     }
-}
+}#endif // RHINO_AVAILABLE

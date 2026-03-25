@@ -680,107 +680,108 @@ public class ProductionReferenceValidationTests
             (134, 34, 17, 3)
         };
 
-        // --- BladeCut tests (Sprint 6) ---
+    }
 
-        [Fact]
-        public void BladeCut_Production_Reference_ValidatesFormat()
+    // --- BladeCut tests (Sprint 6) ---
+
+    [Fact]
+    public void BladeCut_Production_Reference_ValidatesFormat()
+    {
+        // Create a BladeCut machining based on NEW_Schubladen_Doppel_1.xcs reference
+        var segments = new BladeCutSegment[]
         {
-            // Create a BladeCut machining based on NEW_Schubladen_Doppel_1.xcs reference
-            var segments = new BladeCutSegment[]
-            {
-                new("Cut segment_1", 19, 354, 19, -187.5),
-                new("Cut segment_2", 628, -187.5, 628, 354)
-            };
+            new("Cut segment_1", 19, 354, 19, -187.5),
+            new("Cut segment_2", 628, -187.5, 628, 354)
+        };
 
-            var bladeCut = new BladeCutMachining
-            {
-                Name = "Geneigter Schnitt in X/Y_1",
-                Angle = 45.0,
-                Segments = segments,
-                Depth = 15.0,
-                TechCode = "E015",
-                Side = MachiningSide.Top,
-                Source = MachiningSource.BlockDetection
-            };
-
-            var plate = new Plate
-            {
-                Name = "TestBladeCut",
-                LengthX = 200,
-                WidthY = 100,
-                Thickness = 19,
-                Machinings = new[] { bladeCut },
-                PreserveMachiningOrder = true
-            };
-
-            var generated = GenerateProgram(plate);
-            var referencePath = Path.Combine(ReferencesPath, "test_bladecut_reference.xcs");
-            var reference = File.ReadAllText(referencePath);
-
-            AssertNormalizedProgramEquals(reference, generated);
-        }
-
-        [Fact]
-        public void BladeCut_EmptySegments_DoesNotCrash()
+        var bladeCut = new BladeCutMachining
         {
-            var bladeCut = new BladeCutMachining
-            {
-                Name = "Empty BladeCut",
-                Angle = 45.0,
-                Segments = Array.Empty<BladeCutSegment>(),
-                Depth = 15.0,
-                TechCode = "E015"
-            };
+            Name = "Geneigter Schnitt in X/Y_1",
+            Angle = 45.0,
+            Segments = segments,
+            Depth = 15.0,
+            TechCode = "E015",
+            Side = MachiningSide.Top,
+            Source = MachiningSource.BlockDetection
+        };
 
-            var plate = new Plate
-            {
-                Name = "TestEmpty",
-                LengthX = 100,
-                WidthY = 100,
-                Thickness = 19,
-                Machinings = new[] { bladeCut }
-            };
-
-            var generated = GenerateProgram(plate);
-
-            Assert.Contains("CreateSectioningMillingStrategy", generated);
-            Assert.Contains("CreateBladeCut", generated);
-            Assert.DoesNotContain("CreateSegment", generated);
-        }
-
-        [Theory]
-        [InlineData(30.0, "30.00")]
-        [InlineData(45.0, "45.00")]
-        [InlineData(60.0, "60.00")]
-        [InlineData(90.0, "90.00")]
-        public void BladeCut_AngleFormats_ProducesCorrectXCS(double angle, string expectedFormat)
+        var plate = new Plate
         {
-            var segments = new BladeCutSegment[]
-            {
-                new("Cut segment_1", 0, 0, 10, 10)
-            };
+            Name = "TestBladeCut",
+            LengthX = 200,
+            WidthY = 100,
+            Thickness = 19,
+            Machinings = new[] { bladeCut },
+            PreserveMachiningOrder = true
+        };
 
-            var bladeCut = new BladeCutMachining
-            {
-                Name = "Test Angle",
-                Angle = angle,
-                Segments = segments,
-                Depth = 15.0,
-                TechCode = "E015"
-            };
+        var generated = GenerateProgram(plate);
+        var referencePath = Path.Combine(ReferencesPath, "test_bladecut_reference.xcs");
+        var reference = File.ReadAllText(referencePath);
 
-            var plate = new Plate
-            {
-                Name = "TestAngle",
-                LengthX = 100,
-                WidthY = 100,
-                Thickness = 19,
-                Machinings = new[] { bladeCut }
-            };
+        AssertNormalizedProgramEquals(reference, generated);
+    }
 
-            var generated = GenerateProgram(plate);
+    [Fact]
+    public void BladeCut_EmptySegments_DoesNotCrash()
+    {
+        var bladeCut = new BladeCutMachining
+        {
+            Name = "Empty BladeCut",
+            Angle = 45.0,
+            Segments = Array.Empty<BladeCutSegment>(),
+            Depth = 15.0,
+            TechCode = "E015"
+        };
 
-            Assert.Contains($",{expectedFormat},", generated);
-        }
+        var plate = new Plate
+        {
+            Name = "TestEmpty",
+            LengthX = 100,
+            WidthY = 100,
+            Thickness = 19,
+            Machinings = new[] { bladeCut }
+        };
+
+        var generated = GenerateProgram(plate);
+
+        Assert.Contains("CreateSectioningMillingStrategy", generated);
+        Assert.Contains("CreateBladeCut", generated);
+        Assert.DoesNotContain("CreateSegment", generated);
+    }
+
+    [Theory]
+    [InlineData(30.0, "30.00")]
+    [InlineData(45.0, "45.00")]
+    [InlineData(60.0, "60.00")]
+    [InlineData(90.0, "90.00")]
+    public void BladeCut_AngleFormats_ProducesCorrectXCS(double angle, string expectedFormat)
+    {
+        var segments = new BladeCutSegment[]
+        {
+            new("Cut segment_1", 0, 0, 10, 10)
+        };
+
+        var bladeCut = new BladeCutMachining
+        {
+            Name = "Test Angle",
+            Angle = angle,
+            Segments = segments,
+            Depth = 15.0,
+            TechCode = "E015"
+        };
+
+        var plate = new Plate
+        {
+            Name = "TestAngle",
+            LengthX = 100,
+            WidthY = 100,
+            Thickness = 19,
+            Machinings = new[] { bladeCut }
+        };
+
+        var generated = GenerateProgram(plate);
+
+        Assert.Contains($",{expectedFormat},", generated);
     }
 }
