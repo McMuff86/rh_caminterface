@@ -290,9 +290,100 @@ RhinoCNCExporter/                # Rhino plugin (RhinoCommon + Eto.Forms)
 
 ### 7.5 Next Steps (Priority)
 
-1. **P1: Build & Test on Windows** — compile in VS/dotnet build, verify panel loads in Rhino
-2. **P2: Wire up context menu** — connect `CreateOperationContextMenu()` to TreeGridView right-click
-3. **P3: Machine profile selector** — add dropdown or sync with ExportPanel's machine selection
-4. **P4: Unify viz systems** — merge `ToolpathVisualizer` + `ToolpathPreviewService` into one service
-5. **P5: UI polish** — icons, dark theme colors on buttons, keyboard shortcuts
+1. ~~**P1: Build & Test on Windows**~~ — still needs testing on Windows
+2. ~~**P2: Wire up context menu**~~ — ✅ Done in Night Session #3
+3. ~~**P3: Machine profile selector**~~ — ✅ Done in Night Session #3
+4. ~~**P4: Unify viz systems**~~ — ✅ Done in Night Session #3
+5. ~~**P5: UI polish**~~ — ✅ Done in Night Session #3
 6. **P6: Brep edge operations** — handle multiple operations on different edges of same Brep
+
+---
+
+## 8. Night Session #3: UI Polish, Context Menu, Viz Unification (27. März 2026)
+
+### 8.1 What Was Implemented
+
+#### Right-Click Context Menu on TreeGridView ✅
+- **MouseDown event handler** wired to TreeGridView for right-click detection
+- **5 context menu items:**
+  - ✏️ **Bearbeiten…** → opens the operation-specific dialog (ContourOperationDialog, DrillOperationDialog, etc.) pre-filled with current values via new `PreFill()` method
+  - 🗑 **Entfernen** → removes operation, toolpath geometry, restores object color
+  - 🔄 **Toolpath neu generieren** → deletes old toolpath geometry, re-creates from current UserText
+  - 🎯 **Im Viewport selektieren** → selects the source object in viewport
+  - 🔍 **Zoom auf Objekt** → zooms viewport to object bounding box (with 10% inflation for framing)
+
+#### Machine Profile Selector ✅
+- **Dropdown at top of CamPanel:** "Maschine: [SCM (Xilog) ▼]"
+- **3 profiles:** SCM (Xilog), Biesse (CIX), MaestroCadT
+- **Selection persisted** in document UserText via `RhinoDoc.Strings` (`CNC_MachineProfile` key)
+- **Profile change triggers:** tool library reload, operations tree refresh, properties re-population
+- **Loaded from document** on panel creation and document switch events
+- Uses existing profile classes: `ScmProfile`, `BiesseProfile`, `MaestroCadTProfile`
+
+#### Unified Visualization Systems ✅
+- **ExportPanel's "Vorschau erzeugen"** now also regenerates toolpaths for interactive CAM operations
+- Uses `ToolpathVisualizer` (the interactive system) for all UserText-based operations
+- New `RegenerateInteractiveToolpath()` static method in ExportPanel handles all 4 op types
+- Resolves tool diameter from tool library when not stored directly on the object
+- Both systems coexist:
+  - `CNC_Toolpaths::*` layer — interactive operations (ToolpathVisualizer)
+  - `RhinoCNC Preview::*` layer — export preview (ToolpathPreviewService, block-based)
+- "Generate All" in CamPanel uses ToolpathVisualizer for all operations
+
+#### UI Polish ✅
+- **Empty state message:** "Keine Bearbeitungen vorhanden…" shown when no operations exist
+- **Keyboard shortcuts:** Delete/Backspace = remove selected operation, F5 = refresh
+- **Tooltips** on all buttons, dropdowns, and text fields (German)
+- **German UI labels** throughout (Operationen, Eigenschaften, Anwenden, etc.)
+- **Color indicators** in tree: 🔴🔵🟡🟢 emoji for operation types
+- **Tool diameter in tree:** shows "Ø10 ToolName" instead of just tool name
+- **Section headers** using Expander pattern (matching ExportPanel)
+- **Status bar** shows: "X Operationen | Y Werkzeuge | ⚠ Z Warnungen | XILOG"
+- **Proper column headers:** "Operation", "Werkzeug", "Tiefe"
+- **Toolbar** changed from 2 rows to single horizontal row
+
+#### Improved Tool Dropdown UX ✅
+- **Format:** "Ø10.0 HM Router (3-Schneider)" — diameter + name + flute count
+- **"Werkzeuge verwalten…"** option at bottom of every dropdown → opens ToolLibraryManagerDialog
+- **Warning** when no tools available for operation type: "⚠ Keine Werkzeuge verfügbar"
+- Applies to both CamPanel properties panel AND all operation dialogs (base class change)
+
+#### PreFill for Edit Dialog ✅
+- New `PreFill(MachiningOperation)` virtual method on `CamOperationDialogBase`
+- Override in all 4 subclass dialogs with type-specific parameter mapping:
+  - **ContourOperationDialog:** strategy dropdown + feedrate
+  - **DrillOperationDialog:** diameter, peck drilling checkbox, peck depth
+  - **PocketOperationDialog:** stepover, strategy, ramp entry
+  - **GrooveOperationDialog:** width
+
+### 8.2 Files Changed in Night Session #3
+
+| File | Change |
+|------|--------|
+| `UI/CamPanel.cs` | Major rewrite: context menu, machine selector, empty state, keyboard shortcuts, tooltips, German labels, tool dropdown UX |
+| `UI/CamOperationDialogBase.cs` | Added PreFill(), Manage Tools dropdown item, improved tool display format, Rhino import |
+| `UI/ContourOperationDialog.cs` | Added PreFill() override |
+| `UI/DrillOperationDialog.cs` | Added PreFill() override |
+| `UI/PocketOperationDialog.cs` | Added PreFill() override |
+| `UI/GrooveOperationDialog.cs` | Added PreFill() override |
+| `UI/ExportPanel.cs` | Added interactive toolpath regen in GeneratePreview(), imports for CncOperationService |
+| `docs/CONTEXT-HANDOFF-CAM.md` | Updated with session #3 results |
+
+**Commit:** `5f5de47` — "feat: CamPanel night session #3 — context menu, machine profiles, viz unification, UI polish"
+
+### 8.3 Known Limitations / TODO
+
+- ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
+- ⚠ **Brep edge operations** — multiple ops on different edges of same Brep still overwrite (P6)
+- ⚠ **No undo support** — changes via Apply/Remove are not wrapped in Rhino undo transactions
+- ⚠ **TreeGridView row coloring** — still using emoji, no actual cell background colors (Eto limitation)
+- ⚠ **Profile-specific defaults** — machine profile change reloads tool library but doesn't update existing operations' defaults
+- ⚠ **ToolLibraryManagerDialog from dropdown** — saves via `RhinoApp.WriteLine` only (no persistence path in base dialog context)
+
+### 8.4 Next Steps
+
+1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
+2. **P2: Undo support** — wrap Apply/Remove in `RhinoDoc.BeginUndoRecord()` / `EndUndoRecord()`
+3. **P3: Brep edge operations** — handle multiple ops on same Brep (extract edge as curve approach)
+4. **P4: Toolpath simulation** — animate tool movement along paths (3D preview with depth)
+5. **P5: Export pipeline integration** — bridge UserText operations to plate/block export pipeline
