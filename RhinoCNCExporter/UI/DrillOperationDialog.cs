@@ -61,6 +61,20 @@ public sealed class DrillOperationDialog : CamOperationDialogBase
         UpdateToolSelection();
     }
 
+    public override void PreFill(MachiningOperation operation)
+    {
+        base.PreFill(operation);
+        if (operation.Diameter.HasValue)
+            _diameterTextBox.Text = operation.Diameter.Value.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+        if (operation.Peck == true)
+        {
+            _peckDrillingCheckBox.Checked = true;
+            _peckDepthTextBox.Enabled = true;
+        }
+        if (operation.PeckDepth.HasValue)
+            _peckDepthTextBox.Text = operation.PeckDepth.Value.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private void OnPeckDrillingChanged(object? sender, EventArgs e)
     {
         _peckDepthTextBox.Enabled = _peckDrillingCheckBox.Checked ?? false;

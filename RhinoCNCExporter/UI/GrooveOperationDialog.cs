@@ -45,6 +45,13 @@ public sealed class GrooveOperationDialog : CamOperationDialogBase
         _depthTextBox.Text = "8.0"; // Override default depth for grooves
     }
 
+    public override void PreFill(MachiningOperation operation)
+    {
+        base.PreFill(operation);
+        if (operation.Width.HasValue)
+            _widthTextBox.Text = operation.Width.Value.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     protected override bool ValidateInput()
     {
         if (!base.ValidateInput())

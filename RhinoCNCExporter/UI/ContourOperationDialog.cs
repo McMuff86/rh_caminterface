@@ -60,6 +60,22 @@ public sealed class ContourOperationDialog : CamOperationDialogBase
         _feedrateTextBox.Text = "3000";
     }
 
+    public override void PreFill(MachiningOperation operation)
+    {
+        base.PreFill(operation);
+        if (operation.Strategy != null)
+        {
+            _operationTypeDropDown.SelectedIndex = operation.Strategy.ToUpperInvariant() switch
+            {
+                "ROUGH" => 1,
+                "FINISH" => 2,
+                _ => 0 // Both → Konturfräsen
+            };
+        }
+        if (operation.Feedrate.HasValue)
+            _feedrateTextBox.Text = operation.Feedrate.Value.ToString("F0", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     protected override bool ValidateInput()
     {
         if (!base.ValidateInput())

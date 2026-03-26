@@ -7,6 +7,7 @@ using Eto.Drawing;
 using Eto.Forms;
 using Rhino;
 using Rhino.DocObjects;
+using Rhino.Geometry;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Profiles;
@@ -17,7 +18,8 @@ namespace RhinoCNCExporter.UI;
 /// <summary>
 /// Dockable CAM panel showing all CNC operations in the document.
 /// Inspired by RhinoCAM / Fusion 360 CAM panels.
-/// Provides operations tree, inline editing, toolpath generation.
+/// Provides operations tree, inline editing, toolpath generation,
+/// machine profile selector, and context menu interactions.
 /// </summary>
 [Guid("c7e3a1d5-4f82-4e9b-b3c6-8d2f1a5e7b09")]
 public sealed class CamPanel : Panel
@@ -25,8 +27,12 @@ public sealed class CamPanel : Panel
     public static readonly Guid PanelId = typeof(CamPanel).GUID;
     public const string PanelDisplayName = "CNC Operations";
 
+    // Document UserText key for machine profile persistence
+    private const string DOC_MACHINE_PROFILE_KEY = "CNC_MachineProfile";
+
     // --- Colors (match Rhino dark theme / ExportPanel style) ---
     private static readonly Color BgDark = Color.FromArgb(45, 45, 48);
+    private static readonly Color BgSection = Color.FromArgb(55, 55, 58);
     private static readonly Color FgText = Color.FromArgb(220, 220, 220);
     private static readonly Color FgDim = Color.FromArgb(150, 150, 150);
     private static readonly Color AccentContour = Color.FromArgb(220, 60, 60);
@@ -34,9 +40,21 @@ public sealed class CamPanel : Panel
     private static readonly Color AccentDrill = Color.FromArgb(220, 200, 40);
     private static readonly Color AccentGroove = Color.FromArgb(60, 180, 80);
 
+    // --- Machine Profile Definitions ---
+    private static readonly (string Key, string DisplayName, Func<IMachineProfile> Factory)[] MachineProfiles =
+    {
+        ("xilog", "SCM (Xilog)", () => new ScmProfile()),
+        ("biesse", "Biesse (CIX)", () => new BiesseProfile()),
+        ("maestrocadt", "MaestroCadT", () => new MaestroCadTProfile()),
+    };
+
     // --- UI Controls ---
+    private readonly DropDown _machineDropDown;
     private readonly TreeGridView _operationsTree;
     private TreeGridItemCollection _treeItems = new();
+
+    // Empty state label
+    private readonly Label _emptyStateLabel;
 
     // Properties panel controls
     private readonly StackLayout _propertiesPanel;
@@ -79,67 +97,89 @@ public sealed class CamPanel : Panel
         // --- Header ---
         var headerLabel = CreateLabel("🔧 CNC Operations", 13, true);
 
+        // --- Machine Profile Selector ---
+        _machineDropDown = new DropDown { ToolTip = "CNC-Maschinenprofil wählen — beeinflusst Werkzeuge, Exportformat und Defaults" };
+        foreach (var mp in MachineProfiles)
+            _machineDropDown.Items.Add(new ListItem { Text = mp.DisplayName, Key = mp.Key });
+        _machineDropDown.SelectedIndex = 0;
+        _machineDropDown.SelectedIndexChanged += OnMachineProfileChanged;
+
+        var machineRow = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Padding = new Padding(0, 2, 0, 4),
+            Items =
+            {
+                CreateLabel("Maschine:", 9, false),
+                new StackLayoutItem(_machineDropDown, true)
+            }
+        };
+
         // --- Quick-Add Toolbar ---
-        var addContourBtn = CreateToolbarButton("+ Contour", AccentContour);
+        var addContourBtn = CreateToolbarButton("+ Contour", AccentContour, "Konturfräsung hinzufügen (CNCAddContour)");
         addContourBtn.Click += (_, _) => RunCommand("CNCAddContour");
-        var addPocketBtn = CreateToolbarButton("+ Pocket", AccentPocket);
+        var addPocketBtn = CreateToolbarButton("+ Pocket", AccentPocket, "Taschenfräsung hinzufügen (CNCAddPocket)");
         addPocketBtn.Click += (_, _) => RunCommand("CNCAddPocket");
-        var addDrillBtn = CreateToolbarButton("+ Drill", AccentDrill);
+        var addDrillBtn = CreateToolbarButton("+ Drill", AccentDrill, "Bohrung hinzufügen (CNCAddDrill)");
         addDrillBtn.Click += (_, _) => RunCommand("CNCAddDrill");
-        var addGrooveBtn = CreateToolbarButton("+ Groove", AccentGroove);
+        var addGrooveBtn = CreateToolbarButton("+ Groove", AccentGroove, "Nut hinzufügen (CNCAddGroove)");
         addGrooveBtn.Click += (_, _) => RunCommand("CNCAddGroove");
 
-        var toolbarRow1 = new StackLayout
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            Items = { addContourBtn, addPocketBtn }
-        };
-        var toolbarRow2 = new StackLayout
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            Items = { addDrillBtn, addGrooveBtn }
-        };
         var toolbar = new StackLayout
         {
-            Spacing = 2,
-            Items = { toolbarRow1, toolbarRow2 }
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Items = { addContourBtn, addPocketBtn, addDrillBtn, addGrooveBtn }
         };
 
         // --- Operations TreeView ---
         _operationsTree = CreateOperationsTree();
 
-        var opsSection = CreateSection("Operations", _operationsTree, null, true);
+        // Empty state
+        _emptyStateLabel = CreateLabel(
+            "Keine Bearbeitungen vorhanden.\n\nVerwende die CNCAdd*-Befehle oder die Toolbar-Buttons oben,\num Bearbeitungsoperationen hinzuzufügen.",
+            9, false);
+        _emptyStateLabel.TextColor = FgDim;
+        _emptyStateLabel.TextAlignment = TextAlignment.Center;
+        _emptyStateLabel.Visible = true;
+
+        var opsContent = new StackLayout
+        {
+            Spacing = 0,
+            Items = { _operationsTree, _emptyStateLabel }
+        };
+
+        var opsSection = CreateSection("Operationen", opsContent, null, true);
 
         // --- Properties Panel ---
         _propTypeLabel = CreateLabel("—", 10, true);
         _propObjectLabel = CreateLabel("—", 9, false);
         _propObjectLabel.TextColor = FgDim;
 
-        _propToolDropDown = new DropDown();
-        _propDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 80 };
+        _propToolDropDown = new DropDown { ToolTip = "Werkzeug für diese Operation auswählen" };
+        _propDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Bearbeitungstiefe in mm" };
 
-        _propStrategyDropDown = new DropDown();
+        _propStrategyDropDown = new DropDown { ToolTip = "Bearbeitungsstrategie" };
         _propStrategyDropDown.Items.Add("Rough");
         _propStrategyDropDown.Items.Add("Finish");
         _propStrategyDropDown.Items.Add("Both");
         _propStrategyDropDown.SelectedIndex = 0;
 
-        _propWidthTextBox = new TextBox { PlaceholderText = "mm", Width = 80 };
-        _propDiameterTextBox = new TextBox { PlaceholderText = "mm", Width = 80 };
-        _propStepoverTextBox = new TextBox { PlaceholderText = "%", Width = 80 };
+        _propWidthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Nutbreite in mm" };
+        _propDiameterTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Bohrdurchmesser in mm" };
+        _propStepoverTextBox = new TextBox { PlaceholderText = "%", Width = 80, ToolTip = "Zustellung in % des Werkzeugdurchmessers" };
 
-        _propPeckCheckBox = new CheckBox { Text = "Peck drilling", TextColor = FgText };
-        _propPeckDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 80 };
+        _propPeckCheckBox = new CheckBox { Text = "Peck drilling", TextColor = FgText, ToolTip = "Spänebrechendes Bohren ein/aus" };
+        _propPeckDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Peck-Tiefe pro Zustellung in mm" };
 
-        _propRampEntryDropDown = new DropDown();
+        _propRampEntryDropDown = new DropDown { ToolTip = "Eintauchstrategie für Taschenbearbeitung" };
         _propRampEntryDropDown.Items.Add("Straight");
         _propRampEntryDropDown.Items.Add("Spiral");
         _propRampEntryDropDown.Items.Add("Profile");
         _propRampEntryDropDown.SelectedIndex = 0;
 
-        _applyButton = new Button { Text = "✓ Apply", Height = 28 };
+        _applyButton = new Button { Text = "✓ Anwenden", Height = 28, ToolTip = "Änderungen auf die ausgewählte Operation anwenden" };
         _applyButton.Click += (_, _) => ApplyPropertyChanges();
 
         // Build property rows
@@ -171,14 +211,14 @@ public sealed class CamPanel : Panel
             }
         };
 
-        var propsSection = CreateSection("Properties", _propertiesPanel, "Selected operation", true);
+        var propsSection = CreateSection("Eigenschaften", _propertiesPanel, "Ausgewählte Operation", true);
 
         // --- Action Buttons ---
-        var generateAllBtn = new Button { Text = "▶ Generate All", Height = 30 };
+        var generateAllBtn = new Button { Text = "▶ Alle generieren", Height = 30, ToolTip = "Toolpaths für alle Operationen (neu-)erzeugen" };
         generateAllBtn.Click += (_, _) => GenerateAllToolpaths();
-        var clearAllBtn = new Button { Text = "✕ Clear All", Height = 30 };
+        var clearAllBtn = new Button { Text = "✕ Alle löschen", Height = 30, ToolTip = "Alle Toolpath-Vorschaugeometrien entfernen" };
         clearAllBtn.Click += (_, _) => ClearAllToolpaths();
-        var refreshBtn = new Button { Text = "↻ Refresh", Height = 26 };
+        var refreshBtn = new Button { Text = "↻ Aktualisieren", Height = 26, ToolTip = "Operationsliste neu laden (F5)" };
         refreshBtn.Click += (_, _) => RefreshOperationsTree();
 
         var actionButtons = new StackLayout
@@ -189,7 +229,7 @@ public sealed class CamPanel : Panel
         };
 
         // --- Status Bar ---
-        _statusLabel = CreateLabel("No operations", 9, false);
+        _statusLabel = CreateLabel("Keine Operationen", 9, false);
         _statusLabel.TextColor = FgDim;
 
         // --- Main Layout ---
@@ -203,6 +243,7 @@ public sealed class CamPanel : Panel
                 Items =
                 {
                     headerLabel,
+                    machineRow,
                     toolbar,
                     opsSection,
                     propsSection,
@@ -214,10 +255,93 @@ public sealed class CamPanel : Panel
 
         // Initial state
         ShowPropertiesForType(null);
+        LoadMachineProfileFromDocument();
         LoadToolLibrary();
         RefreshOperationsTree();
         HookDocumentEvents();
+
+        // Wire keyboard shortcuts
+        KeyDown += OnPanelKeyDown;
     }
+
+    #region Machine Profile
+
+    private void OnMachineProfileChanged(object? sender, EventArgs e)
+    {
+        SaveMachineProfileToDocument();
+        LoadToolLibrary();
+        RefreshOperationsTree();
+        // Re-populate tool dropdown if an operation is selected
+        if (_selectedOperation != null)
+            ShowPropertiesForOperation(_selectedOperation);
+    }
+
+    private IMachineProfile GetCurrentMachineProfile()
+    {
+        var index = _machineDropDown.SelectedIndex;
+        if (index >= 0 && index < MachineProfiles.Length)
+            return MachineProfiles[index].Factory();
+        return new ScmProfile();
+    }
+
+    private string GetCurrentMachineKey()
+    {
+        var index = _machineDropDown.SelectedIndex;
+        if (index >= 0 && index < MachineProfiles.Length)
+            return MachineProfiles[index].Key;
+        return "xilog";
+    }
+
+    private void SaveMachineProfileToDocument()
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+        doc.Strings.SetString(DOC_MACHINE_PROFILE_KEY, GetCurrentMachineKey());
+    }
+
+    private void LoadMachineProfileFromDocument()
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        var savedKey = doc.Strings.GetValue(DOC_MACHINE_PROFILE_KEY);
+        if (string.IsNullOrEmpty(savedKey)) return;
+
+        for (int i = 0; i < MachineProfiles.Length; i++)
+        {
+            if (string.Equals(MachineProfiles[i].Key, savedKey, StringComparison.OrdinalIgnoreCase))
+            {
+                _machineDropDown.SelectedIndex = i;
+                return;
+            }
+        }
+    }
+
+    #endregion
+
+    #region Keyboard Shortcuts
+
+    private void OnPanelKeyDown(object? sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Keys.Delete:
+            case Keys.Backspace:
+                if (_selectedOperation != null)
+                {
+                    RemoveOperation(_selectedOperation);
+                    e.Handled = true;
+                }
+                break;
+
+            case Keys.F5:
+                RefreshOperationsTree();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    #endregion
 
     #region Operations Tree
 
@@ -226,7 +350,8 @@ public sealed class CamPanel : Panel
         var tree = new TreeGridView
         {
             Height = 220,
-            AllowMultipleSelection = false
+            AllowMultipleSelection = false,
+            ToolTip = "Rechtsklick für Kontextmenü · Doppelklick zum Zoomen · Delete zum Entfernen"
         };
 
         tree.Columns.Add(new GridColumn
@@ -237,13 +362,13 @@ public sealed class CamPanel : Panel
         });
         tree.Columns.Add(new GridColumn
         {
-            HeaderText = "Tool",
-            Width = 100,
+            HeaderText = "Werkzeug",
+            Width = 120,
             DataCell = new TextBoxCell(1)
         });
         tree.Columns.Add(new GridColumn
         {
-            HeaderText = "Depth",
+            HeaderText = "Tiefe",
             Width = 60,
             DataCell = new TextBoxCell(2)
         });
@@ -252,6 +377,9 @@ public sealed class CamPanel : Panel
 
         tree.SelectionChanged += OnTreeSelectionChanged;
         tree.CellDoubleClick += OnTreeCellDoubleClick;
+
+        // Wire context menu via MouseDown
+        tree.MouseDown += OnTreeMouseDown;
 
         return tree;
     }
@@ -265,6 +393,7 @@ public sealed class CamPanel : Panel
         {
             _operationsTree.DataStore = _treeItems;
             UpdateStatusBar(0, 0, 0);
+            ShowEmptyState(true);
             return;
         }
 
@@ -297,16 +426,25 @@ public sealed class CamPanel : Panel
                     : $"Object {obj.Id.ToString()[..8]}";
 
                 var toolName = op.Tool ?? "—";
-                if (toolName != "—") toolNames.Add(toolName);
-                else warnings++;
+                var toolDisplay = toolName;
+                if (toolName != "—")
+                {
+                    toolNames.Add(toolName);
+                    // Try to show diameter
+                    var toolDef = _allTools.FirstOrDefault(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+                    if (toolDef != null)
+                        toolDisplay = $"Ø{toolDef.NominalDiameter:F0} {toolDef.Name}";
+                }
+                else
+                {
+                    warnings++;
+                }
 
-                var depthStr = op.Depth.HasValue
-                    ? $"{op.Depth.Value:F1}mm"
-                    : "—";
+                var depthStr = op.Depth.HasValue ? $"{op.Depth.Value:F1}mm" : "—";
 
                 var childItem = new TreeGridItem
                 {
-                    Values = new object[] { $"  {objName}", toolName, depthStr },
+                    Values = new object[] { $"  {objName}", toolDisplay, depthStr },
                     Tag = new OperationEntry(obj.Id, op, objName)
                 };
 
@@ -319,6 +457,13 @@ public sealed class CamPanel : Panel
 
         _operationsTree.DataStore = _treeItems;
         UpdateStatusBar(totalOps, toolNames.Count, warnings);
+        ShowEmptyState(totalOps == 0);
+    }
+
+    private void ShowEmptyState(bool show)
+    {
+        _emptyStateLabel.Visible = show;
+        _operationsTree.Visible = !show;
     }
 
     private void OnTreeSelectionChanged(object? sender, EventArgs e)
@@ -350,20 +495,161 @@ public sealed class CamPanel : Panel
         var item = e.Item as TreeGridItem;
         if (item?.Tag is OperationEntry entry)
         {
-            // Zoom to object on double-click
-            var doc = RhinoDoc.ActiveDoc;
-            if (doc != null)
-            {
-                var obj = doc.Objects.FindId(entry.ObjectId);
-                if (obj != null)
-                {
-                    doc.Objects.UnselectAll();
-                    doc.Objects.Select(entry.ObjectId, true);
-                    doc.Views.ActiveView?.ActiveViewport.ZoomBoundingBox(obj.Geometry.GetBoundingBox(true));
-                    doc.Views.Redraw();
-                }
-            }
+            ZoomToOperation(entry);
         }
+    }
+
+    private void OnTreeMouseDown(object? sender, MouseEventArgs e)
+    {
+        if (e.Buttons != MouseButtons.Alternate) return; // Right-click only
+
+        // Try to find the item under the mouse
+        var selectedItem = _operationsTree.SelectedItem as TreeGridItem;
+        if (selectedItem?.Tag is OperationEntry entry)
+        {
+            var menu = CreateOperationContextMenu(entry);
+            menu.Show(_operationsTree);
+        }
+    }
+
+    #endregion
+
+    #region Context Menu
+
+    private ContextMenu CreateOperationContextMenu(OperationEntry entry)
+    {
+        var menu = new ContextMenu();
+
+        var editItem = new ButtonMenuItem { Text = "✏️ Bearbeiten…" };
+        editItem.Click += (_, _) => OpenEditDialog(entry);
+        menu.Items.Add(editItem);
+
+        menu.Items.Add(new SeparatorMenuItem());
+
+        var removeItem = new ButtonMenuItem { Text = "🗑 Entfernen" };
+        removeItem.Click += (_, _) => RemoveOperation(entry);
+        menu.Items.Add(removeItem);
+
+        var regenItem = new ButtonMenuItem { Text = "🔄 Toolpath neu generieren" };
+        regenItem.Click += (_, _) =>
+        {
+            var doc = RhinoDoc.ActiveDoc;
+            if (doc == null) return;
+            var obj = doc.Objects.FindId(entry.ObjectId);
+            if (obj == null) return;
+            var toolDiam = entry.Operation.Diameter ?? GetToolDiameterByName(entry.Operation.Tool);
+            RegenerateToolpath(doc, obj, entry.Operation.Type, toolDiam);
+            doc.Views.Redraw();
+            RhinoApp.WriteLine($"[CamPanel] Toolpath regeneriert für {entry.ObjectName}");
+        };
+        menu.Items.Add(regenItem);
+
+        menu.Items.Add(new SeparatorMenuItem());
+
+        var selectItem = new ButtonMenuItem { Text = "🎯 Im Viewport selektieren" };
+        selectItem.Click += (_, _) =>
+        {
+            var doc = RhinoDoc.ActiveDoc;
+            if (doc == null) return;
+            doc.Objects.UnselectAll();
+            doc.Objects.Select(entry.ObjectId, true);
+            doc.Views.Redraw();
+        };
+        menu.Items.Add(selectItem);
+
+        var zoomItem = new ButtonMenuItem { Text = "🔍 Zoom auf Objekt" };
+        zoomItem.Click += (_, _) => ZoomToOperation(entry);
+        menu.Items.Add(zoomItem);
+
+        return menu;
+    }
+
+    private void OpenEditDialog(OperationEntry entry)
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        var obj = doc.Objects.FindId(entry.ObjectId);
+        if (obj == null)
+        {
+            RhinoApp.WriteLine("[CamPanel] Objekt nicht gefunden — möglicherweise gelöscht.");
+            return;
+        }
+
+        var op = entry.Operation;
+        var profile = GetCurrentMachineProfile();
+        var library = _toolLibraryStore.LoadOrCreate(profile);
+
+        CamOperationDialogBase? dialog = op.Type.ToUpperInvariant() switch
+        {
+            "CONTOUR" => new ContourOperationDialog(_toolLibraryStore, library),
+            "POCKET" => new PocketOperationDialog(_toolLibraryStore, library),
+            "DRILL" => new DrillOperationDialog(_toolLibraryStore, library),
+            "GROOVE" => new GrooveOperationDialog(_toolLibraryStore, library),
+            _ => null
+        };
+
+        if (dialog == null) return;
+
+        // Pre-fill dialog with current values
+        dialog.PreFill(op);
+
+        var result = dialog.ShowModalOnTop();
+        if (result == null) return;
+
+        // Apply updated parameters
+        CncOperationService.SetOperation(obj, op.Type, result);
+
+        // Get tool diameter for toolpath regen
+        var toolName = result.TryGetValue(CncOperationSchema.CNC_TOOL, out var tn) ? tn?.ToString() : null;
+        var toolDiam = GetToolDiameterByName(toolName);
+        if (result.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamObj) && diamObj is double d)
+            toolDiam = d;
+
+        RegenerateToolpath(doc, obj, op.Type, toolDiam);
+        doc.Views.Redraw();
+        RefreshOperationsTree();
+        RhinoApp.WriteLine($"[CamPanel] {op.Type}-Operation auf {entry.ObjectName} aktualisiert.");
+    }
+
+    private void ZoomToOperation(OperationEntry entry)
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        var obj = doc.Objects.FindId(entry.ObjectId);
+        if (obj == null) return;
+
+        doc.Objects.UnselectAll();
+        doc.Objects.Select(entry.ObjectId, true);
+        var bbox = obj.Geometry.GetBoundingBox(true);
+        // Inflate bbox slightly for nicer framing
+        bbox.Inflate(bbox.Diagonal.Length * 0.1);
+        doc.Views.ActiveView?.ActiveViewport.ZoomBoundingBox(bbox);
+        doc.Views.Redraw();
+    }
+
+    private void RemoveOperation(OperationEntry entry)
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        var obj = doc.Objects.FindId(entry.ObjectId);
+        if (obj == null) return;
+
+        // Remove toolpath geometry
+        ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+        // Remove operation UserText
+        CncOperationService.RemoveOperation(obj);
+        // Restore default color
+        CncOperationService.RestoreDefaultColor(obj);
+
+        doc.Views.Redraw();
+        _selectedOperation = null;
+        ShowPropertiesForType(null);
+        RefreshOperationsTree();
+
+        RhinoApp.WriteLine($"[CamPanel] {entry.Operation.Type} von {entry.ObjectName} entfernt.");
     }
 
     #endregion
@@ -383,8 +669,8 @@ public sealed class CamPanel : Panel
 
         if (operationType == null)
         {
-            _propTypeLabel.Text = "No selection";
-            _propObjectLabel.Text = "Select an operation above";
+            _propTypeLabel.Text = "Keine Auswahl";
+            _propObjectLabel.Text = "Wähle eine Operation im Baum oben aus";
             _propertiesPanel.Enabled = false;
             return;
         }
@@ -464,7 +750,7 @@ public sealed class CamPanel : Panel
         var obj = doc.Objects.FindId(_selectedOperation.ObjectId);
         if (obj == null)
         {
-            RhinoApp.WriteLine("[CamPanel] Object not found — may have been deleted.");
+            RhinoApp.WriteLine("[CamPanel] Objekt nicht gefunden — möglicherweise gelöscht.");
             return;
         }
 
@@ -517,7 +803,7 @@ public sealed class CamPanel : Panel
         doc.Views.Redraw();
         RefreshOperationsTree();
 
-        RhinoApp.WriteLine($"[CamPanel] Updated {op.Type} operation on {_selectedOperation.ObjectName}");
+        RhinoApp.WriteLine($"[CamPanel] {op.Type}-Operation auf {_selectedOperation.ObjectName} aktualisiert.");
     }
 
     #endregion
@@ -549,7 +835,7 @@ public sealed class CamPanel : Panel
         }
 
         doc.Views.Redraw();
-        RhinoApp.WriteLine($"[CamPanel] Generated toolpaths for {generated} operation(s).");
+        RhinoApp.WriteLine($"[CamPanel] Toolpaths für {generated} Operation(en) generiert.");
         RefreshOperationsTree();
     }
 
@@ -568,7 +854,7 @@ public sealed class CamPanel : Panel
         }
 
         doc.Views.Redraw();
-        RhinoApp.WriteLine($"[CamPanel] Cleared toolpaths for {cleared} operation(s).");
+        RhinoApp.WriteLine($"[CamPanel] Toolpaths für {cleared} Operation(en) gelöscht.");
     }
 
     private void RegenerateToolpath(RhinoDoc doc, RhinoObject obj, string operationType, double toolDiameter)
@@ -579,20 +865,20 @@ public sealed class CamPanel : Panel
         if (toolDiameter <= 0) return;
 
         var geometry = obj.Geometry;
-        List<Rhino.Geometry.GeometryBase> toolpathGeometry;
+        List<GeometryBase> toolpathGeometry;
 
         switch (operationType.ToUpperInvariant())
         {
             case "CONTOUR":
             case "GROOVE":
-                if (geometry is Rhino.Geometry.Curve curve)
+                if (geometry is Curve curve)
                 {
                     toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, toolDiameter);
                     ToolpathVisualizer.AddToolpathToDocument(doc, obj, operationType, toolpathGeometry);
                 }
                 break;
             case "POCKET":
-                if (geometry is Rhino.Geometry.Curve pocketCurve)
+                if (geometry is Curve pocketCurve)
                 {
                     var stepover = GetStepoverFromObject(obj);
                     toolpathGeometry = ToolpathVisualizer.CreatePocketToolpath(pocketCurve, toolDiameter, stepover);
@@ -605,7 +891,7 @@ public sealed class CamPanel : Panel
                     toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(point.Location, toolDiameter);
                     ToolpathVisualizer.AddToolpathToDocument(doc, obj, operationType, toolpathGeometry);
                 }
-                else if (geometry is Rhino.Geometry.Curve drillCurve)
+                else if (geometry is Curve drillCurve)
                 {
                     // Drill points stored as small circles
                     var center = drillCurve.PointAtStart;
@@ -632,13 +918,13 @@ public sealed class CamPanel : Panel
     {
         try
         {
-            var profile = new ScmProfile(); // Default profile
+            var profile = GetCurrentMachineProfile();
             var library = _toolLibraryStore.LoadOrCreate(profile);
             _allTools = library.Tools.ToList();
         }
         catch (Exception ex)
         {
-            RhinoApp.WriteLine($"[CamPanel] Failed to load tool library: {ex.Message}");
+            RhinoApp.WriteLine($"[CamPanel] Werkzeugbibliothek konnte nicht geladen werden: {ex.Message}");
             _allTools = new List<ToolDefinition>();
         }
     }
@@ -653,15 +939,66 @@ public sealed class CamPanel : Panel
 
         foreach (var tool in filtered)
         {
+            var fluteInfo = tool.FluteCount.HasValue ? $" ({tool.FluteCount}-Schneider)" : "";
             _propToolDropDown.Items.Add(new ListItem
             {
-                Text = $"Ø{tool.NominalDiameter:F1} {tool.Name}",
+                Text = $"Ø{tool.NominalDiameter:F1} {tool.Name}{fluteInfo}",
                 Key = tool.Id
             });
         }
 
+        // "Manage Tools..." option at the bottom
+        if (_propToolDropDown.Items.Count > 0)
+        {
+            _propToolDropDown.Items.Add(new ListItem { Text = "── Werkzeuge verwalten… ──", Key = "__manage__" });
+        }
+        else
+        {
+            _propToolDropDown.Items.Add(new ListItem { Text = "⚠ Keine Werkzeuge für diesen Typ", Key = "__none__" });
+            _propToolDropDown.Items.Add(new ListItem { Text = "── Werkzeuge verwalten… ──", Key = "__manage__" });
+        }
+
+        _propToolDropDown.SelectedIndexChanged -= OnToolDropDownChanged;
         if (_propToolDropDown.Items.Count > 0)
             _propToolDropDown.SelectedIndex = 0;
+        _propToolDropDown.SelectedIndexChanged += OnToolDropDownChanged;
+    }
+
+    private void OnToolDropDownChanged(object? sender, EventArgs e)
+    {
+        if (_propToolDropDown.SelectedIndex < 0) return;
+
+        var selectedItem = _propToolDropDown.Items[_propToolDropDown.SelectedIndex] as ListItem;
+        if (selectedItem?.Key == "__manage__")
+        {
+            // Open tool library manager
+            _propToolDropDown.SelectedIndex = Math.Max(0, _propToolDropDown.SelectedIndex - 1);
+            OpenToolLibraryManager();
+        }
+    }
+
+    private void OpenToolLibraryManager()
+    {
+        try
+        {
+            var profile = GetCurrentMachineProfile();
+            var library = _toolLibraryStore.LoadOrCreate(profile);
+            var dialog = new ToolLibraryManagerDialog(library);
+            var result = dialog.ShowModal(this);
+            if (result == null) return;
+
+            _toolLibraryStore.Save(profile, result);
+            _allTools = result.Tools.ToList();
+            RhinoApp.WriteLine($"[CamPanel] Werkzeugbibliothek gespeichert: {result.Tools.Count} Werkzeuge");
+
+            // Re-populate tool dropdown for current operation
+            if (_selectedOperation != null)
+                ShowPropertiesForOperation(_selectedOperation);
+        }
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[CamPanel] Werkzeugmanager-Fehler: {ex.Message}");
+        }
     }
 
     private void SelectToolInDropDown(string? toolName)
@@ -670,9 +1007,13 @@ public sealed class CamPanel : Panel
 
         for (int i = 0; i < _propToolDropDown.Items.Count; i++)
         {
+            var item = _propToolDropDown.Items[i] as ListItem;
+            if (item?.Key == "__manage__" || item?.Key == "__none__") continue;
             if (_propToolDropDown.Items[i].Text.Contains(toolName, StringComparison.OrdinalIgnoreCase))
             {
+                _propToolDropDown.SelectedIndexChanged -= OnToolDropDownChanged;
                 _propToolDropDown.SelectedIndex = i;
+                _propToolDropDown.SelectedIndexChanged += OnToolDropDownChanged;
                 return;
             }
         }
@@ -682,6 +1023,7 @@ public sealed class CamPanel : Panel
     {
         if (_propToolDropDown.SelectedIndex < 0) return null;
         var selectedKey = (_propToolDropDown.Items[_propToolDropDown.SelectedIndex] as ListItem)?.Key;
+        if (selectedKey == "__manage__" || selectedKey == "__none__") return null;
         return _allTools.FirstOrDefault(t => t.Id == selectedKey);
     }
 
@@ -732,6 +1074,7 @@ public sealed class CamPanel : Panel
     {
         UnhookObjectEvents();
         HookObjectEvents();
+        LoadMachineProfileFromDocument();
         LoadToolLibrary();
 
         // Schedule refresh on UI thread
@@ -745,6 +1088,7 @@ public sealed class CamPanel : Panel
             _treeItems = new TreeGridItemCollection();
             _operationsTree.DataStore = _treeItems;
             UpdateStatusBar(0, 0, 0);
+            ShowEmptyState(true);
             ShowPropertiesForType(null);
         });
     }
@@ -766,63 +1110,6 @@ public sealed class CamPanel : Panel
 
     #endregion
 
-    #region Context Menu
-
-    private ContextMenu CreateOperationContextMenu(OperationEntry entry)
-    {
-        var menu = new ContextMenu();
-
-        var editItem = new ButtonMenuItem { Text = "Edit Parameters" };
-        editItem.Click += (_, _) =>
-        {
-            _selectedOperation = entry;
-            ShowPropertiesForOperation(entry);
-        };
-        menu.Items.Add(editItem);
-
-        var removeItem = new ButtonMenuItem { Text = "Remove Operation" };
-        removeItem.Click += (_, _) => RemoveOperation(entry);
-        menu.Items.Add(removeItem);
-
-        var regenItem = new ButtonMenuItem { Text = "Regenerate Toolpath" };
-        regenItem.Click += (_, _) =>
-        {
-            var doc = RhinoDoc.ActiveDoc;
-            if (doc == null) return;
-            var obj = doc.Objects.FindId(entry.ObjectId);
-            if (obj == null) return;
-            var toolDiam = entry.Operation.Diameter ?? GetToolDiameterByName(entry.Operation.Tool);
-            RegenerateToolpath(doc, obj, entry.Operation.Type, toolDiam);
-            doc.Views.Redraw();
-        };
-        menu.Items.Add(regenItem);
-
-        return menu;
-    }
-
-    private void RemoveOperation(OperationEntry entry)
-    {
-        var doc = RhinoDoc.ActiveDoc;
-        if (doc == null) return;
-
-        var obj = doc.Objects.FindId(entry.ObjectId);
-        if (obj == null) return;
-
-        // Remove toolpath geometry
-        ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
-        // Remove operation UserText
-        CncOperationService.RemoveOperation(obj);
-        // Restore default color
-        CncOperationService.RestoreDefaultColor(obj);
-
-        doc.Views.Redraw();
-        RefreshOperationsTree();
-
-        RhinoApp.WriteLine($"[CamPanel] Removed {entry.Operation.Type} from {entry.ObjectName}");
-    }
-
-    #endregion
-
     #region Helpers
 
     private static Label CreateLabel(string text, float size, bool bold)
@@ -835,15 +1122,13 @@ public sealed class CamPanel : Panel
         };
     }
 
-    private static Button CreateToolbarButton(string text, Color accentColor)
+    private static Button CreateToolbarButton(string text, Color accentColor, string? tooltip = null)
     {
         return new Button
         {
             Text = text,
             Height = 26,
-            Width = 100
-            // Note: Eto.Forms Button doesn't easily support accent colors on all platforms,
-            // but the text makes the function clear
+            ToolTip = tooltip
         };
     }
 
@@ -897,14 +1182,16 @@ public sealed class CamPanel : Panel
     {
         var parts = new List<string>
         {
-            $"{operations} operation{(operations != 1 ? "s" : "")}"
+            $"{operations} Operation{(operations != 1 ? "en" : "")}"
         };
 
         if (tools > 0)
-            parts.Add($"{tools} tool{(tools != 1 ? "s" : "")}");
+            parts.Add($"{tools} Werkzeug{(tools != 1 ? "e" : "")}");
 
         if (warnings > 0)
-            parts.Add($"⚠ {warnings} warning{(warnings != 1 ? "s" : "")}");
+            parts.Add($"⚠ {warnings} Warnung{(warnings != 1 ? "en" : "")}");
+
+        parts.Add(GetCurrentMachineProfile().MachineKey.ToUpperInvariant());
 
         _statusLabel.Text = string.Join(" | ", parts);
     }

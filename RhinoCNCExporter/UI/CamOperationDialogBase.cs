@@ -1,6 +1,8 @@
 using Eto.Drawing;
 using Eto.Forms;
+using Rhino;
 using Rhino.UI;
+using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Services;
 
@@ -119,10 +121,35 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
 
     protected virtual void OnToolChanged(object? sender, EventArgs e)
     {
+        // Check if "Manage Tools" was selected (last item)
+        if (_toolDropDown.SelectedIndex >= 0 &&
+            _toolDropDown.SelectedIndex == _toolDropDown.Items.Count - 1)
+        {
+            // Reset selection to previous valid tool
+            _toolDropDown.SelectedIndex = _availableTools.Count > 0 ? 0 : -1;
+
+            // Open tool library manager
+            try
+            {
+                var dialog = new ToolLibraryManagerDialog(_toolLibrary);
+                var result = dialog.ShowModal(this);
+                if (result != null)
+                {
+                    // Note: tool library changes will be picked up on next dialog open
+                    RhinoApp.WriteLine($"[CamDialog] Werkzeugbibliothek bearbeitet: {result.Tools.Count} Werkzeuge");
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[CamDialog] Werkzeugmanager-Fehler: {ex.Message}");
+            }
+            return;
+        }
+
         var selectedTool = GetSelectedTool();
         if (selectedTool != null)
         {
-            _toolInfoLabel.Text = $"⌀{selectedTool.NominalDiameter:F1}mm, L{selectedTool.CuttingLength:F0}mm";
+            _toolInfoLabel.Text = $"Ø{selectedTool.NominalDiameter:F1}mm, L{selectedTool.CuttingLength:F0}mm";
         }
         else
         {
@@ -136,6 +163,32 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
     public Dictionary<string, object>? ShowModalOnTop()
     {
         return ShowModal(RhinoEtoApp.MainWindow);
+    }
+
+    /// <summary>
+    /// Pre-fill the dialog with values from an existing operation (for editing).
+    /// Override in subclasses to handle type-specific parameters.
+    /// </summary>
+    public virtual void PreFill(MachiningOperation operation)
+    {
+        if (operation == null) return;
+
+        // Select tool by name
+        if (!string.IsNullOrEmpty(operation.Tool))
+        {
+            for (int i = 0; i < _availableTools.Count; i++)
+            {
+                if (_availableTools[i].Name.Equals(operation.Tool, StringComparison.OrdinalIgnoreCase))
+                {
+                    _toolDropDown.SelectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        // Set depth
+        if (operation.Depth.HasValue)
+            _depthTextBox.Text = operation.Depth.Value.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     protected virtual void OnOkClick(object? sender, EventArgs e)
@@ -184,8 +237,17 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
         _toolDropDown.Items.Clear();
         foreach (var tool in _availableTools)
         {
-            _toolDropDown.Items.Add($"{tool.Name} (⌀{tool.NominalDiameter:F1}mm)");
+            var fluteInfo = tool.FluteCount.HasValue ? $" ({tool.FluteCount}-Schneider)" : "";
+            _toolDropDown.Items.Add($"Ø{tool.NominalDiameter:F1} {tool.Name}{fluteInfo}");
         }
+
+        if (_availableTools.Count == 0)
+        {
+            _toolDropDown.Items.Add("⚠ Keine Werkzeuge verfügbar");
+        }
+
+        // "Manage Tools..." separator item
+        _toolDropDown.Items.Add("── Werkzeuge verwalten… ──");
     }
 
     private Control CreateSection(string title, Control content)

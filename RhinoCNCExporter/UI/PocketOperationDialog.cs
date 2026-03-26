@@ -60,6 +60,32 @@ public sealed class PocketOperationDialog : CamOperationDialogBase
         _stepoverTextBox.Text = "60";
     }
 
+    public override void PreFill(MachiningOperation operation)
+    {
+        base.PreFill(operation);
+        if (operation.Stepover.HasValue)
+            _stepoverTextBox.Text = operation.Stepover.Value.ToString("F0", System.Globalization.CultureInfo.InvariantCulture);
+        if (operation.Strategy != null)
+        {
+            _strategyDropDown.SelectedIndex = operation.Strategy.ToUpperInvariant() switch
+            {
+                "ROUGH" => 0,
+                "FINISH" => 1,
+                _ => 2 // Both
+            };
+        }
+        if (operation.RampEntry != null)
+        {
+            _rampEntryDropDown.SelectedIndex = operation.RampEntry.ToUpperInvariant() switch
+            {
+                "STRAIGHT" => 0,
+                "SPIRAL" => 1,
+                "PROFILE" => 2,
+                _ => 1
+            };
+        }
+    }
+
     protected override bool ValidateInput()
     {
         if (!base.ValidateInput())
