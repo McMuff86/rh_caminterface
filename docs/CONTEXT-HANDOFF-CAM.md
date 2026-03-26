@@ -523,7 +523,171 @@ try {
 ### 9.5 Next Steps
 
 1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features including edge extraction
-2. **P2: Toolpath simulation** — animate tool movement along paths (3D preview with depth)
-3. **P3: Export pipeline integration** — bridge UserText operations to plate/block export pipeline
+2. ~~**P2: Toolpath simulation**~~ — ✅ Done in Night Session #5
+3. ~~**P3: Export pipeline integration**~~ — ✅ Done in Night Session #5
 4. **P4: Orphan edge curve cleanup** — detect when parent Brep is deleted and clean up extracted edge curves
 5. **P5: Edge curve visual feedback** — show connection between extracted curve and parent Brep (e.g., leader/arrow)
+
+---
+
+## 10. Night Session #5: Export Pipeline Bridge + 3D Toolpath Preview (26. März 2026)
+
+### 10.1 What Was Implemented
+
+#### Interactive Export Bridge (`Services/InteractiveExportBridge.cs`) ✅
+
+**The Gap Solved:** Interactive CAM operations (CNCAddContour etc.) store data as UserText on objects. The export pipeline reads from block instances. This bridge connects both paths.
+
+**`InteractiveExportBridge` class:**
+- `CollectOperations(doc)` → scans all objects with `CNC_Type` UserText, converts to `Machining` objects
+- `GroupByPlate(doc, operations)` → groups operations by source brep (for edge curves) or by layer
+- `Export(doc, path, format, profile)` → full export pipeline:
+  1. Collect operations
+  2. Group by plate
+  3. Build `Plate` models with `Machining` lists
+  4. Create `EmitterRouter` with appropriate emitter (Xilog/Biesse)
+  5. Generate CNC program per plate
+  6. Write to file(s)
+- Single plate → single file via `SaveFileDialog`
+- Multiple plates → directory with per-plate files via `SelectFolderDialog`
+
+**Key Mapping (UserText → Machining model):**
+| UserText | Machining Property |
+|----------|-------------------|
+| `CNC_Type=Contour` | `RoutingMachining` (IsClosed from curve) |
+| `CNC_Type=Pocket` | `PocketMachining` (single boundary loop) |
+| `CNC_Type=Drill` | `DrillMachining` (X, Y from geometry center) |
+| `CNC_Type=Groove` | `RoutingMachining` (IsClosed=false) |
+| `CNC_Tool` | Tool name → diameter resolution |
+| `CNC_Depth` | `Machining.Depth` |
+| `CNC_Diameter` | `DrillMachining.Diameter` / tool diameter |
+| Geometry | Curve → polyline points / Point → X,Y coords |
+
+**Plate Detection Heuristics:**
+- If `CNC_SourceBrep` exists → use that brep's bounding box for plate dimensions
+- Otherwise → find largest Brep on the same layer
+- Fallback → 1000×600×19mm defaults
+- Dimensions sorted: largest=length, middle=width, smallest=thickness
+
+**Static helper: `GetStatistics(doc, tools)`** → returns `OperationStatistics`:
+- Operation counts by type
+- Tool changes estimate
+- Max depth across all ops
+- Estimated machining time (path length / feedrate)
+
+#### 3D Toolpath Visualization (`Services/ToolpathVisualizer.cs`) ✅
+
+**New methods alongside existing 2D toolpath creation:**
+
+**`CreateContourToolpath3D(curve, toolDiameter, depth)`:**
+- Top offset curves (left/right) at surface level
+- Bottom offset curves translated down by `depth` along plane normal
+- Vertical connection lines at ~50mm intervals between top and bottom curves
+- Direction arrows on the top curve
+
+**`CreateDrillToolpath3D(center, diameter, depth)`:**
+- Top circle at surface
+- Bottom circle at depth
+- 4 vertical lines at cardinal directions connecting circles
+- Top crosshair + bottom X indicator
+
+**`CreatePocketToolpath3D(boundaryCurve, toolDiameter, stepoverPercent, depth)`:**
+- Top boundary outline at surface
+- Bottom boundary at depth
+- Vertical wall lines connecting top and bottom
+- Concentric offset curves at depth level
+- Entry point marker + ramp indicator line
+
+**Layer structure:** `CNC_Toolpaths_3D::Contour`, `CNC_Toolpaths_3D::Pocket`, etc.
+- Independent from 2D toolpaths (`CNC_Toolpaths::*`)
+- Slightly lighter colors to distinguish from 2D
+- Own group tracking via `CNC_GroupIndex3D` UserText
+
+**Helper methods:**
+- `AddToolpath3DToDocument()` — creates geometry on 3D layer tree
+- `RemoveToolpath3DGeometry()` — cleans up 3D toolpath objects
+- `EnsureToolpath3DSubLayer()` — ensures layer hierarchy exists
+
+#### CamPanel Enhancements (`UI/CamPanel.cs`) ✅
+
+**New UI elements:**
+1. **"📤 Export CNC" button** — triggers interactive export:
+   - Determines format from machine profile (Xilog/Biesse)
+   - Shows SaveFileDialog or SelectFolderDialog based on plate count
+   - Calls `InteractiveExportBridge.Export()`
+   - Reports success/failure to RhinoApp output
+
+2. **"3D Toolpath-Vorschau" checkbox** — toggles 3D depth visualization:
+   - When checked: generates 3D toolpaths for all operations
+   - When unchecked: removes all 3D toolpath geometry
+   - Works per-operation via `Generate3DToolpath()` helper
+
+3. **Statistics section (collapsible):**
+   - Auto-updates when operations tree refreshes
+   - Shows: "X Op. (N× Contour, N× Pocket, ...) | N Werkzeugwechsel | Max. Tiefe: Xmm | Zeit: ~Xmin"
+   - Uses `InteractiveExportBridge.GetStatistics()`
+
+**Modified behaviors:**
+- `GenerateAllToolpaths()` — now also handles 3D toolpaths when toggle is on
+- `ClearAllToolpaths()` — now also removes 3D toolpaths
+- `RefreshOperationsTree()` — now calls `UpdateStatistics()` at the end
+
+### 10.2 Files Changed in Night Session #5
+
+| File | Change |
+|------|--------|
+| `Services/InteractiveExportBridge.cs` | **NEW** — Full export bridge with plate grouping, Machining conversion, EmitterRouter integration |
+| `Services/ToolpathVisualizer.cs` | Added 3D toolpath methods (CreateContourToolpath3D, CreateDrillToolpath3D, CreatePocketToolpath3D), 3D layer management, 3D group tracking |
+| `UI/CamPanel.cs` | Export CNC button, 3D toggle checkbox, statistics panel, updated Generate/Clear to handle 3D |
+
+**Commit:** `015313e` — "feat: interactive export bridge, 3D toolpath preview, operation statistics"
+
+### 10.3 Architecture Notes
+
+**Interactive Export Flow:**
+```
+User clicks "Export CNC" in CamPanel
+  ├── InteractiveExportBridge.CollectOperations(doc)
+  │   ├── CncOperationService.GetAllOperationsInDocument()
+  │   ├── For each: ConvertToMachining() → RoutingMachining / DrillMachining / PocketMachining
+  │   └── Returns List<InteractiveOperation>
+  ├── InteractiveExportBridge.GroupByPlate(doc, operations)
+  │   ├── Group by CNC_SourceBrep (edge curves → same plate)
+  │   ├── Or group by layer name
+  │   └── Returns List<PlateGroup> with dimensions
+  ├── SaveFileDialog / SelectFolderDialog
+  └── InteractiveExportBridge.Export(doc, path, format, profile)
+      ├── For each PlateGroup → BuildPlate() → Plate model
+      ├── EmitterRouter.GenerateProgram(plate) → CNC code string
+      └── File.WriteAllText(path, program)
+```
+
+**3D Toolpath Toggle Flow:**
+```
+User checks "3D Toolpath-Vorschau"
+  ├── OnToggle3DPreview()
+  │   ├── For each operation object:
+  │   │   ├── ToolpathVisualizer.RemoveToolpath3DGeometry()
+  │   │   ├── Generate3DToolpath() → List<GeometryBase>
+  │   │   └── ToolpathVisualizer.AddToolpath3DToDocument()
+  │   └── doc.Views.Redraw()
+```
+
+### 10.4 Known Limitations / TODO
+
+- ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
+- ⚠ **No tool library integration in export bridge** — tool diameter resolved from UserText or regex on tool name; doesn't use ToolLibraryStore for lookup in InteractiveExportBridge (CamPanel does use it)
+- ⚠ **Plate dimensions are heuristic** — when no source brep is found, falls back to defaults or same-layer brep detection
+- ⚠ **Single emitter per export** — all plates exported with the same emitter; no per-plate machine selection
+- ⚠ **3D preview vertical lines** — for contours, the perpendicular offset uses simplified tangent-based calculation; may not be perfectly accurate for complex curves
+- ⚠ **Statistics time estimate** — uses default feedrates when not set on operation; actual CNC time depends on machine acceleration, rapids, tool changes
+- ⚠ **No export preview** — user can't see the generated CNC code before writing to file
+
+### 10.5 Next Steps
+
+1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
+2. **P2: Tool library integration in export bridge** — resolve tool diameters/tech codes from ToolLibraryStore
+3. **P3: Export preview dialog** — show generated CNC code before saving
+4. **P4: Orphan edge curve cleanup** — detect when parent Brep is deleted
+5. **P5: Toolpath animation** — animate tool movement along paths with speed control
+6. **P6: Multi-emitter support** — different emitters per plate if needed
