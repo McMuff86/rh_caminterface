@@ -177,7 +177,7 @@ public static class ToolpathVisualizer
             var id = Guid.Empty;
             if (geom is Curve curve)
                 id = doc.Objects.AddCurve(curve, attributes);
-            else if (geom is Point point)
+            else if (geom is Rhino.Geometry.Point point)
                 id = doc.Objects.AddPoint(point.Location, attributes);
 
             if (id != Guid.Empty)
@@ -245,8 +245,9 @@ public static class ToolpathVisualizer
         for (int i = 1; i <= numArrows; i++)
         {
             var t = spacing * i;
-            var point = curve.PointAtNormalizedLength(t);
-            var tangent = curve.TangentAtNormalizedLength(t);
+            curve.NormalizedLengthParameter(t, out var param);
+            var point = curve.PointAt(param);
+            var tangent = curve.TangentAt(param);
 
             if (tangent.IsZero) continue;
 
