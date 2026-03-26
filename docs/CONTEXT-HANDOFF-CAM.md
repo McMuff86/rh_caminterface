@@ -1,9 +1,9 @@
 # Context Handoff: Interactive CAM Commands
 
-**Datum:** 26. März 2026  
-**Autor:** Sentinel (Night Session #1)  
+**Datum:** 27. März 2026  
+**Autor:** Sentinel (Night Session #1 + #2)  
 **Branch:** `feat/interactive-cam-commands`  
-**Status:** Toolpath Visualization Fixed ✅ — Next: Dockable CAM Panel
+**Status:** Dockable CAM Panel Implemented ✅ — Next: UI Polish + Viz Unification
 
 ---
 
@@ -221,3 +221,78 @@ RhinoCNCExporter/                # Rhino plugin (RhinoCommon + Eto.Forms)
 | `Services/ToolpathVisualizer.cs` | `GetCurvePlane()` helper, plane-aware offset |
 
 **Commit:** `9f29b09` — "fix: toolpath visualization not showing — use ObjRef.Curve() for edges + plane-aware offset"
+
+---
+
+## 7. Night Session #2: Dockable CAM Panel (27. März 2026)
+
+### 7.1 What Was Implemented
+
+#### `UI/CamPanel.cs` — Full Dockable CAM Panel ✅
+
+**GUID:** `c7e3a1d5-4f82-4e9b-b3c6-8d2f1a5e7b09`  
+**Display Name:** "CNC Operations"  
+**Base class:** `Panel` (Eto.Forms, same pattern as `ExportPanel`)
+
+**Layout sections (top to bottom):**
+1. **Header** — "🔧 CNC Operations"
+2. **Quick-Add Toolbar** — 4 buttons (+ Contour, + Pocket, + Drill, + Groove) that run `RhinoApp.RunScript()` for existing CNCAdd* commands
+3. **Operations TreeGridView** — scans document for all objects with `CNC_Type` UserText, groups by operation type, shows object name/layer, tool, depth
+4. **Properties Panel** — shows/edits selected operation's parameters with type-specific fields:
+   - Contour: Tool, Depth, Strategy (Rough/Finish/Both)
+   - Pocket: Tool, Depth, Stepover %, Ramp Entry
+   - Drill: Tool, Depth, Diameter, Peck drilling, Peck depth
+   - Groove: Tool, Depth, Width, Strategy
+   - "Apply" button updates UserText + regenerates toolpath
+5. **Action Buttons** — Generate All, Clear All, Refresh
+6. **Status Bar** — "X operations | Y tools | ⚠ Z warnings"
+
+**Interactions:**
+- Click operation in tree → selects object in viewport
+- Double-click → zoom to object
+- Context menu → Edit, Remove, Regenerate Toolpath
+- Auto-refresh via `RhinoDoc.AddRhinoObject`, `DeleteRhinoObject`, `ModifyObjectAttributes` events
+- Document switch handling via `ActiveDocumentChanged` + `CloseDocument`
+- Event cleanup in `Dispose()`
+
+#### `Commands/CNCPanelCommand.cs` — Panel Toggle Command ✅
+
+- Command name: `CNCPanel`
+- Toggles panel visibility (open if closed, close if open)
+- Panel registration in Command constructor (Rhino 8 best practice)
+- Follows exact same pattern as `RhinoCNCExporterCommand` / `ExportPanel`
+
+### 7.2 Files Changed in Night Session #2
+
+| File | Change |
+|------|--------|
+| `UI/CamPanel.cs` | **NEW** — Full dockable CAM panel (630+ lines) |
+| `Commands/CNCPanelCommand.cs` | **NEW** — CNCPanel toggle command |
+| `docs/CONTEXT-HANDOFF-CAM.md` | Updated with session #2 results |
+
+**Commit:** `6a574ab` — "feat: add dockable CAM panel with operations tree, properties editor, and toolpath controls"
+
+### 7.3 Architecture Decisions
+
+1. **Separate panel from ExportPanel** — CamPanel is for interactive CAM operations, ExportPanel is for the legacy/3D export pipeline. They coexist as separate dockable panels.
+2. **Uses existing services** — `CncOperationService` for UserText CRUD, `ToolpathVisualizer` for toolpath geometry, `ToolLibraryStore` for tool data
+3. **Event-driven refresh** — hooks into RhinoDoc object events for live updates instead of manual refresh
+4. **Default ScmProfile** — loads tool library from SCM profile; future: machine selector in panel
+5. **Row visibility workaround** — Eto.Forms `TableRow` has no `Visible` property; using `Control.Visible` on cells instead
+
+### 7.4 Known Limitations / TODO
+
+- ⚠ **No right-click context menu wired to tree** — `TreeGridView` context menu needs `MouseDown` event handling (Eto quirk). The menu methods exist but aren't connected to mouse events yet.
+- ⚠ **Machine profile hardcoded to SCM** — needs machine selector or reads from ExportPanel setting
+- ⚠ **Two separate viz systems still exist** — `ToolpathVisualizer` (interactive) vs `ToolpathPreviewService` (export panel)
+- ⚠ **No keyboard shortcuts** — would benefit from Delete key to remove operation, F5 to refresh
+- ⚠ **TreeGridView colors** — operation type icons use emoji (🔴🔵🟡🟢) since Eto TreeGridView doesn't easily support cell coloring
+
+### 7.5 Next Steps (Priority)
+
+1. **P1: Build & Test on Windows** — compile in VS/dotnet build, verify panel loads in Rhino
+2. **P2: Wire up context menu** — connect `CreateOperationContextMenu()` to TreeGridView right-click
+3. **P3: Machine profile selector** — add dropdown or sync with ExportPanel's machine selection
+4. **P4: Unify viz systems** — merge `ToolpathVisualizer` + `ToolpathPreviewService` into one service
+5. **P5: UI polish** — icons, dark theme colors on buttons, keyboard shortcuts
+6. **P6: Brep edge operations** — handle multiple operations on different edges of same Brep
