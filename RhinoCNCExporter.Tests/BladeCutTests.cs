@@ -175,7 +175,7 @@ public class BladeCutTests
     {
         var nameService = new NameService();
         var emitter = new XilogEmitter(nameService);
-        var profile = new MachineProfile("Test", MachineFormat.Xilog, "E010");
+        var profile = new ScmProfile();
         var router = new EmitterRouter(emitter, nameService, profile);
 
         var segments = new BladeCutSegment[]

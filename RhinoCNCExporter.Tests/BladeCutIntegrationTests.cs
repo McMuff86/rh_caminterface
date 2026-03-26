@@ -57,7 +57,7 @@ public class BladeCutIntegrationTests
         // 4. Generate XCS via EmitterRouter
         var nameService = new NameService(31);
         var emitter = new XilogEmitter(nameService);
-        var profile = new MachineProfile("SCM", MachineFormat.Xilog, "E010");
+        var profile = new ScmProfile();
         var router = new EmitterRouter(emitter, nameService, profile);
 
         var xcsOutput = router.GenerateProgram(plate);
@@ -193,7 +193,7 @@ public class BladeCutIntegrationTests
 
         var nameService = new NameService(31);
         var emitter = new XilogEmitter(nameService);
-        var profile = new MachineProfile("Test", MachineFormat.Xilog, "E010");
+        var profile = new ScmProfile();
         var router = new EmitterRouter(emitter, nameService, profile);
 
         var output = router.GenerateProgram(plate);
