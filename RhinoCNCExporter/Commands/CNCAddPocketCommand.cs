@@ -55,7 +55,7 @@ public sealed class CNCAddPocketCommand : Command
 
             // Show dialog for operation parameters
             var dialog = new PocketOperationDialog(toolLibraryStore, toolLibrary);
-            var parameters = dialog.ShowModal();
+            var parameters = dialog.ShowModalOnTop();
 
             if (parameters == null)
                 return Result.Cancel;

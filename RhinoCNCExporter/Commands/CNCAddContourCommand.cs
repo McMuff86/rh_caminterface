@@ -50,7 +50,7 @@ public sealed class CNCAddContourCommand : Command
 
             // Show dialog for operation parameters
             var dialog = new ContourOperationDialog(toolLibraryStore, toolLibrary);
-            var parameters = dialog.ShowModal();
+            var parameters = dialog.ShowModalOnTop();
 
             if (parameters == null)
                 return Result.Cancel;

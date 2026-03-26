@@ -50,7 +50,7 @@ public sealed class CNCAddGrooveCommand : Command
 
             // Show dialog for groove parameters
             var dialog = new GrooveOperationDialog(toolLibraryStore, toolLibrary);
-            var parameters = dialog.ShowModal();
+            var parameters = dialog.ShowModalOnTop();
 
             if (parameters == null)
                 return Result.Cancel;

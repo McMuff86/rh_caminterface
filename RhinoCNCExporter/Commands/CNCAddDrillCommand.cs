@@ -28,7 +28,7 @@ public sealed class CNCAddDrillCommand : Command
 
             // Show dialog for drill parameters
             var dialog = new DrillOperationDialog(toolLibraryStore, toolLibrary);
-            var parameters = dialog.ShowModal();
+            var parameters = dialog.ShowModalOnTop();
 
             if (parameters == null)
                 return Result.Cancel;

@@ -1,5 +1,6 @@
 using Eto.Drawing;
 using Eto.Forms;
+using Rhino.UI;
 using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Services;
 
@@ -127,6 +128,14 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
         {
             _toolInfoLabel.Text = "";
         }
+    }
+
+    /// <summary>
+    /// Show this dialog as modal with Rhino as owner so it stays on top.
+    /// </summary>
+    public Dictionary<string, object>? ShowModalOnTop()
+    {
+        return ShowModal(RhinoEtoApp.MainWindow);
     }
 
     protected virtual void OnOkClick(object? sender, EventArgs e)
