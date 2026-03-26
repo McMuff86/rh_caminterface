@@ -23,7 +23,7 @@ public sealed class CNCAddDrillCommand : Command
         {
             // Load tool library first to have parameters ready
             var toolLibraryStore = new ToolLibraryStore();
-            var profile = new MachineProfile(); // Use default SCM profile
+            var profile = new ScmProfile(); // Use default SCM profile
             var toolLibrary = toolLibraryStore.LoadOrCreate(profile);
 
             // Show dialog for drill parameters

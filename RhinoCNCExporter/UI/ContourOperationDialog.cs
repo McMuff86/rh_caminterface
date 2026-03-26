@@ -16,7 +16,7 @@ public sealed class ContourOperationDialog : CamOperationDialogBase
     private TextBox _feedrateTextBox;
 
     public ContourOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary) 
-        : base(toolLibraryStore, toolLibrary, "Kontur-Bearbeitung hinzufügen", ToolKind.EndMill)
+        : base(toolLibraryStore, toolLibrary, "Kontur-Bearbeitung hinzufügen", ToolKind.Router)
     {
     }
 

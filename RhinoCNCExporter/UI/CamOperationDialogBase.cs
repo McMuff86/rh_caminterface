@@ -33,7 +33,7 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
         // Filter tools by type
         _availableTools = toolLibrary.Tools
             .Where(t => t.Kind == toolKind)
-            .OrderBy(t => t.Diameter)
+            .OrderBy(t => t.NominalDiameter)
             .ThenBy(t => t.Name)
             .ToList();
 
@@ -121,7 +121,7 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
         var selectedTool = GetSelectedTool();
         if (selectedTool != null)
         {
-            _toolInfoLabel.Text = $"⌀{selectedTool.Diameter:F1}mm, L{selectedTool.CuttingLength:F0}mm";
+            _toolInfoLabel.Text = $"⌀{selectedTool.NominalDiameter:F1}mm, L{selectedTool.CuttingLength:F0}mm";
         }
         else
         {
@@ -175,7 +175,7 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
         _toolDropDown.Items.Clear();
         foreach (var tool in _availableTools)
         {
-            _toolDropDown.Items.Add($"{tool.Name} (⌀{tool.Diameter:F1}mm)");
+            _toolDropDown.Items.Add($"{tool.Name} (⌀{tool.NominalDiameter:F1}mm)");
         }
     }
 

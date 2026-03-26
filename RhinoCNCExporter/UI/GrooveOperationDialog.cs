@@ -14,7 +14,7 @@ public sealed class GrooveOperationDialog : CamOperationDialogBase
     private TextBox _widthTextBox;
 
     public GrooveOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary) 
-        : base(toolLibraryStore, toolLibrary, "Nut hinzufügen", ToolKind.EndMill)
+        : base(toolLibraryStore, toolLibrary, "Nut hinzufügen", ToolKind.Router)
     {
     }
 

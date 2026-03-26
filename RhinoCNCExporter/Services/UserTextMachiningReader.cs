@@ -20,10 +20,12 @@ public class UserTextMachiningReader
     {
         var machinings = new List<Machining>();
         
-        // Find layer index
-        var layerIndex = doc.Layers.FindName(layerName);
-        if (layerIndex < 0)
+        // Find layer
+        var layer = doc.Layers.FindName(layerName);
+        if (layer == null)
             return machinings;
+
+        var layerIndex = layer.Index;
 
         // Get all objects on this layer with CNC operations
         var objectsWithOperations = doc.Objects
@@ -195,9 +197,9 @@ public class UserTextMachiningReader
         var polyline = curve.ToPolyline(0, 0, 0.5, 0.1, 0, 0, 0, 0, true);
         if (polyline != null)
         {
-            for (int i = 0; i < polyline.Count; i++)
+            for (int i = 0; i < polyline.PointCount; i++)
             {
-                var pt = polyline[i];
+                var pt = polyline.Point(i);
                 points.Add((pt.X, pt.Y));
             }
         }

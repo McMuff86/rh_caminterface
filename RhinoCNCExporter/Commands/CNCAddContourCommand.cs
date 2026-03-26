@@ -45,7 +45,7 @@ public sealed class CNCAddContourCommand : Command
 
             // Load tool library
             var toolLibraryStore = new ToolLibraryStore();
-            var profile = new MachineProfile(); // Use default SCM profile
+            var profile = new ScmProfile(); // Use default SCM profile
             var toolLibrary = toolLibraryStore.LoadOrCreate(profile);
 
             // Show dialog for operation parameters

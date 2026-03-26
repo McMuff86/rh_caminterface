@@ -1,6 +1,7 @@
 using Rhino;
 using Rhino.Commands;
 using Rhino.DocObjects;
+using Rhino.Geometry;
 using RhinoCNCExporter.Services;
 
 namespace RhinoCNCExporter.Commands;

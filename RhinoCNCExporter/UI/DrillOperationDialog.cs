@@ -77,7 +77,7 @@ public sealed class DrillOperationDialog : CamOperationDialogBase
         {
             // Try to find a tool with matching diameter
             var matchingToolIndex = _availableTools
-                .FindIndex(t => Math.Abs(t.Diameter - diameter) < 0.1);
+                .FindIndex(t => Math.Abs(t.NominalDiameter - diameter) < 0.1);
             
             if (matchingToolIndex >= 0)
             {

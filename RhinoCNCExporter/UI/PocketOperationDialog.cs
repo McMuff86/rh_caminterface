@@ -16,7 +16,7 @@ public sealed class PocketOperationDialog : CamOperationDialogBase
     private DropDown _rampEntryDropDown;
 
     public PocketOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary) 
-        : base(toolLibraryStore, toolLibrary, "Tasche hinzufügen", ToolKind.EndMill)
+        : base(toolLibraryStore, toolLibrary, "Tasche hinzufügen", ToolKind.Router)
     {
     }
 

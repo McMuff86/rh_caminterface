@@ -25,7 +25,7 @@ public sealed class CNCAddPocketCommand : Command
             var go = new Rhino.Input.Custom.GetObject();
             go.SetCommandPrompt("Geschlossene Kurven für Taschenbearbeitung auswählen");
             go.GeometryFilter = ObjectType.Curve;
-            go.GeometryAttributeFilter = GeometryAttributeFilter.ClosedCurve;
+            go.GeometryAttributeFilter = Rhino.Input.Custom.GeometryAttributeFilter.ClosedCurve;
             go.GetMultiple(1, 0);
 
             if (go.CommandResult() != Result.Success)
@@ -50,7 +50,7 @@ public sealed class CNCAddPocketCommand : Command
 
             // Load tool library
             var toolLibraryStore = new ToolLibraryStore();
-            var profile = new MachineProfile(); // Use default SCM profile
+            var profile = new ScmProfile(); // Use default SCM profile
             var toolLibrary = toolLibraryStore.LoadOrCreate(profile);
 
             // Show dialog for operation parameters
