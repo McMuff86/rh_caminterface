@@ -383,7 +383,147 @@ RhinoCNCExporter/                # Rhino plugin (RhinoCommon + Eto.Forms)
 ### 8.4 Next Steps
 
 1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
-2. **P2: Undo support** — wrap Apply/Remove in `RhinoDoc.BeginUndoRecord()` / `EndUndoRecord()`
-3. **P3: Brep edge operations** — handle multiple ops on same Brep (extract edge as curve approach)
+2. ~~**P2: Undo support**~~ — ✅ Done in Night Session #4
+3. ~~**P3: Brep edge operations**~~ — ✅ Done in Night Session #4
 4. **P4: Toolpath simulation** — animate tool movement along paths (3D preview with depth)
 5. **P5: Export pipeline integration** — bridge UserText operations to plate/block export pipeline
+
+---
+
+## 9. Night Session #4: Edge-Level Ops, Undo Support, Build Quality (27. März 2026)
+
+### 9.1 What Was Implemented
+
+#### Edge-Level Operations on Breps ✅
+
+**Problem solved:** When selecting Brep edges, UserText was stored on the parent Brep. Multiple operations on different edges of the same Brep would overwrite each other.
+
+**Solution: Extract edge as standalone curve**
+- New `Services/EdgeCurveHelper.cs` — utility class for Brep edge extraction
+- When `EdgeCurveHelper.IsBrepEdge(objRef)` detects a Brep edge selection:
+  - `edge.DuplicateCurve()` extracts the edge geometry
+  - Curve is added to `CNC_EdgeCurves` layer (thin, dashed linetype)
+  - Reference stored: `CNC_SourceBrep=<guid>`, `CNC_SourceEdgeIndex=<int>`
+  - Operation color applied to the extracted curve
+  - UserText is applied to the extracted curve (not the parent Brep)
+- When removing: if object is an extracted edge curve (`IsExtractedEdgeCurve()`), it gets deleted entirely instead of just clearing UserText
+- Applied to all four CNCAdd* commands: Contour, Pocket, Groove, Drill (drill uses points, but the pattern is ready)
+
+**New UserText keys in `CncOperationSchema`:**
+- `CNC_SourceBrep` — GUID of the parent Brep
+- `CNC_SourceEdgeIndex` — edge index on the source Brep
+
+**New layer:** `CNC_EdgeCurves` — dedicated layer for extracted edge curves (dashed linetype when available)
+
+#### Undo Support ✅
+
+All operations wrapped in Rhino undo records (`doc.BeginUndoRecord()` / `doc.EndUndoRecord()`):
+
+| Location | Undo Record Name |
+|----------|-----------------|
+| `CNCAddContourCommand` | "CNC Add Contour" |
+| `CNCAddDrillCommand` | "CNC Add Drill" |
+| `CNCAddPocketCommand` | "CNC Add Pocket" |
+| `CNCAddGrooveCommand` | "CNC Add Groove" |
+| `CNCRemoveOperationCommand` | "CNC Remove Operation" |
+| `CamPanel.ApplyPropertyChanges()` | "CNC Apply Properties" |
+| `CamPanel.RemoveOperation()` | "CNC Remove Operation" |
+| `CamPanel.OpenEditDialog()` | "CNC Edit {Type}" |
+
+**Error handling:** All undo records use try/catch pattern — `EndUndoRecord()` is called in both success and failure paths to prevent undo stack corruption.
+
+#### Nullable Warning Fixes ✅ (target: 0 warnings)
+
+**CS8618 fixes (non-nullable field not initialized):**
+- `CamOperationDialogBase`: `_toolDropDown`, `_depthTextBox`, `_toolInfoLabel`, `_okButton`, `_cancelButton` → `= null!;`
+- `ContourOperationDialog`: `_operationTypeDropDown`, `_strategyDropDown`, `_feedrateTextBox` → `= null!;`
+- `DrillOperationDialog`: `_diameterTextBox`, `_peckDrillingCheckBox`, `_peckDepthTextBox` → `= null!;`
+- `PocketOperationDialog`: `_stepoverTextBox`, `_strategyDropDown`, `_rampEntryDropDown` → `= null!;`
+- `GrooveOperationDialog`: `_widthTextBox` → `= null!;`
+
+**CS8600/CS8602 fixes (possible null dereference):**
+- `CncOperationService.GetOperation()`: `userStrings[key] ?? string.Empty`
+- `CncOperationService.GetOperationColor()`: `(operationType ?? string.Empty).ToUpperInvariant()`
+- `FaceTagger.ReadTags()`: `string?` loop variable + null check
+- `FaceTagger.GetTaggedFaceIndices()`: `string?` loop variable + null check
+- `FaceTagger.ClearTags()`: `.Select(key => key!)` after null filter
+- `FeatureReader`: `GetStringTag()` result with `?? fallback`
+- `FeatureReader.ExtractFaceBoundary()`: `poly != null` check after `TryGetPolyline`
+- `AddClamexCommand`: `Brep? newBrep = null;` + `selectedOption != null` guard
+
+**CS8604 fixes (possible null argument):**
+- `FaceTagger.ClearTags()`: Changed `SetUserString(key, null)` to `DeleteUserString(key)`
+
+#### Code Cleanup ✅
+
+- **Removed duplicate `ShowError` methods** from all 4 dialog subclasses — now inherited from `CamOperationDialogBase` (changed from `private` to `protected`)
+- **Removed unused imports** from rewritten command files
+- **Consistent naming** across all files
+- **`CncOperationService.GetOperationColor(string)`** — new public overload returns `System.Drawing.Color` for use in `EdgeCurveHelper` and other services without requiring a `RhinoObject`
+
+### 9.2 Files Changed in Night Session #4
+
+| File | Change |
+|------|--------|
+| `RhinoCNCExporter.Core/Blocks/CncOperationSchema.cs` | Added `CNC_SOURCE_BREP` and `CNC_SOURCE_EDGE_INDEX` keys |
+| `Services/EdgeCurveHelper.cs` | **NEW** — Brep edge extraction utility |
+| `Commands/CNCAddContourCommand.cs` | Edge extraction + undo support |
+| `Commands/CNCAddDrillCommand.cs` | Undo support |
+| `Commands/CNCAddPocketCommand.cs` | Edge extraction + undo support |
+| `Commands/CNCAddGrooveCommand.cs` | Edge extraction + undo support |
+| `Commands/CNCRemoveOperationCommand.cs` | Undo support + handles extracted edge curves |
+| `Commands/AddClamexCommand.cs` | Nullable fixes (`Brep?`, option null check) |
+| `Services/CncOperationService.cs` | New `GetOperationColor(string)` overload, nullable fixes |
+| `Services/FaceTagger.cs` | Nullable fixes (AllKeys iteration, DeleteUserString) |
+| `Services/FeatureReader.cs` | Nullable fixes (GetStringTag, TryGetPolyline, macro params) |
+| `UI/CamOperationDialogBase.cs` | `= null!;` for fields, `ShowError` → protected |
+| `UI/ContourOperationDialog.cs` | `= null!;`, removed duplicate ShowError |
+| `UI/DrillOperationDialog.cs` | `= null!;`, removed duplicate ShowError |
+| `UI/PocketOperationDialog.cs` | `= null!;`, removed duplicate ShowError |
+| `UI/GrooveOperationDialog.cs` | `= null!;`, removed duplicate ShowError |
+| `UI/CamPanel.cs` | Undo records in Apply/Remove/Edit, edge curve handling in Remove |
+
+**Commit:** `4d1e6fb` — "feat: edge-level ops, undo support, nullable fixes, code cleanup"
+
+### 9.3 Architecture Notes
+
+**Edge Extraction Flow:**
+```
+User selects Brep edge → CNCAddContour command
+  ├── EdgeCurveHelper.IsBrepEdge(objRef) → true
+  ├── EdgeCurveHelper.ExtractEdgeCurve(doc, objRef, color)
+  │   ├── edge.DuplicateCurve()
+  │   ├── Add to CNC_EdgeCurves layer
+  │   ├── Store CNC_SourceBrep + CNC_SourceEdgeIndex
+  │   └── Return new RhinoObject
+  ├── CncOperationService.SetOperation(extractedCurve, ...)
+  └── ToolpathVisualizer.AddToolpathToDocument(doc, extractedCurve, ...)
+```
+
+**Undo Pattern:**
+```csharp
+var undoSerial = doc.BeginUndoRecord("CNC Add Contour");
+try {
+    // ... all document modifications ...
+    doc.EndUndoRecord(undoSerial);
+} catch {
+    doc.EndUndoRecord(undoSerial);
+    throw;
+}
+```
+
+### 9.4 Known Limitations / TODO
+
+- ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
+- ⚠ **TreeGridView row coloring** — still using emoji, no actual cell background colors (Eto limitation)
+- ⚠ **Profile-specific defaults** — machine profile change reloads tool library but doesn't update existing operations' defaults
+- ⚠ **Edge curve linetype** — dashed linetype depends on "Dashed" existing in the document's linetype table; falls back to solid line if not found
+- ⚠ **Edge curve cleanup on Brep deletion** — if the parent Brep is deleted, extracted edge curves remain orphaned (could add event handler for cleanup)
+
+### 9.5 Next Steps
+
+1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features including edge extraction
+2. **P2: Toolpath simulation** — animate tool movement along paths (3D preview with depth)
+3. **P3: Export pipeline integration** — bridge UserText operations to plate/block export pipeline
+4. **P4: Orphan edge curve cleanup** — detect when parent Brep is deleted and clean up extracted edge curves
+5. **P5: Edge curve visual feedback** — show connection between extracted curve and parent Brep (e.g., leader/arrow)
