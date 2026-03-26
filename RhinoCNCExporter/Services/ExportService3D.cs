@@ -331,6 +331,10 @@ public static class ExportService3D
         {
             var faceTaggedMachinings = ExtractFaceTaggedFeatures(doc, plate);
             machinings.AddRange(faceTaggedMachinings);
+
+            // Add UserText-based operations from interactive CAM commands
+            var userTextMachinings = ExtractUserTextOperations(doc, plate);
+            machinings.AddRange(userTextMachinings);
         }
 
         return machinings;
@@ -363,6 +367,46 @@ public static class ExportService3D
         }
 
         return faceTaggedMachinings;
+    }
+
+    /// <summary>
+    /// Extract UserText-based CNC operations from objects on the plate's layer.
+    /// These are created by interactive CAM commands (CNCAddContour, CNCAddDrill, etc.).
+    /// </summary>
+    private static List<Machining> ExtractUserTextOperations(RhinoDoc doc, Plate plate)
+    {
+        var userTextMachinings = new List<Machining>();
+
+        try
+        {
+            var reader = new UserTextMachiningReader();
+            
+            // Get UserText operations from the plate's layer
+            if (!string.IsNullOrEmpty(plate.LayerPath))
+            {
+                // Try to extract layer name from full path (e.g., "Korpus::Seite_links" -> "Seite_links")
+                var layerName = plate.LayerPath.Split(new[] { "::" }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? plate.LayerPath;
+                var layerMachinings = reader.GetMachiningsByLayer(doc, layerName);
+                userTextMachinings.AddRange(layerMachinings);
+            }
+            else if (!string.IsNullOrEmpty(plate.Name))
+            {
+                // Fallback: use plate name as layer name
+                var layerMachinings = reader.GetMachiningsByLayer(doc, plate.Name);
+                userTextMachinings.AddRange(layerMachinings);
+            }
+
+            if (userTextMachinings.Count > 0)
+            {
+                RhinoApp.WriteLine($"[ExportService3D] Found {userTextMachinings.Count} UserText operations for plate '{plate.Name}'");
+            }
+        }
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[ExportService3D] Error extracting UserText operations: {ex.Message}");
+        }
+
+        return userTextMachinings;
     }
 
     /// <summary>

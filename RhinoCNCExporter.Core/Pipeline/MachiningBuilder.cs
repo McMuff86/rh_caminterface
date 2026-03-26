@@ -3,7 +3,7 @@ using RhinoCNCExporter.Core.Models;
 namespace RhinoCNCExporter.Core.Pipeline;
 
 /// <summary>
-/// Combines machinings from multiple sources (legacy layers + blocks)
+/// Combines machinings from multiple sources (legacy layers + blocks + UserText operations)
 /// into a unified list per plate.
 /// Pure logic — receives already-parsed data.
 /// </summary>
@@ -25,6 +25,43 @@ public class MachiningBuilder : IMachiningBuilder
         {
             bool isDuplicate = blockMachinings.Any(block =>
                 AreSamePosition(legacy, block, positionTolerance));
+
+            if (!isDuplicate)
+                result.Add(legacy);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Merge machinings from all sources: legacy layers, blocks, and UserText operations.
+    /// Priority order: UserText (highest) > Blocks > Legacy Layers (lowest).
+    /// Deduplicates by position to avoid conflicts.
+    /// </summary>
+    public IReadOnlyList<Machining> MergeAllSources(
+        IReadOnlyList<Machining> legacyMachinings,
+        IReadOnlyList<Machining> blockMachinings,
+        IReadOnlyList<Machining> userTextMachinings,
+        double positionTolerance = 0.5)
+    {
+        // Start with highest priority: UserText operations
+        var result = new List<Machining>(userTextMachinings);
+
+        // Add block-based machinings if they don't conflict with UserText
+        foreach (var block in blockMachinings)
+        {
+            bool isDuplicate = userTextMachinings.Any(userText =>
+                AreSamePosition(block, userText, positionTolerance));
+
+            if (!isDuplicate)
+                result.Add(block);
+        }
+
+        // Add legacy layer-based machinings if they don't conflict with higher priority sources
+        foreach (var legacy in legacyMachinings)
+        {
+            bool isDuplicate = result.Any(existing =>
+                AreSamePosition(legacy, existing, positionTolerance));
 
             if (!isDuplicate)
                 result.Add(legacy);
