@@ -55,14 +55,21 @@ public sealed class CNCAddContourCommand : Command
             if (parameters == null)
                 return Result.Cancel;
 
+            // Get tool diameter from parameters
+            var toolDiameter = GetToolDiameter(parameters);
+
             // Apply operation to selected objects
             foreach (var obj in selectedObjects)
             {
                 CncOperationService.SetOperation(obj, CncOperationSchema.TYPE_CONTOUR, parameters);
                 CncOperationService.SetOperationColor(obj, CncOperationSchema.TYPE_CONTOUR);
 
-                // Add text dot with operation summary
-                AddOperationSummaryDot(doc, obj, CncOperationSchema.TYPE_CONTOUR, parameters);
+                // Generate and add toolpath visualization
+                if (obj.Geometry is Curve curve && toolDiameter > 0)
+                {
+                    var toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, toolDiameter);
+                    ToolpathVisualizer.AddToolpathToDocument(doc, obj, CncOperationSchema.TYPE_CONTOUR, toolpathGeometry);
+                }
             }
 
             doc.Views.Redraw();
@@ -77,39 +84,13 @@ public sealed class CNCAddContourCommand : Command
         }
     }
 
-    private void AddOperationSummaryDot(RhinoDoc doc, RhinoObject obj, string operationType, Dictionary<string, object> parameters)
+    private static double GetToolDiameter(Dictionary<string, object> parameters)
     {
-        try
-        {
-            // Get object center or first point for text placement
-            var bbox = obj.Geometry.GetBoundingBox(true);
-            var center = bbox.Center;
-
-            // Create summary text
-            var tool = parameters.GetValueOrDefault(CncOperationSchema.CNC_TOOL, "?");
-            var depth = parameters.GetValueOrDefault(CncOperationSchema.CNC_DEPTH, "?");
-            var strategy = parameters.GetValueOrDefault(CncOperationSchema.CNC_STRATEGY, CncOperationSchema.STRATEGY_BOTH);
-            
-            var summary = $"{operationType}\n{tool}\nZ{depth}\n{strategy}";
-
-            // Create text dot
-            var textDot = new TextDot(summary, center);
-            var dotId = doc.Objects.AddTextDot(textDot);
-            
-            if (dotId != Guid.Empty)
-            {
-                // Put text dot on same layer as the operation object
-                var dotObj = doc.Objects.FindId(dotId);
-                if (dotObj != null && obj.Attributes.LayerIndex >= 0)
-                {
-                    dotObj.Attributes.LayerIndex = obj.Attributes.LayerIndex;
-                    dotObj.CommitChanges();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            RhinoApp.WriteLine($"[CNCAddContour] Warning: Could not add summary dot: {ex.Message}");
-        }
+        if (parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamObj) && diamObj is double d)
+            return d;
+        // Try parsing from string
+        if (parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamStr) && double.TryParse(diamStr?.ToString(), out var parsed))
+            return parsed;
+        return 0;
     }
 }

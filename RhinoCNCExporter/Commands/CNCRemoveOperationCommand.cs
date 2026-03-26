@@ -26,7 +26,6 @@ public sealed class CNCRemoveOperationCommand : Command
                 return go.CommandResult();
 
             var objectsWithOperations = new List<RhinoObject>();
-            var textDotsToRemove = new List<Guid>();
 
             foreach (var objRef in go.Objects())
             {
@@ -36,9 +35,6 @@ public sealed class CNCRemoveOperationCommand : Command
                     if (operation != null)
                     {
                         objectsWithOperations.Add(rhinoObj);
-                        
-                        // Find associated text dots on the same layer
-                        FindAndMarkAssociatedTextDots(doc, rhinoObj, textDotsToRemove);
                     }
                 }
             }
@@ -59,17 +55,15 @@ public sealed class CNCRemoveOperationCommand : Command
             if (result != Rhino.UI.ShowMessageResult.Yes)
                 return Result.Cancel;
 
-            // Remove operations and restore colors
+            // Remove operations, toolpath geometry, and restore colors
             foreach (var obj in objectsWithOperations)
             {
+                // Remove grouped toolpath visualization geometry
+                ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+
+                // Remove CNC operation UserText
                 CncOperationService.RemoveOperation(obj);
                 CncOperationService.RestoreDefaultColor(obj);
-            }
-
-            // Remove associated text dots
-            foreach (var dotId in textDotsToRemove)
-            {
-                doc.Objects.Delete(dotId, true);
             }
 
             doc.Views.Redraw();
@@ -81,42 +75,6 @@ public sealed class CNCRemoveOperationCommand : Command
         {
             RhinoApp.WriteLine($"[CNCRemoveOperation] Fehler: {ex.Message}");
             return Result.Failure;
-        }
-    }
-
-    private void FindAndMarkAssociatedTextDots(RhinoDoc doc, RhinoObject operationObj, List<Guid> textDotsToRemove)
-    {
-        try
-        {
-            // Find text dots on the same layer that are likely operation summaries
-            var operationBBox = operationObj.Geometry.GetBoundingBox(true);
-            var searchRadius = Math.Max(operationBBox.Diagonal.Length * 0.5, 10.0); // Search within reasonable distance
-
-            var allTextDots = doc.Objects.FindByObjectType(ObjectType.TextDot);
-            foreach (var dotObj in allTextDots)
-            {
-                if (dotObj.Attributes.LayerIndex == operationObj.Attributes.LayerIndex &&
-                    dotObj.Geometry is TextDot textDot)
-                {
-                    // Check if text dot is close to the operation object
-                    var distance = operationBBox.Center.DistanceTo(textDot.Point);
-                    if (distance <= searchRadius)
-                    {
-                        // Check if text contains typical operation keywords
-                        var text = textDot.Text.ToUpperInvariant();
-                        if (text.Contains("CONTOUR") || text.Contains("POCKET") || 
-                            text.Contains("DRILL") || text.Contains("GROOVE") ||
-                            text.Contains("ROUGH") || text.Contains("FINISH"))
-                        {
-                            textDotsToRemove.Add(dotObj.Id);
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            RhinoApp.WriteLine($"[CNCRemoveOperation] Warning: Error finding text dots: {ex.Message}");
         }
     }
 }

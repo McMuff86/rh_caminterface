@@ -23,6 +23,7 @@ public static class CncOperationSchema
     public const string CNC_PECK = "CNC_Peck";
     public const string CNC_PECK_DEPTH = "CNC_PeckDepth";
     public const string CNC_RAMP_ENTRY = "CNC_RampEntry";
+    public const string CNC_GROUP_INDEX = "CNC_GroupIndex";
 
     // --- Operation Types ---
     public const string TYPE_CONTOUR = "Contour";

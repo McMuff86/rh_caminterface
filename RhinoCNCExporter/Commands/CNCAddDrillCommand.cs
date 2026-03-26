@@ -112,8 +112,9 @@ public sealed class CNCAddDrillCommand : Command
                         CncOperationService.SetOperationColor(circleObj, CncOperationSchema.TYPE_DRILL);
                         createdObjects.Add(circleObj);
 
-                        // Add text dot with operation summary
-                        AddOperationSummaryDot(doc, circleObj, CncOperationSchema.TYPE_DRILL, parameters);
+                        // Generate and add toolpath visualization (crosshair + circle)
+                        var toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(point, diameter);
+                        ToolpathVisualizer.AddToolpathToDocument(doc, circleObj, CncOperationSchema.TYPE_DRILL, toolpathGeometry);
                     }
                 }
             }
@@ -127,49 +128,6 @@ public sealed class CNCAddDrillCommand : Command
         {
             RhinoApp.WriteLine($"[CNCAddDrill] Fehler: {ex.Message}");
             return Result.Failure;
-        }
-    }
-
-    private void AddOperationSummaryDot(RhinoDoc doc, RhinoObject obj, string operationType, Dictionary<string, object> parameters)
-    {
-        try
-        {
-            // Get object center for text placement
-            var bbox = obj.Geometry.GetBoundingBox(true);
-            var center = bbox.Center;
-
-            // Create summary text
-            var diameter = parameters.GetValueOrDefault(CncOperationSchema.CNC_DIAMETER, "?");
-            var depth = parameters.GetValueOrDefault(CncOperationSchema.CNC_DEPTH, "?");
-            
-            var summary = $"{operationType}\n⌀{diameter}\nZ{depth}";
-            
-            // Add peck info if enabled
-            if (parameters.ContainsKey(CncOperationSchema.CNC_PECK) && 
-                parameters[CncOperationSchema.CNC_PECK] is true)
-            {
-                var peckDepth = parameters.GetValueOrDefault(CncOperationSchema.CNC_PECK_DEPTH, "?");
-                summary += $"\nPeck {peckDepth}";
-            }
-
-            // Create text dot
-            var textDot = new TextDot(summary, center);
-            var dotId = doc.Objects.AddTextDot(textDot);
-            
-            if (dotId != Guid.Empty)
-            {
-                // Put text dot on same layer as the operation object
-                var dotObj = doc.Objects.FindId(dotId);
-                if (dotObj != null && obj.Attributes.LayerIndex >= 0)
-                {
-                    dotObj.Attributes.LayerIndex = obj.Attributes.LayerIndex;
-                    dotObj.CommitChanges();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            RhinoApp.WriteLine($"[CNCAddDrill] Warning: Could not add summary dot: {ex.Message}");
         }
     }
 }

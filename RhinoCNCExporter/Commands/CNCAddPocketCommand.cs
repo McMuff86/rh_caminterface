@@ -60,14 +60,22 @@ public sealed class CNCAddPocketCommand : Command
             if (parameters == null)
                 return Result.Cancel;
 
+            // Get tool diameter and stepover from parameters
+            var toolDiameter = GetToolDiameter(parameters);
+            var stepover = GetStepover(parameters);
+
             // Apply operation to selected objects
             foreach (var obj in selectedObjects)
             {
                 CncOperationService.SetOperation(obj, CncOperationSchema.TYPE_POCKET, parameters);
                 CncOperationService.SetOperationColor(obj, CncOperationSchema.TYPE_POCKET);
 
-                // Add text dot with operation summary
-                AddOperationSummaryDot(doc, obj, CncOperationSchema.TYPE_POCKET, parameters);
+                // Generate and add toolpath visualization
+                if (obj.Geometry is Curve curve && toolDiameter > 0)
+                {
+                    var toolpathGeometry = ToolpathVisualizer.CreatePocketToolpath(curve, toolDiameter, stepover);
+                    ToolpathVisualizer.AddToolpathToDocument(doc, obj, CncOperationSchema.TYPE_POCKET, toolpathGeometry);
+                }
             }
 
             doc.Views.Redraw();
@@ -82,40 +90,21 @@ public sealed class CNCAddPocketCommand : Command
         }
     }
 
-    private void AddOperationSummaryDot(RhinoDoc doc, RhinoObject obj, string operationType, Dictionary<string, object> parameters)
+    private static double GetToolDiameter(Dictionary<string, object> parameters)
     {
-        try
-        {
-            // Get object center for text placement
-            var bbox = obj.Geometry.GetBoundingBox(true);
-            var center = bbox.Center;
+        if (parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamObj) && diamObj is double d)
+            return d;
+        if (parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamStr) && double.TryParse(diamStr?.ToString(), out var parsed))
+            return parsed;
+        return 0;
+    }
 
-            // Create summary text
-            var tool = parameters.GetValueOrDefault(CncOperationSchema.CNC_TOOL, "?");
-            var depth = parameters.GetValueOrDefault(CncOperationSchema.CNC_DEPTH, "?");
-            var stepover = parameters.GetValueOrDefault(CncOperationSchema.CNC_STEPOVER, "?");
-            var strategy = parameters.GetValueOrDefault(CncOperationSchema.CNC_STRATEGY, CncOperationSchema.STRATEGY_BOTH);
-            
-            var summary = $"{operationType}\n{tool}\nZ{depth}\n{stepover}%\n{strategy}";
-
-            // Create text dot
-            var textDot = new TextDot(summary, center);
-            var dotId = doc.Objects.AddTextDot(textDot);
-            
-            if (dotId != Guid.Empty)
-            {
-                // Put text dot on same layer as the operation object
-                var dotObj = doc.Objects.FindId(dotId);
-                if (dotObj != null && obj.Attributes.LayerIndex >= 0)
-                {
-                    dotObj.Attributes.LayerIndex = obj.Attributes.LayerIndex;
-                    dotObj.CommitChanges();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            RhinoApp.WriteLine($"[CNCAddPocket] Warning: Could not add summary dot: {ex.Message}");
-        }
+    private static double GetStepover(Dictionary<string, object> parameters)
+    {
+        if (parameters.TryGetValue(CncOperationSchema.CNC_STEPOVER, out var stepObj) && stepObj is double s)
+            return s;
+        if (parameters.TryGetValue(CncOperationSchema.CNC_STEPOVER, out var stepStr) && double.TryParse(stepStr?.ToString(), out var parsed))
+            return parsed;
+        return 45.0; // Default 45% stepover
     }
 }

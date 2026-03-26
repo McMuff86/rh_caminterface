@@ -55,14 +55,21 @@ public sealed class CNCAddGrooveCommand : Command
             if (parameters == null)
                 return Result.Cancel;
 
+            // Get groove width (tool diameter for visualization)
+            var grooveWidth = GetGrooveWidth(parameters);
+
             // Apply operation to selected objects
             foreach (var obj in selectedObjects)
             {
                 CncOperationService.SetOperation(obj, CncOperationSchema.TYPE_GROOVE, parameters);
                 CncOperationService.SetOperationColor(obj, CncOperationSchema.TYPE_GROOVE);
 
-                // Add text dot with operation summary
-                AddOperationSummaryDot(doc, obj, CncOperationSchema.TYPE_GROOVE, parameters);
+                // Generate and add toolpath visualization (same as contour — offset curves show groove width)
+                if (obj.Geometry is Curve curve && grooveWidth > 0)
+                {
+                    var toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, grooveWidth);
+                    ToolpathVisualizer.AddToolpathToDocument(doc, obj, CncOperationSchema.TYPE_GROOVE, toolpathGeometry);
+                }
             }
 
             doc.Views.Redraw();
@@ -77,47 +84,17 @@ public sealed class CNCAddGrooveCommand : Command
         }
     }
 
-    private void AddOperationSummaryDot(RhinoDoc doc, RhinoObject obj, string operationType, Dictionary<string, object> parameters)
+    private static double GetGrooveWidth(Dictionary<string, object> parameters)
     {
-        try
-        {
-            // Get curve midpoint or start for text placement
-            Point3d textPoint;
-            if (obj.Geometry is Curve curve)
-            {
-                textPoint = curve.PointAtNormalizedLength(0.5); // Midpoint
-            }
-            else
-            {
-                var bbox = obj.Geometry.GetBoundingBox(true);
-                textPoint = bbox.Center;
-            }
-
-            // Create summary text
-            var tool = parameters.GetValueOrDefault(CncOperationSchema.CNC_TOOL, "?");
-            var width = parameters.GetValueOrDefault(CncOperationSchema.CNC_WIDTH, "?");
-            var depth = parameters.GetValueOrDefault(CncOperationSchema.CNC_DEPTH, "?");
-            
-            var summary = $"{operationType}\n{tool}\nB{width}\nZ{depth}";
-
-            // Create text dot
-            var textDot = new TextDot(summary, textPoint);
-            var dotId = doc.Objects.AddTextDot(textDot);
-            
-            if (dotId != Guid.Empty)
-            {
-                // Put text dot on same layer as the operation object
-                var dotObj = doc.Objects.FindId(dotId);
-                if (dotObj != null && obj.Attributes.LayerIndex >= 0)
-                {
-                    dotObj.Attributes.LayerIndex = obj.Attributes.LayerIndex;
-                    dotObj.CommitChanges();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            RhinoApp.WriteLine($"[CNCAddGroove] Warning: Could not add summary dot: {ex.Message}");
-        }
+        // Try CNC_Width first (groove-specific), then CNC_Diameter
+        if (parameters.TryGetValue(CncOperationSchema.CNC_WIDTH, out var widthObj) && widthObj is double w)
+            return w;
+        if (parameters.TryGetValue(CncOperationSchema.CNC_WIDTH, out var widthStr) && double.TryParse(widthStr?.ToString(), out var parsed))
+            return parsed;
+        if (parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamObj) && diamObj is double d)
+            return d;
+        if (parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamStr) && double.TryParse(diamStr?.ToString(), out var parsed2))
+            return parsed2;
+        return 0;
     }
 }
