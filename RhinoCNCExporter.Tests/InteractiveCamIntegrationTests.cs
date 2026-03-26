@@ -1,5 +1,6 @@
 using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Pipeline;
+using Xunit;
 
 namespace RhinoCNCExporter.Tests;
 

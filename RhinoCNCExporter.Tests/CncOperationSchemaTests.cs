@@ -1,4 +1,5 @@
 using RhinoCNCExporter.Core.Blocks;
+using Xunit;
 
 namespace RhinoCNCExporter.Tests;
 

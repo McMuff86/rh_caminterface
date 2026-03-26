@@ -141,39 +141,4 @@ public static class CncOperationService
     }
 }
 
-/// <summary>
-/// Represents a CNC machining operation parsed from UserText.
-/// </summary>
-public record MachiningOperation(string Type, IReadOnlyDictionary<string, string> Parameters)
-{
-    public string? Tool => Parameters.GetValueOrDefault(CncOperationSchema.CNC_TOOL);
-    public double? Depth => TryGetDouble(CncOperationSchema.CNC_DEPTH);
-    public double? Diameter => TryGetDouble(CncOperationSchema.CNC_DIAMETER);
-    public double? Width => TryGetDouble(CncOperationSchema.CNC_WIDTH);
-    public string? Strategy => Parameters.GetValueOrDefault(CncOperationSchema.CNC_STRATEGY);
-    public double? Feedrate => TryGetDouble(CncOperationSchema.CNC_FEEDRATE);
-    public double? Stepover => TryGetDouble(CncOperationSchema.CNC_STEPOVER);
-    public bool? Peck => TryGetBool(CncOperationSchema.CNC_PECK);
-    public double? PeckDepth => TryGetDouble(CncOperationSchema.CNC_PECK_DEPTH);
-    public string? RampEntry => Parameters.GetValueOrDefault(CncOperationSchema.CNC_RAMP_ENTRY);
-
-    private double? TryGetDouble(string key)
-    {
-        if (Parameters.TryGetValue(key, out var value) &&
-            double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
-        {
-            return result;
-        }
-        return null;
-    }
-
-    private bool? TryGetBool(string key)
-    {
-        if (Parameters.TryGetValue(key, out var value) &&
-            bool.TryParse(value, out var result))
-        {
-            return result;
-        }
-        return null;
-    }
-}
+// MachiningOperation record is defined in RhinoCNCExporter.Core.Blocks.CncOperationSchema
