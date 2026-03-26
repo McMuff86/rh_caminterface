@@ -11,9 +11,9 @@ namespace RhinoCNCExporter.UI;
 /// </summary>
 public sealed class ContourOperationDialog : CamOperationDialogBase
 {
-    private DropDown _operationTypeDropDown;
-    private DropDown _strategyDropDown;
-    private TextBox _feedrateTextBox;
+    private DropDown _operationTypeDropDown = null!;
+    private DropDown _strategyDropDown = null!;
+    private TextBox _feedrateTextBox = null!;
 
     public ContourOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary) 
         : base(toolLibraryStore, toolLibrary, "Kontur-Bearbeitung hinzufügen", ToolKind.Router)
@@ -123,8 +123,4 @@ public sealed class ContourOperationDialog : CamOperationDialogBase
         return parameters;
     }
 
-    private void ShowError(string message)
-    {
-        MessageBox.Show(this, message, "Fehler", MessageBoxType.Error);
-    }
 }

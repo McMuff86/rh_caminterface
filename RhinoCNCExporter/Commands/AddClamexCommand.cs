@@ -39,10 +39,13 @@ public sealed class AddClamexCommand : Command
         if (result == GetResult.Option)
         {
             var selectedOption = getOption.Option();
-            if (selectedOption.Index == option0) orientation = 0;
-            else if (selectedOption.Index == option90) orientation = 90;
-            else if (selectedOption.Index == option180) orientation = 180;
-            else if (selectedOption.Index == option270) orientation = 270;
+            if (selectedOption != null)
+            {
+                if (selectedOption.Index == option0) orientation = 0;
+                else if (selectedOption.Index == option90) orientation = 90;
+                else if (selectedOption.Index == option180) orientation = 180;
+                else if (selectedOption.Index == option270) orientation = 270;
+            }
         }
         else if (result != GetResult.Nothing) // User can press Enter for default
         {
@@ -179,7 +182,7 @@ public sealed class AddClamexCommand : Command
             }
 
             // Find the first valid result
-            Brep newBrep = null;
+            Brep? newBrep = null;
             foreach (var brep in result)
             {
                 if (brep != null && brep.IsValid)

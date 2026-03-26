@@ -23,7 +23,7 @@ public sealed class CNCAddDrillCommand : Command
         {
             // Load tool library first to have parameters ready
             var toolLibraryStore = new ToolLibraryStore();
-            var profile = new ScmProfile(); // Use default SCM profile
+            var profile = new ScmProfile();
             var toolLibrary = toolLibraryStore.LoadOrCreate(profile);
 
             // Show dialog for drill parameters
@@ -44,13 +44,10 @@ public sealed class CNCAddDrillCommand : Command
 
             if (go.CommandResult() == Result.Success && go.ObjectCount > 0)
             {
-                // Use selected points
                 foreach (var objRef in go.Objects())
                 {
                     if (objRef.Point() != null)
-                    {
                         drillPoints.Add(objRef.Point().Location);
-                    }
                 }
 
                 RhinoApp.WriteLine($"{drillPoints.Count} vorhandene Punkte ausgewählt.");
@@ -60,11 +57,11 @@ public sealed class CNCAddDrillCommand : Command
                 // Option 2: Manual point picking
                 var gp = new Rhino.Input.Custom.GetPoint();
                 gp.SetCommandPrompt("Erste Bohrposition anklicken");
-                
+
                 while (true)
                 {
                     var result = gp.Get();
-                    
+
                     if (result == GetResult.Point)
                     {
                         drillPoints.Add(gp.Point());
@@ -74,11 +71,10 @@ public sealed class CNCAddDrillCommand : Command
                     }
                     else if (result == GetResult.Nothing)
                     {
-                        break; // User pressed Enter to finish
+                        break;
                     }
                     else
                     {
-                        // User cancelled or error
                         if (drillPoints.Count == 0)
                             return Result.Cancel;
                         break;
@@ -92,37 +88,44 @@ public sealed class CNCAddDrillCommand : Command
                 return Result.Nothing;
             }
 
-            // Create drill objects at each point
-            var createdObjects = new List<RhinoObject>();
-            var diameter = (double)parameters[CncOperationSchema.CNC_DIAMETER];
+            // Begin undo record
+            var undoSerial = doc.BeginUndoRecord("CNC Add Drill");
 
-            foreach (var point in drillPoints)
+            try
             {
-                // Create a circle at the drill point to visualize the hole
-                var circle = new Circle(point, diameter / 2.0);
-                var circleId = doc.Objects.AddCircle(circle);
+                var diameter = parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var dObj) && dObj is double d
+                    ? d
+                    : 5.0;
 
-                if (circleId != Guid.Empty)
+                int count = 0;
+                foreach (var point in drillPoints)
                 {
+                    var circle = new Circle(point, diameter / 2.0);
+                    var circleId = doc.Objects.AddCircle(circle);
+
+                    if (circleId == Guid.Empty) continue;
+
                     var circleObj = doc.Objects.FindId(circleId);
-                    if (circleObj != null)
-                    {
-                        // Apply drill operation
-                        CncOperationService.SetOperation(circleObj, CncOperationSchema.TYPE_DRILL, parameters);
-                        CncOperationService.SetOperationColor(circleObj, CncOperationSchema.TYPE_DRILL);
-                        createdObjects.Add(circleObj);
+                    if (circleObj == null) continue;
 
-                        // Generate and add toolpath visualization (crosshair + circle)
-                        var toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(point, diameter);
-                        ToolpathVisualizer.AddToolpathToDocument(doc, circleObj, CncOperationSchema.TYPE_DRILL, toolpathGeometry);
-                    }
+                    CncOperationService.SetOperation(circleObj, CncOperationSchema.TYPE_DRILL, parameters);
+                    CncOperationService.SetOperationColor(circleObj, CncOperationSchema.TYPE_DRILL);
+
+                    var toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(point, diameter);
+                    ToolpathVisualizer.AddToolpathToDocument(doc, circleObj, CncOperationSchema.TYPE_DRILL, toolpathGeometry);
+                    count++;
                 }
+
+                doc.EndUndoRecord(undoSerial);
+                doc.Views.Redraw();
+                RhinoApp.WriteLine($"{count} Bohrung(en) erstellt.");
+                return Result.Success;
             }
-
-            doc.Views.Redraw();
-            RhinoApp.WriteLine($"{createdObjects.Count} Bohrung(en) erstellt.");
-
-            return Result.Success;
+            catch
+            {
+                doc.EndUndoRecord(undoSerial);
+                throw;
+            }
         }
         catch (Exception ex)
         {

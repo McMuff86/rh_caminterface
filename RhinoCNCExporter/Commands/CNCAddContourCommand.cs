@@ -2,7 +2,6 @@ using Rhino;
 using Rhino.Commands;
 using Rhino.DocObjects;
 using Rhino.Geometry;
-using Rhino.Input;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Profiles;
 using RhinoCNCExporter.Services;
@@ -12,6 +11,8 @@ namespace RhinoCNCExporter.Commands;
 
 /// <summary>
 /// Interactive command to add contour machining operations to selected curves/edges.
+/// When a Brep edge is selected, it is extracted as a standalone curve so that
+/// UserText is stored independently of the parent Brep.
 /// </summary>
 public sealed class CNCAddContourCommand : Command
 {
@@ -30,32 +31,9 @@ public sealed class CNCAddContourCommand : Command
             if (go.CommandResult() != Result.Success)
                 return go.CommandResult();
 
-            // Collect both the RhinoObject (for UserText) and the actual curve geometry
-            // (which may differ when edges of a Brep are selected)
-            var selections = new List<(RhinoObject obj, Curve curve)>();
-            foreach (var objRef in go.Objects())
-            {
-                var rhinoObj = objRef.Object();
-                if (rhinoObj == null) continue;
-
-                // Try to get the actual curve — works for standalone curves AND Brep edges
-                var curve = objRef.Curve();
-                if (curve == null && rhinoObj.Geometry is Curve directCurve)
-                    curve = directCurve;
-
-                if (curve != null)
-                    selections.Add((rhinoObj, curve));
-            }
-
-            if (selections.Count == 0)
-            {
-                RhinoApp.WriteLine("Keine gültigen Objekte ausgewählt.");
-                return Result.Nothing;
-            }
-
             // Load tool library
             var toolLibraryStore = new ToolLibraryStore();
-            var profile = new ScmProfile(); // Use default SCM profile
+            var profile = new ScmProfile();
             var toolLibrary = toolLibraryStore.LoadOrCreate(profile);
 
             // Show dialog for operation parameters
@@ -65,27 +43,62 @@ public sealed class CNCAddContourCommand : Command
             if (parameters == null)
                 return Result.Cancel;
 
-            // Get tool diameter from parameters
             var toolDiameter = GetToolDiameter(parameters);
 
-            // Apply operation to selected objects
-            foreach (var (obj, curve) in selections)
+            // Begin undo record
+            var undoSerial = doc.BeginUndoRecord("CNC Add Contour");
+
+            try
             {
-                CncOperationService.SetOperation(obj, CncOperationSchema.TYPE_CONTOUR, parameters);
-                CncOperationService.SetOperationColor(obj, CncOperationSchema.TYPE_CONTOUR);
-
-                // Generate and add toolpath visualization using the actual curve geometry
-                if (toolDiameter > 0)
+                int count = 0;
+                foreach (var objRef in go.Objects())
                 {
-                    var toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, toolDiameter);
-                    ToolpathVisualizer.AddToolpathToDocument(doc, obj, CncOperationSchema.TYPE_CONTOUR, toolpathGeometry);
+                    RhinoObject targetObj;
+                    Curve? curve;
+
+                    if (EdgeCurveHelper.IsBrepEdge(objRef))
+                    {
+                        // Extract edge as standalone curve
+                        var color = CncOperationService.GetOperationColor(CncOperationSchema.TYPE_CONTOUR);
+                        var extracted = EdgeCurveHelper.ExtractEdgeCurve(doc, objRef, color);
+                        if (extracted == null) continue;
+
+                        targetObj = extracted;
+                        curve = extracted.Geometry as Curve;
+                    }
+                    else
+                    {
+                        var rhinoObj = objRef.Object();
+                        if (rhinoObj == null) continue;
+
+                        curve = objRef.Curve() ?? rhinoObj.Geometry as Curve;
+                        if (curve == null) continue;
+
+                        targetObj = rhinoObj;
+                        CncOperationService.SetOperationColor(targetObj, CncOperationSchema.TYPE_CONTOUR);
+                    }
+
+                    CncOperationService.SetOperation(targetObj, CncOperationSchema.TYPE_CONTOUR, parameters);
+
+                    if (toolDiameter > 0 && curve != null)
+                    {
+                        var toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, toolDiameter);
+                        ToolpathVisualizer.AddToolpathToDocument(doc, targetObj, CncOperationSchema.TYPE_CONTOUR, toolpathGeometry);
+                    }
+
+                    count++;
                 }
+
+                doc.EndUndoRecord(undoSerial);
+                doc.Views.Redraw();
+                RhinoApp.WriteLine($"Konturbearbeitung zu {count} Objekt(en) hinzugefügt.");
+                return Result.Success;
             }
-
-            doc.Views.Redraw();
-            RhinoApp.WriteLine($"Konturbearbeitung zu {selections.Count} Objekt(en) hinzugefügt.");
-
-            return Result.Success;
+            catch
+            {
+                doc.EndUndoRecord(undoSerial);
+                throw;
+            }
         }
         catch (Exception ex)
         {
@@ -98,7 +111,6 @@ public sealed class CNCAddContourCommand : Command
     {
         if (parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamObj) && diamObj is double d)
             return d;
-        // Try parsing from string
         if (parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamStr) && double.TryParse(diamStr?.ToString(), out var parsed))
             return parsed;
         return 0;

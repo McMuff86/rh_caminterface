@@ -1,13 +1,13 @@
 using Rhino;
 using Rhino.Commands;
 using Rhino.DocObjects;
-using Rhino.Geometry;
 using RhinoCNCExporter.Services;
 
 namespace RhinoCNCExporter.Commands;
 
 /// <summary>
 /// Interactive command to remove CNC operations from selected objects.
+/// Handles both standalone curves and extracted edge curves.
 /// </summary>
 public sealed class CNCRemoveOperationCommand : Command
 {
@@ -17,7 +17,6 @@ public sealed class CNCRemoveOperationCommand : Command
     {
         try
         {
-            // Get object selection
             var go = new Rhino.Input.Custom.GetObject();
             go.SetCommandPrompt("Objekte auswählen um CNC-Bearbeitungen zu entfernen");
             go.GetMultiple(1, 0);
@@ -33,9 +32,7 @@ public sealed class CNCRemoveOperationCommand : Command
                 {
                     var operation = CncOperationService.GetOperation(rhinoObj);
                     if (operation != null)
-                    {
                         objectsWithOperations.Add(rhinoObj);
-                    }
                 }
             }
 
@@ -45,7 +42,6 @@ public sealed class CNCRemoveOperationCommand : Command
                 return Result.Nothing;
             }
 
-            // Confirm removal
             var result = Rhino.UI.Dialogs.ShowMessage(
                 $"CNC-Bearbeitungen von {objectsWithOperations.Count} Objekt(en) entfernen?",
                 "Bestätigung",
@@ -55,21 +51,37 @@ public sealed class CNCRemoveOperationCommand : Command
             if (result != Rhino.UI.ShowMessageResult.Yes)
                 return Result.Cancel;
 
-            // Remove operations, toolpath geometry, and restore colors
-            foreach (var obj in objectsWithOperations)
+            // Begin undo record
+            var undoSerial = doc.BeginUndoRecord("CNC Remove Operation");
+
+            try
             {
-                // Remove grouped toolpath visualization geometry
-                ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+                foreach (var obj in objectsWithOperations)
+                {
+                    ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+                    CncOperationService.RemoveOperation(obj);
 
-                // Remove CNC operation UserText
-                CncOperationService.RemoveOperation(obj);
-                CncOperationService.RestoreDefaultColor(obj);
+                    if (EdgeCurveHelper.IsExtractedEdgeCurve(obj))
+                    {
+                        // Delete the extracted edge curve entirely
+                        doc.Objects.Delete(obj.Id, true);
+                    }
+                    else
+                    {
+                        CncOperationService.RestoreDefaultColor(obj);
+                    }
+                }
+
+                doc.EndUndoRecord(undoSerial);
+                doc.Views.Redraw();
+                RhinoApp.WriteLine($"CNC-Bearbeitungen von {objectsWithOperations.Count} Objekt(en) entfernt.");
+                return Result.Success;
             }
-
-            doc.Views.Redraw();
-            RhinoApp.WriteLine($"CNC-Bearbeitungen von {objectsWithOperations.Count} Objekt(en) entfernt.");
-
-            return Result.Success;
+            catch
+            {
+                doc.EndUndoRecord(undoSerial);
+                throw;
+            }
         }
         catch (Exception ex)
         {

@@ -25,6 +25,12 @@ public static class CncOperationSchema
     public const string CNC_RAMP_ENTRY = "CNC_RampEntry";
     public const string CNC_GROUP_INDEX = "CNC_GroupIndex";
 
+    // --- Edge Extraction Reference Keys ---
+    /// <summary>Source Brep GUID when this curve was extracted from a Brep edge.</summary>
+    public const string CNC_SOURCE_BREP = "CNC_SourceBrep";
+    /// <summary>Edge index on the source Brep this curve was extracted from.</summary>
+    public const string CNC_SOURCE_EDGE_INDEX = "CNC_SourceEdgeIndex";
+
     // --- Operation Types ---
     public const string TYPE_CONTOUR = "Contour";
     public const string TYPE_POCKET = "Pocket";

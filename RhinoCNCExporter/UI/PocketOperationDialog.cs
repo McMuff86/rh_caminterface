@@ -11,9 +11,9 @@ namespace RhinoCNCExporter.UI;
 /// </summary>
 public sealed class PocketOperationDialog : CamOperationDialogBase
 {
-    private TextBox _stepoverTextBox;
-    private DropDown _strategyDropDown;
-    private DropDown _rampEntryDropDown;
+    private TextBox _stepoverTextBox = null!;
+    private DropDown _strategyDropDown = null!;
+    private DropDown _rampEntryDropDown = null!;
 
     public PocketOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary) 
         : base(toolLibraryStore, toolLibrary, "Tasche hinzufügen", ToolKind.Router)
@@ -134,8 +134,4 @@ public sealed class PocketOperationDialog : CamOperationDialogBase
         return parameters;
     }
 
-    private void ShowError(string message)
-    {
-        MessageBox.Show(this, message, "Fehler", MessageBoxType.Error);
-    }
 }

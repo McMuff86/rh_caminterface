@@ -11,9 +11,9 @@ namespace RhinoCNCExporter.UI;
 /// </summary>
 public sealed class DrillOperationDialog : CamOperationDialogBase
 {
-    private TextBox _diameterTextBox;
-    private CheckBox _peckDrillingCheckBox;
-    private TextBox _peckDepthTextBox;
+    private TextBox _diameterTextBox = null!;
+    private CheckBox _peckDrillingCheckBox = null!;
+    private TextBox _peckDepthTextBox = null!;
 
     public DrillOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary) 
         : base(toolLibraryStore, toolLibrary, "Bohrung hinzufügen", ToolKind.Drill)
@@ -150,8 +150,4 @@ public sealed class DrillOperationDialog : CamOperationDialogBase
         return parameters;
     }
 
-    private void ShowError(string message)
-    {
-        MessageBox.Show(this, message, "Fehler", MessageBoxType.Error);
-    }
 }

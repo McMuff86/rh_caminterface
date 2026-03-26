@@ -50,7 +50,7 @@ public static class CncOperationService
         {
             if (key.StartsWith("CNC_", StringComparison.OrdinalIgnoreCase))
             {
-                parameters[key] = userStrings[key];
+                parameters[key] = userStrings[key] ?? string.Empty;
             }
         }
 
@@ -96,20 +96,26 @@ public static class CncOperationService
     }
 
     /// <summary>
-    /// Sets visual feedback color for an operation type.
+    /// Gets the color associated with an operation type (for use in edge extraction etc.).
+    /// </summary>
+    public static System.Drawing.Color GetOperationColor(string operationType)
+    {
+        return (operationType ?? string.Empty).ToUpperInvariant() switch
+        {
+            "CONTOUR" => System.Drawing.Color.Red,
+            "POCKET" => System.Drawing.Color.Blue,
+            "DRILL" => System.Drawing.Color.Yellow,
+            "GROOVE" => System.Drawing.Color.Green,
+            _ => System.Drawing.Color.Gray
+        };
+    }
+
+    /// <summary>
+    /// Sets visual feedback color for an operation type on a Rhino object.
     /// </summary>
     public static void SetOperationColor(RhinoObject rhinoObject, string operationType)
     {
-        var color = operationType?.ToUpperInvariant() switch
-        {
-            CncOperationSchema.TYPE_CONTOUR => System.Drawing.Color.Red,
-            CncOperationSchema.TYPE_POCKET => System.Drawing.Color.Blue,
-            CncOperationSchema.TYPE_DRILL => System.Drawing.Color.Yellow,
-            CncOperationSchema.TYPE_GROOVE => System.Drawing.Color.Green,
-            _ => rhinoObject.Attributes.ObjectColor
-        };
-
-        rhinoObject.Attributes.ObjectColor = color;
+        rhinoObject.Attributes.ObjectColor = GetOperationColor(operationType);
         rhinoObject.Attributes.ColorSource = ObjectColorSource.ColorFromObject;
         rhinoObject.CommitChanges();
     }

@@ -17,11 +17,11 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
     protected readonly ToolLibrary _toolLibrary;
     protected readonly List<ToolDefinition> _availableTools;
 
-    protected DropDown _toolDropDown;
-    protected TextBox _depthTextBox;
-    protected Label _toolInfoLabel;
-    protected Button _okButton;
-    protected Button _cancelButton;
+    protected DropDown _toolDropDown = null!;
+    protected TextBox _depthTextBox = null!;
+    protected Label _toolInfoLabel = null!;
+    protected Button _okButton = null!;
+    protected Button _cancelButton = null!;
 
     protected CamOperationDialogBase(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary, string title, ToolKind toolKind)
     {
@@ -263,7 +263,7 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
         };
     }
 
-    private void ShowError(string message)
+    protected void ShowError(string message)
     {
         MessageBox.Show(this, message, "Fehler", MessageBoxType.Error);
     }

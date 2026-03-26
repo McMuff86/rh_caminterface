@@ -2,7 +2,6 @@ using Rhino;
 using Rhino.Commands;
 using Rhino.DocObjects;
 using Rhino.Geometry;
-using Rhino.Input;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Profiles;
 using RhinoCNCExporter.Services;
@@ -12,6 +11,7 @@ namespace RhinoCNCExporter.Commands;
 
 /// <summary>
 /// Interactive command to add groove (nut) operations to selected lines/curves.
+/// When a Brep edge is selected, it is extracted as a standalone curve.
 /// </summary>
 public sealed class CNCAddGrooveCommand : Command
 {
@@ -24,36 +24,15 @@ public sealed class CNCAddGrooveCommand : Command
             // Get curve selection for groove path
             var go = new Rhino.Input.Custom.GetObject();
             go.SetCommandPrompt("Linien oder Kurven für Nut auswählen");
-            go.GeometryFilter = ObjectType.Curve;
+            go.GeometryFilter = ObjectType.Curve | ObjectType.EdgeFilter;
             go.GetMultiple(1, 0);
 
             if (go.CommandResult() != Result.Success)
                 return go.CommandResult();
 
-            // Collect both the RhinoObject (for UserText) and the actual curve geometry
-            var selections = new List<(RhinoObject obj, Curve curve)>();
-            foreach (var objRef in go.Objects())
-            {
-                var rhinoObj = objRef.Object();
-                if (rhinoObj == null) continue;
-
-                var curve = objRef.Curve();
-                if (curve == null && rhinoObj.Geometry is Curve directCurve)
-                    curve = directCurve;
-
-                if (curve != null)
-                    selections.Add((rhinoObj, curve));
-            }
-
-            if (selections.Count == 0)
-            {
-                RhinoApp.WriteLine("Keine gültigen Kurven ausgewählt.");
-                return Result.Nothing;
-            }
-
             // Load tool library
             var toolLibraryStore = new ToolLibraryStore();
-            var profile = new ScmProfile(); // Use default SCM profile
+            var profile = new ScmProfile();
             var toolLibrary = toolLibraryStore.LoadOrCreate(profile);
 
             // Show dialog for groove parameters
@@ -63,27 +42,61 @@ public sealed class CNCAddGrooveCommand : Command
             if (parameters == null)
                 return Result.Cancel;
 
-            // Get groove width (tool diameter for visualization)
             var grooveWidth = GetGrooveWidth(parameters);
 
-            // Apply operation to selected objects
-            foreach (var (obj, curve) in selections)
+            // Begin undo record
+            var undoSerial = doc.BeginUndoRecord("CNC Add Groove");
+
+            try
             {
-                CncOperationService.SetOperation(obj, CncOperationSchema.TYPE_GROOVE, parameters);
-                CncOperationService.SetOperationColor(obj, CncOperationSchema.TYPE_GROOVE);
-
-                // Generate and add toolpath visualization (same as contour — offset curves show groove width)
-                if (grooveWidth > 0)
+                int count = 0;
+                foreach (var objRef in go.Objects())
                 {
-                    var toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, grooveWidth);
-                    ToolpathVisualizer.AddToolpathToDocument(doc, obj, CncOperationSchema.TYPE_GROOVE, toolpathGeometry);
+                    RhinoObject targetObj;
+                    Curve? curve;
+
+                    if (EdgeCurveHelper.IsBrepEdge(objRef))
+                    {
+                        var color = CncOperationService.GetOperationColor(CncOperationSchema.TYPE_GROOVE);
+                        var extracted = EdgeCurveHelper.ExtractEdgeCurve(doc, objRef, color);
+                        if (extracted == null) continue;
+
+                        targetObj = extracted;
+                        curve = extracted.Geometry as Curve;
+                    }
+                    else
+                    {
+                        var rhinoObj = objRef.Object();
+                        if (rhinoObj == null) continue;
+
+                        curve = objRef.Curve() ?? rhinoObj.Geometry as Curve;
+                        if (curve == null) continue;
+
+                        targetObj = rhinoObj;
+                        CncOperationService.SetOperationColor(targetObj, CncOperationSchema.TYPE_GROOVE);
+                    }
+
+                    CncOperationService.SetOperation(targetObj, CncOperationSchema.TYPE_GROOVE, parameters);
+
+                    if (grooveWidth > 0 && curve != null)
+                    {
+                        var toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, grooveWidth);
+                        ToolpathVisualizer.AddToolpathToDocument(doc, targetObj, CncOperationSchema.TYPE_GROOVE, toolpathGeometry);
+                    }
+
+                    count++;
                 }
+
+                doc.EndUndoRecord(undoSerial);
+                doc.Views.Redraw();
+                RhinoApp.WriteLine($"Nut-Bearbeitung zu {count} Objekt(en) hinzugefügt.");
+                return Result.Success;
             }
-
-            doc.Views.Redraw();
-            RhinoApp.WriteLine($"Nut-Bearbeitung zu {selections.Count} Objekt(en) hinzugefügt.");
-
-            return Result.Success;
+            catch
+            {
+                doc.EndUndoRecord(undoSerial);
+                throw;
+            }
         }
         catch (Exception ex)
         {
@@ -94,7 +107,6 @@ public sealed class CNCAddGrooveCommand : Command
 
     private static double GetGrooveWidth(Dictionary<string, object> parameters)
     {
-        // Try CNC_Width first (groove-specific), then CNC_Diameter
         if (parameters.TryGetValue(CncOperationSchema.CNC_WIDTH, out var widthObj) && widthObj is double w)
             return w;
         if (parameters.TryGetValue(CncOperationSchema.CNC_WIDTH, out var widthStr) && double.TryParse(widthStr?.ToString(), out var parsed))

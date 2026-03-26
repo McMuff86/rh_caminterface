@@ -597,6 +597,8 @@ public sealed class CamPanel : Panel
         var result = dialog.ShowModalOnTop();
         if (result == null) return;
 
+        var undoSerial = doc.BeginUndoRecord($"CNC Edit {op.Type}");
+
         // Apply updated parameters
         CncOperationService.SetOperation(obj, op.Type, result);
 
@@ -607,6 +609,7 @@ public sealed class CamPanel : Panel
             toolDiam = d;
 
         RegenerateToolpath(doc, obj, op.Type, toolDiam);
+        doc.EndUndoRecord(undoSerial);
         doc.Views.Redraw();
         RefreshOperationsTree();
         RhinoApp.WriteLine($"[CamPanel] {op.Type}-Operation auf {entry.ObjectName} aktualisiert.");
@@ -637,13 +640,25 @@ public sealed class CamPanel : Panel
         var obj = doc.Objects.FindId(entry.ObjectId);
         if (obj == null) return;
 
+        var undoSerial = doc.BeginUndoRecord("CNC Remove Operation");
+
         // Remove toolpath geometry
         ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
         // Remove operation UserText
         CncOperationService.RemoveOperation(obj);
-        // Restore default color
-        CncOperationService.RestoreDefaultColor(obj);
 
+        if (EdgeCurveHelper.IsExtractedEdgeCurve(obj))
+        {
+            // Delete the extracted edge curve entirely
+            doc.Objects.Delete(obj.Id, true);
+        }
+        else
+        {
+            // Restore default color for regular objects
+            CncOperationService.RestoreDefaultColor(obj);
+        }
+
+        doc.EndUndoRecord(undoSerial);
         doc.Views.Redraw();
         _selectedOperation = null;
         ShowPropertiesForType(null);
@@ -754,6 +769,8 @@ public sealed class CamPanel : Panel
             return;
         }
 
+        var undoSerial = doc.BeginUndoRecord("CNC Apply Properties");
+
         var op = _selectedOperation.Operation;
         var parameters = new Dictionary<string, object>();
 
@@ -800,6 +817,7 @@ public sealed class CamPanel : Panel
         // Regenerate toolpath for this operation
         RegenerateToolpath(doc, obj, op.Type, selectedTool?.NominalDiameter ?? 0);
 
+        doc.EndUndoRecord(undoSerial);
         doc.Views.Redraw();
         RefreshOperationsTree();
 

@@ -11,7 +11,7 @@ namespace RhinoCNCExporter.UI;
 /// </summary>
 public sealed class GrooveOperationDialog : CamOperationDialogBase
 {
-    private TextBox _widthTextBox;
+    private TextBox _widthTextBox = null!;
 
     public GrooveOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary) 
         : base(toolLibraryStore, toolLibrary, "Nut hinzufügen", ToolKind.Router)
@@ -80,8 +80,4 @@ public sealed class GrooveOperationDialog : CamOperationDialogBase
         return parameters;
     }
 
-    private void ShowError(string message)
-    {
-        MessageBox.Show(this, message, "Fehler", MessageBoxType.Error);
-    }
 }
