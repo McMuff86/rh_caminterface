@@ -443,6 +443,67 @@ dotnet test RhinoCNCExporter.Tests/RhinoCNCExporter.Tests.csproj
 10. **woodWOP Formatbeschreibung** für MPR-Format konsultieren (Dok-Nr. 9-080-42-7190)
 11. **Maestro-Handbuch** bei Detailfragen: `maestro_editor_text.txt`
 
+## ✅ Sprint 9: Interactive CAM Commands (KOMPLETT ✅, 26.03.2026)
+
+**Interactive CAM Command System implementiert:** Rhino-Commands für direktes Zuweisen von CNC-Bearbeitungen zu Geometrie via UserText + visuelle Rückmeldung.
+
+### Was implementiert wurde
+- **CncOperationSchema** (Core): Schema für UserText-basierte CNC-Operationen ohne RhinoCommon-Abhängigkeiten ✅
+- **CncOperationService** (Plugin): Rhino-spezifische Wrapper für UserText-Operationen mit visueller Rückmeldung ✅
+- **CamOperationDialogBase**: Basis-Dialog-Klasse mit Tool-Auswahl und gemeinsamen UI-Patterns ✅
+- **Spezifische Dialogs**: ContourOperationDialog, PocketOperationDialog, DrillOperationDialog, GrooveOperationDialog ✅
+- **Interactive Commands** (6 neue Rhino-Commands):
+  - `CNCAddContour`: Kurven/Kanten auswählen → Konturfräsen-Dialog → UserText + Farbkodierung ✅
+  - `CNCAddPocket`: Geschlossene Kurven → Taschen-Dialog → UserText + Farbkodierung ✅
+  - `CNCAddDrill`: Punkte klicken oder auswählen → Bohr-Dialog → Kreise mit UserText ✅
+  - `CNCAddGroove`: Linien/Kurven → Nut-Dialog → UserText + Farbkodierung ✅
+  - `CNCRemoveOperation`: Auswahl → CNC-UserText entfernen + Standardfarbe wiederherstellen ✅
+  - `CNCListOperations`: Alle CNC-Operationen im Dokument auflisten mit Zusammenfassung ✅
+- **Pipeline-Integration**: UserTextMachiningReader konvertiert UserText zu Machining-Objekten ✅
+- **MachiningBuilder erweitert**: `MergeAllSources()` mit Priorität UserText > Blocks > Legacy Layers ✅
+- **ExportService3D Integration**: UserText-Operationen werden in Multi-Platte Export einbezogen ✅
+- **Visuelle Rückmeldung**:
+  - Farbkodierung nach Operation (Rot=Kontur, Blau=Tasche, Gelb=Bohrung, Grün=Nut) ✅
+  - Text-Dots mit Bearbeitungs-Zusammenfassung (Werkzeug, Tiefe, Strategie) ✅
+  - Tool-Auswahl aus bestehender ToolLibrary ✅
+- **Tests**: Umfassende Unit-Tests für Schema, Validation, Pipeline-Integration ✅
+
+### UserText Schema
+```
+CNC_Type: Contour|Pocket|Drill|Groove
+CNC_Tool: Werkzeugname aus ToolLibrary
+CNC_Depth: Bearbeitungstiefe (mm)
+CNC_Diameter: Bohrdurchmesser (mm, nur Drill)
+CNC_Width: Nutbreite (mm, nur Groove)  
+CNC_Strategy: Rough|Finish|Both
+CNC_Feedrate: Vorschub (mm/min, optional)
+CNC_Stepover: Zustellung in % (nur Pocket)
+CNC_Peck: true|false (Tieflochbohren)
+CNC_PeckDepth: Zustell-Tiefe (mm)
+CNC_RampEntry: Straight|Spiral|Profile (Pocket)
+```
+
+### Workflow
+1. Geometrie zeichnen (Kurven, Punkte)
+2. Command ausführen (z.B. `CNCAddContour`)
+3. Geometrie auswählen
+4. Dialog mit Tool-Auswahl und Parametern
+5. OK → UserText wird gesetzt, Farbe geändert, Text-Dot erstellt
+6. Export über ExportPanel → UserText-Operationen haben höchste Priorität
+
+### Integration
+- UserText-Operationen werden in ExportService3D automatisch gelesen
+- Priorität: **UserText > Blocks > Legacy Layers**  
+- Bestehende Pipeline bleibt unverändert (rückwärtskompatibel)
+- Tool-Auswahl nutzt bestehende ToolLibrary-Infrastruktur
+
 ### Rhino-Kommandos zum Testen
 - `RhinoCNCExporter` — Dockbares ExportPanel öffnen
 - `ExportXilog` — Export-Dialog öffnen
+- **Neue Interactive CAM Commands:**
+  - `CNCAddContour` — Konturfräsen zu Kurven/Kanten hinzufügen
+  - `CNCAddPocket` — Taschenbearbeitung zu geschlossenen Kurven hinzufügen
+  - `CNCAddDrill` — Bohrungen durch Punktklicks oder Punktauswahl erstellen
+  - `CNCAddGroove` — Nuten zu Linien/Kurven hinzufügen
+  - `CNCRemoveOperation` — CNC-Bearbeitungen von Objekten entfernen
+  - `CNCListOperations` — Alle CNC-Operationen im Dokument auflisten
