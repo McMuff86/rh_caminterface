@@ -26,9 +26,9 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
         _toolLibrary = toolLibrary ?? throw new ArgumentNullException(nameof(toolLibrary));
 
         Title = title;
-        ClientSize = new Size(400, 280);
+        ClientSize = new Size(400, 380);
         Padding = new Padding(16);
-        Resizable = false;
+        Resizable = true;
 
         // Filter tools by type
         _availableTools = toolLibrary.Tools
