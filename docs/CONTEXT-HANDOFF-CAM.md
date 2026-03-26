@@ -691,3 +691,154 @@ User checks "3D Toolpath-Vorschau"
 4. **P4: Orphan edge curve cleanup** — detect when parent Brep is deleted
 5. **P5: Toolpath animation** — animate tool movement along paths with speed control
 6. **P6: Multi-emitter support** — different emitters per plate if needed
+
+---
+
+## 11. Night Session #6: Validation, Safety Checks, Error Handling (26. März 2026)
+
+### 11.1 What Was Implemented
+
+#### Pre-Export Validation System (`Services/CamValidator.cs`) ✅
+
+**New `CamValidator` static class** with comprehensive validation:
+
+**Validation checks implemented:**
+| Check | Severity | Description |
+|-------|----------|-------------|
+| Tool not assigned | ERROR | Operation has no tool or tool is "—" |
+| Tool not in library | WARNING | Tool name doesn't match any tool in current library |
+| Depth exceeds material | WARNING | Depth > plate thickness (detected from source Brep bbox) |
+| Tool diameter vs feature size | ERROR | Pocket smaller than tool diameter (bbox check) |
+| Missing feedrate | WARNING | Feedrate is 0/not set → shows default that will be used |
+| Orphan edge curves | WARNING | Extracted edge curve's source Brep no longer exists |
+| Invalid geometry | ERROR | Wrong geometry type for operation (e.g., Brep for contour) |
+| Degenerate curves | WARNING | Curves shorter than 0.01mm |
+| Open pocket curves | ERROR | Pocket on a non-closed curve |
+| Empty operations list | ERROR | No operations to export |
+| Unsupported emitter | ERROR | Homag format not yet implemented |
+| Duplicate operations | WARNING | Same operation type applied twice to same object |
+
+**Models:**
+- `ValidationResult` — contains `List<ValidationIssue>`, `HasErrors`, `HasWarnings`, `IsClean`, `FormatSummary()`
+- `ValidationIssue` — `Severity`, `Message`, `ObjectId`, `Category`
+- `Severity` enum — `Info`, `Warning`, `Error`
+
+**Integrated into CamPanel:**
+- "✔ Validieren" button next to "📤 Export CNC" button
+- Validation result label shows color-coded summary (red=errors, yellow=warnings, green=clean)
+- First 5 issues shown inline, rest in Rhino output panel
+- Objects with issues are selected/highlighted in viewport
+- **Export is blocked** if validation has errors (warnings allow proceeding)
+- Pre-export validation runs automatically when clicking "Export CNC"
+
+#### Operation Defaults & Templates (`Services/OperationDefaults.cs`) ✅
+
+**New `OperationDefaults` static class:**
+- Default values per operation type (depth, feedrate, strategy, tool, stepover, etc.)
+- **Machine-profile-aware** — SCM and Biesse have different typical feedrates and depths
+- Save/load overrides from document UserText (`CNC_Defaults_CONTOUR_Depth`, etc.)
+- `ApplyDefaults()` — fills missing values in parameter dictionaries
+
+**Default values by machine:**
+| Parameter | Contour (SCM) | Contour (Biesse) | Pocket (SCM) | Drill (SCM) | Groove (SCM) |
+|-----------|---------------|-------------------|--------------|-------------|--------------|
+| Depth | 19.0mm | 18.0mm | 5.0mm | 19.0mm | 8.0mm |
+| Feedrate | 3000 mm/min | 4000 mm/min | 2000 mm/min | 1500 mm/min | 2500 mm/min |
+| Strategy | Finish | Finish | Rough | — | Finish |
+| Stepover | — | — | 50% (SCM) / 45% (Biesse) | — | — |
+
+#### Robust Error Handling ✅
+
+**All code from sessions #1-#5 reviewed and hardened:**
+
+**Commands (already had try/catch from session #4):**
+- All CNCAdd* commands have outer try/catch with `RhinoApp.WriteLine()` error messages
+- Undo records are properly ended in both success and failure paths
+
+**InteractiveExportBridge:**
+- `CollectOperations()` — null check on doc, try/catch per-object, malformed UserText guard, safe layer index access
+- `Export()` — file write errors split by type: `UnauthorizedAccessException` (permissions), `PathTooLongException`, `IOException` (disk full etc.), directory creation errors
+- Each file write has individual try/catch with descriptive German error messages
+
+**ToolpathVisualizer:**
+- All `Create*Toolpath()` methods: null checks on input curves/points, `RhinoDoc.ActiveDoc == null` guards
+- `Point3d.IsValid` checks for drill center points
+- `GetCurvePlane()` — uses null-coalescing for `ActiveDoc?.ModelAbsoluteTolerance`
+- `AddToolpathToDocument()` / `AddToolpath3DToDocument()` — null checks on all parameters
+- `RemoveToolpathGeometry()` / `RemoveToolpath3DGeometry()` — null guards on doc and sourceObject
+
+**CncOperationService:**
+- `GetAllOperationsInDocument()` — null check on doc, null filter on objects
+- Added `using System.Linq` for `Enumerable.Empty<>`
+
+**CamPanel:**
+- `RefreshOperationsTree()` — try/catch around operation loading
+- `GenerateAllToolpaths()` — outer try/catch + per-object try/catch with error counter
+- `ClearAllToolpaths()` — try/catch per-object
+- `OnToggle3DPreview()` — try/catch per-object
+- `ApplyPropertyChanges()` — try/catch with undo cleanup
+- `OpenEditDialog()` — try/catch, unknown operation type guard, undo cleanup in catch
+- `RemoveOperation()` — try/catch with undo cleanup, removes 3D toolpaths too
+- `ExportInteractiveCnc()` — try/catch around export call
+
+### 11.2 Files Changed in Night Session #6
+
+| File | Change |
+|------|--------|
+| `Services/CamValidator.cs` | **NEW** — Pre-export validation system with 12 check types |
+| `Services/OperationDefaults.cs` | **NEW** — Machine-aware operation defaults, doc UserText persistence |
+| `Services/ToolpathVisualizer.cs` | Null guards on all public methods, safe ActiveDoc access |
+| `Services/InteractiveExportBridge.cs` | Per-object error handling, file I/O error handling, null guards |
+| `Services/CncOperationService.cs` | Null guard on `GetAllOperationsInDocument()`, added `using System.Linq` |
+| `UI/CamPanel.cs` | Validate button + result display, pre-export validation block, try/catch on all operations |
+| `docs/CONTEXT-HANDOFF-CAM.md` | Updated with session #6 results |
+
+**Commit:** TBD
+
+### 11.3 Architecture Notes
+
+**Validation Flow:**
+```
+User clicks "✔ Validieren" (or "📤 Export CNC")
+  ├── CamValidator.Validate(doc, tools, format)
+  │   ├── Check empty operations list
+  │   ├── For each operation:
+  │   │   ├── ValidateToolAssigned() → ERROR if no tool
+  │   │   ├── ValidateDepthVsMaterial() → WARNING if depth > thickness
+  │   │   ├── ValidateToolVsFeatureSize() → ERROR if pocket < tool
+  │   │   ├── ValidateFeedrate() → WARNING if missing
+  │   │   ├── ValidateOrphanEdgeCurve() → WARNING if source Brep deleted
+  │   │   ├── ValidateGeometry() → ERROR if wrong type/degenerate
+  │   │   └── ValidateEmitterSupport() → ERROR if Homag
+  │   └── ValidateDuplicateOperations() → WARNING if same type×2
+  ├── ShowValidationResult() → color-coded label in panel
+  ├── Select affected objects in viewport
+  └── If HasErrors → block export
+```
+
+**Operation Defaults Flow:**
+```
+User creates new operation (CNCAddContour etc.)
+  ├── OperationDefaults.GetDefaults("Contour", "xilog")
+  │   ├── GetMachineProfileDefaults() → built-in SCM/Biesse defaults
+  │   └── LoadDouble/String/Bool from doc.Strings → user overrides
+  └── ApplyDefaults(parameters, type, machineKey)
+      └── SetIfMissing() for each parameter
+```
+
+### 11.4 Known Limitations / TODO
+
+- ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
+- ⚠ **OperationDefaults not yet wired into CNCAdd* commands** — defaults exist but commands don't call `ApplyDefaults()` yet. The defaults service is ready; the commands need a small change to call it when creating new operations.
+- ⚠ **No "Standardwerte" section in CamPanel** — the task mentions a UI section for editing defaults. The persistence layer (`OperationDefaults.SaveDefaults()`) is implemented but no Eto UI section yet.
+- ⚠ **Validation doesn't check feedrate range** — could add min/max bounds per machine profile
+- ⚠ **No validation for tool length vs depth** — would need tool length data in ToolDefinition
+
+### 11.5 Next Steps
+
+1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
+2. **P2: Wire OperationDefaults into CNCAdd* commands** — call `ApplyDefaults()` in command parameters
+3. **P3: "Standardwerte" section in CamPanel** — Eto UI for editing operation defaults
+4. **P4: Export preview dialog** — show generated CNC code before saving
+5. **P5: Orphan edge curve cleanup** — detect when parent Brep is deleted
+6. **P6: Toolpath animation** — animate tool movement along paths with speed control

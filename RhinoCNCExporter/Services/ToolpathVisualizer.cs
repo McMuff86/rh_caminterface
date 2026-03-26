@@ -46,6 +46,8 @@ public static class ToolpathVisualizer
     public static List<GeometryBase> CreateContourToolpath(Curve sourceCurve, double toolDiameter)
     {
         var result = new List<GeometryBase>();
+        if (sourceCurve == null) return result;
+
         var radius = toolDiameter / 2.0;
 
         if (radius <= 0.01) return result;
@@ -53,7 +55,9 @@ public static class ToolpathVisualizer
         // Determine the best plane for offsetting — use the curve's own plane
         // instead of WorldXY to handle curves at any Z height or orientation
         var plane = GetCurvePlane(sourceCurve);
-        var tolerance = RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return result;
+        var tolerance = doc.ModelAbsoluteTolerance;
 
         var offsets = sourceCurve.Offset(plane, radius, tolerance, CurveOffsetCornerStyle.Sharp);
         if (offsets != null)
@@ -76,12 +80,16 @@ public static class ToolpathVisualizer
     public static List<GeometryBase> CreatePocketToolpath(Curve boundaryCurve, double toolDiameter, double stepoverPercent)
     {
         var result = new List<GeometryBase>();
+        if (boundaryCurve == null) return result;
+
         var radius = toolDiameter / 2.0;
         var stepover = toolDiameter * (stepoverPercent / 100.0);
 
         if (radius <= 0.01 || stepover <= 0.01) return result;
 
-        var tolerance = RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return result;
+        var tolerance = doc.ModelAbsoluteTolerance;
         var plane = GetCurvePlane(boundaryCurve);
 
         // Generate concentric offset curves inward
@@ -128,7 +136,7 @@ public static class ToolpathVisualizer
         var result = new List<GeometryBase>();
         var radius = diameter / 2.0;
 
-        if (radius <= 0.01) return result;
+        if (radius <= 0.01 || !center.IsValid) return result;
 
         // Circle showing hole diameter
         var circle = new ArcCurve(new Circle(center, radius));
@@ -159,7 +167,7 @@ public static class ToolpathVisualizer
         string operationType,
         List<GeometryBase> toolpathGeometry)
     {
-        if (toolpathGeometry.Count == 0) return;
+        if (doc == null || sourceObject == null || toolpathGeometry == null || toolpathGeometry.Count == 0) return;
 
         var layerIndex = EnsureToolpathSubLayer(doc, operationType);
         var color = GetOperationColor(operationType);
@@ -207,11 +215,14 @@ public static class ToolpathVisualizer
     public static List<GeometryBase> CreateContourToolpath3D(Curve sourceCurve, double toolDiameter, double depth)
     {
         var result = new List<GeometryBase>();
+        if (sourceCurve == null) return result;
         if (depth <= 0.001) return CreateContourToolpath(sourceCurve, toolDiameter);
 
         var radius = toolDiameter / 2.0;
         var plane = GetCurvePlane(sourceCurve);
-        var tolerance = RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return result;
+        var tolerance = doc.ModelAbsoluteTolerance;
 
         // Top offset curves (at surface level)
         var topLeft = sourceCurve.Offset(plane, radius, tolerance, CurveOffsetCornerStyle.Sharp);
@@ -277,6 +288,7 @@ public static class ToolpathVisualizer
     public static List<GeometryBase> CreateDrillToolpath3D(Point3d center, double diameter, double depth)
     {
         var result = new List<GeometryBase>();
+        if (!center.IsValid) return result;
         if (depth <= 0.001) return CreateDrillToolpath(center, diameter);
 
         var radius = diameter / 2.0;
@@ -330,13 +342,16 @@ public static class ToolpathVisualizer
     public static List<GeometryBase> CreatePocketToolpath3D(Curve boundaryCurve, double toolDiameter, double stepoverPercent, double depth)
     {
         var result = new List<GeometryBase>();
+        if (boundaryCurve == null) return result;
         if (depth <= 0.001) return CreatePocketToolpath(boundaryCurve, toolDiameter, stepoverPercent);
 
         var radius = toolDiameter / 2.0;
         var stepover = toolDiameter * (stepoverPercent / 100.0);
         if (radius <= 0.01 || stepover <= 0.01) return result;
 
-        var tolerance = RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return result;
+        var tolerance = doc.ModelAbsoluteTolerance;
         var plane = GetCurvePlane(boundaryCurve);
         var depthTransform = Transform.Translation(-plane.ZAxis * depth);
 
@@ -411,7 +426,7 @@ public static class ToolpathVisualizer
         string operationType,
         List<GeometryBase> toolpathGeometry)
     {
-        if (toolpathGeometry.Count == 0) return;
+        if (doc == null || sourceObject == null || toolpathGeometry == null || toolpathGeometry.Count == 0) return;
 
         var layerIndex = EnsureToolpath3DSubLayer(doc, operationType);
         var color = GetOperationColor(operationType);
@@ -458,6 +473,7 @@ public static class ToolpathVisualizer
     /// </summary>
     public static void RemoveToolpath3DGeometry(RhinoDoc doc, RhinoObject sourceObject)
     {
+        if (doc == null || sourceObject == null) return;
         var groupIndexStr = sourceObject.Attributes.GetUserString("CNC_GroupIndex3D");
         if (string.IsNullOrEmpty(groupIndexStr) || !int.TryParse(groupIndexStr, out var groupIndex))
             return;
@@ -539,6 +555,7 @@ public static class ToolpathVisualizer
     /// </summary>
     public static void RemoveToolpathGeometry(RhinoDoc doc, RhinoObject sourceObject)
     {
+        if (doc == null || sourceObject == null) return;
         var groupIndexStr = sourceObject.Attributes.GetUserString(CncOperationSchema.CNC_GROUP_INDEX);
         if (string.IsNullOrEmpty(groupIndexStr) || !int.TryParse(groupIndexStr, out var groupIndex))
             return;
@@ -577,7 +594,8 @@ public static class ToolpathVisualizer
     private static Plane GetCurvePlane(Curve curve)
     {
         // If the curve is planar, use its own plane — handles Z offset automatically
-        if (curve.TryGetPlane(out var curvePlane, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance))
+        var tolerance = RhinoDoc.ActiveDoc?.ModelAbsoluteTolerance ?? 0.001;
+        if (curve.TryGetPlane(out var curvePlane, tolerance))
             return curvePlane;
 
         // For non-planar curves, use WorldXY at the curve's start Z

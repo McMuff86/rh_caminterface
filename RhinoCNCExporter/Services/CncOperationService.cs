@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using Rhino;
 using Rhino.DocObjects;
 using RhinoCNCExporter.Core.Blocks;
@@ -91,8 +92,10 @@ public static class CncOperationService
     /// </summary>
     public static IEnumerable<RhinoObject> GetAllOperationsInDocument(RhinoDoc doc)
     {
+        if (doc == null) return Enumerable.Empty<RhinoObject>();
+
         return doc.Objects
-            .Where(obj => !string.IsNullOrEmpty(obj.Attributes.GetUserString(CncOperationSchema.CNC_TYPE)));
+            .Where(obj => obj != null && !string.IsNullOrEmpty(obj.Attributes.GetUserString(CncOperationSchema.CNC_TYPE)));
     }
 
     /// <summary>

@@ -84,6 +84,10 @@ public sealed class CamPanel : Panel
     // Status bar
     private readonly Label _statusLabel;
 
+    // Validation button & results
+    private readonly Button _validateButton;
+    private readonly Label _validationResultLabel;
+
     // Export bridge
     private readonly InteractiveExportBridge _exportBridge = new();
 
@@ -248,6 +252,15 @@ public sealed class CamPanel : Panel
         };
         _3dPreviewCheckBox.CheckedChanged += (_, _) => OnToggle3DPreview();
 
+        // --- Validation Button ---
+        _validateButton = new Button { Text = "✔ Validieren", Height = 30, ToolTip = "Operationen vor dem Export auf Fehler prüfen" };
+        _validateButton.Click += (_, _) => RunValidation();
+
+        _validationResultLabel = CreateLabel("", 9, false);
+        _validationResultLabel.TextColor = FgDim;
+        _validationResultLabel.Visible = false;
+        _validationResultLabel.Wrap = WrapMode.Word;
+
         // --- Export CNC Button ---
         var exportCncBtn = new Button { Text = "📤 Export CNC", Height = 34, ToolTip = "Interaktive Operationen als CNC-Programm exportieren" };
         exportCncBtn.Click += (_, _) => ExportInteractiveCnc();
@@ -256,7 +269,11 @@ public sealed class CamPanel : Panel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 4,
-            Items = { new StackLayoutItem(exportCncBtn, true) }
+            Items =
+            {
+                new StackLayoutItem(_validateButton, false),
+                new StackLayoutItem(exportCncBtn, true)
+            }
         };
 
         // --- Statistics Panel ---
@@ -287,6 +304,7 @@ public sealed class CamPanel : Panel
                     actionButtons,
                     _3dPreviewCheckBox,
                     exportRow,
+                    _validationResultLabel,
                     statsSection,
                     _statusLabel
                 }
@@ -437,7 +455,19 @@ public sealed class CamPanel : Panel
             return;
         }
 
-        var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+        List<RhinoObject> operations;
+        try
+        {
+            operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+        }
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[CamPanel] Fehler beim Laden der Operationen: {ex.Message}");
+            _operationsTree.DataStore = _treeItems;
+            UpdateStatusBar(0, 0, 0);
+            ShowEmptyState(true);
+            return;
+        }
         var grouped = operations
             .Select(obj => new { Obj = obj, Op = CncOperationService.GetOperation(obj) })
             .Where(x => x.Op != null)
@@ -617,43 +647,61 @@ public sealed class CamPanel : Panel
             return;
         }
 
-        var op = entry.Operation;
-        var profile = GetCurrentMachineProfile();
-        var library = _toolLibraryStore.LoadOrCreate(profile);
-
-        CamOperationDialogBase? dialog = op.Type.ToUpperInvariant() switch
+        try
         {
-            "CONTOUR" => new ContourOperationDialog(_toolLibraryStore, library),
-            "POCKET" => new PocketOperationDialog(_toolLibraryStore, library),
-            "DRILL" => new DrillOperationDialog(_toolLibraryStore, library),
-            "GROOVE" => new GrooveOperationDialog(_toolLibraryStore, library),
-            _ => null
-        };
+            var op = entry.Operation;
+            var profile = GetCurrentMachineProfile();
+            var library = _toolLibraryStore.LoadOrCreate(profile);
 
-        if (dialog == null) return;
+            CamOperationDialogBase? dialog = op.Type.ToUpperInvariant() switch
+            {
+                "CONTOUR" => new ContourOperationDialog(_toolLibraryStore, library),
+                "POCKET" => new PocketOperationDialog(_toolLibraryStore, library),
+                "DRILL" => new DrillOperationDialog(_toolLibraryStore, library),
+                "GROOVE" => new GrooveOperationDialog(_toolLibraryStore, library),
+                _ => null
+            };
 
-        // Pre-fill dialog with current values
-        dialog.PreFill(op);
+            if (dialog == null)
+            {
+                RhinoApp.WriteLine($"[CamPanel] Unbekannter Operationstyp: {op.Type}");
+                return;
+            }
 
-        var result = dialog.ShowModalOnTop();
-        if (result == null) return;
+            // Pre-fill dialog with current values
+            dialog.PreFill(op);
 
-        var undoSerial = doc.BeginUndoRecord($"CNC Edit {op.Type}");
+            var result = dialog.ShowModalOnTop();
+            if (result == null) return;
 
-        // Apply updated parameters
-        CncOperationService.SetOperation(obj, op.Type, result);
+            var undoSerial = doc.BeginUndoRecord($"CNC Edit {op.Type}");
 
-        // Get tool diameter for toolpath regen
-        var toolName = result.TryGetValue(CncOperationSchema.CNC_TOOL, out var tn) ? tn?.ToString() : null;
-        var toolDiam = GetToolDiameterByName(toolName);
-        if (result.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamObj) && diamObj is double d)
-            toolDiam = d;
+            try
+            {
+                CncOperationService.SetOperation(obj, op.Type, result);
 
-        RegenerateToolpath(doc, obj, op.Type, toolDiam);
-        doc.EndUndoRecord(undoSerial);
-        doc.Views.Redraw();
-        RefreshOperationsTree();
-        RhinoApp.WriteLine($"[CamPanel] {op.Type}-Operation auf {entry.ObjectName} aktualisiert.");
+                var toolName = result.TryGetValue(CncOperationSchema.CNC_TOOL, out var tn) ? tn?.ToString() : null;
+                var toolDiam = GetToolDiameterByName(toolName);
+                if (result.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var diamObj) && diamObj is double d)
+                    toolDiam = d;
+
+                RegenerateToolpath(doc, obj, op.Type, toolDiam);
+                doc.EndUndoRecord(undoSerial);
+            }
+            catch
+            {
+                doc.EndUndoRecord(undoSerial);
+                throw;
+            }
+
+            doc.Views.Redraw();
+            RefreshOperationsTree();
+            RhinoApp.WriteLine($"[CamPanel] {op.Type}-Operation auf {entry.ObjectName} aktualisiert.");
+        }
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[CamPanel] Fehler beim Bearbeiten: {ex.Message}");
+        }
     }
 
     private void ZoomToOperation(OperationEntry entry)
@@ -679,27 +727,40 @@ public sealed class CamPanel : Panel
         if (doc == null) return;
 
         var obj = doc.Objects.FindId(entry.ObjectId);
-        if (obj == null) return;
+        if (obj == null)
+        {
+            RhinoApp.WriteLine("[CamPanel] Objekt nicht gefunden — möglicherweise bereits gelöscht.");
+            RefreshOperationsTree();
+            return;
+        }
 
         var undoSerial = doc.BeginUndoRecord("CNC Remove Operation");
 
-        // Remove toolpath geometry
-        ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
-        // Remove operation UserText
-        CncOperationService.RemoveOperation(obj);
-
-        if (EdgeCurveHelper.IsExtractedEdgeCurve(obj))
+        try
         {
-            // Delete the extracted edge curve entirely
-            doc.Objects.Delete(obj.Id, true);
+            // Remove toolpath geometry (2D + 3D)
+            ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+            ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+            // Remove operation UserText
+            CncOperationService.RemoveOperation(obj);
+
+            if (EdgeCurveHelper.IsExtractedEdgeCurve(obj))
+            {
+                doc.Objects.Delete(obj.Id, true);
+            }
+            else
+            {
+                CncOperationService.RestoreDefaultColor(obj);
+            }
+
+            doc.EndUndoRecord(undoSerial);
         }
-        else
+        catch (Exception ex)
         {
-            // Restore default color for regular objects
-            CncOperationService.RestoreDefaultColor(obj);
+            doc.EndUndoRecord(undoSerial);
+            RhinoApp.WriteLine($"[CamPanel] Fehler beim Entfernen: {ex.Message}");
         }
 
-        doc.EndUndoRecord(undoSerial);
         doc.Views.Redraw();
         _selectedOperation = null;
         ShowPropertiesForType(null);
@@ -812,6 +873,8 @@ public sealed class CamPanel : Panel
 
         var undoSerial = doc.BeginUndoRecord("CNC Apply Properties");
 
+        try
+        {
         var op = _selectedOperation.Operation;
         var parameters = new Dictionary<string, object>();
 
@@ -863,6 +926,12 @@ public sealed class CamPanel : Panel
         RefreshOperationsTree();
 
         RhinoApp.WriteLine($"[CamPanel] {op.Type}-Operation auf {_selectedOperation.ObjectName} aktualisiert.");
+        }
+        catch (Exception ex)
+        {
+            doc.EndUndoRecord(undoSerial);
+            RhinoApp.WriteLine($"[CamPanel] Fehler beim Anwenden der Eigenschaften: {ex.Message}");
+        }
     }
 
     #endregion
@@ -874,40 +943,57 @@ public sealed class CamPanel : Panel
         var doc = RhinoDoc.ActiveDoc;
         if (doc == null) return;
 
-        var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
-        int generated = 0;
-        var is3D = _3dPreviewCheckBox.Checked ?? false;
-
-        foreach (var obj in operations)
+        try
         {
-            var op = CncOperationService.GetOperation(obj);
-            if (op == null) continue;
+            var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+            int generated = 0;
+            int errors = 0;
+            var is3D = _3dPreviewCheckBox.Checked ?? false;
 
-            var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
-            if (toolDiam <= 0) continue;
-
-            // Remove existing toolpaths first
-            ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
-            ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
-
-            // Regenerate 2D
-            RegenerateToolpath(doc, obj, op.Type, toolDiam);
-
-            // Regenerate 3D if enabled
-            if (is3D)
+            foreach (var obj in operations)
             {
-                var depth = op.Depth ?? 0;
-                var geometry3D = Generate3DToolpath(obj, op.Type, toolDiam, depth);
-                if (geometry3D.Count > 0)
-                    ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
+                try
+                {
+                    var op = CncOperationService.GetOperation(obj);
+                    if (op == null) continue;
+
+                    var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
+                    if (toolDiam <= 0) continue;
+
+                    // Remove existing toolpaths first
+                    ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+                    ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+
+                    // Regenerate 2D
+                    RegenerateToolpath(doc, obj, op.Type, toolDiam);
+
+                    // Regenerate 3D if enabled
+                    if (is3D)
+                    {
+                        var depth = op.Depth ?? 0;
+                        var geometry3D = Generate3DToolpath(obj, op.Type, toolDiam, depth);
+                        if (geometry3D.Count > 0)
+                            ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
+                    }
+
+                    generated++;
+                }
+                catch (Exception ex)
+                {
+                    errors++;
+                    RhinoApp.WriteLine($"[CamPanel] Fehler bei Toolpath-Generierung für {obj.Id}: {ex.Message}");
+                }
             }
 
-            generated++;
+            doc.Views.Redraw();
+            var errMsg = errors > 0 ? $", {errors} Fehler" : "";
+            RhinoApp.WriteLine($"[CamPanel] Toolpaths für {generated} Operation(en) generiert{(is3D ? " (2D+3D)" : "")}{errMsg}.");
+            RefreshOperationsTree();
         }
-
-        doc.Views.Redraw();
-        RhinoApp.WriteLine($"[CamPanel] Toolpaths für {generated} Operation(en) generiert{(is3D ? " (2D+3D)" : "")}.");
-        RefreshOperationsTree();
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[CamPanel] Fehler bei Toolpath-Generierung: {ex.Message}");
+        }
     }
 
     private void ClearAllToolpaths()
@@ -915,18 +1001,32 @@ public sealed class CamPanel : Panel
         var doc = RhinoDoc.ActiveDoc;
         if (doc == null) return;
 
-        var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
-        int cleared = 0;
-
-        foreach (var obj in operations)
+        try
         {
-            ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
-            ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
-            cleared++;
-        }
+            var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+            int cleared = 0;
 
-        doc.Views.Redraw();
-        RhinoApp.WriteLine($"[CamPanel] Toolpaths für {cleared} Operation(en) gelöscht.");
+            foreach (var obj in operations)
+            {
+                try
+                {
+                    ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+                    ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+                    cleared++;
+                }
+                catch (Exception ex)
+                {
+                    RhinoApp.WriteLine($"[CamPanel] Fehler beim Entfernen von Toolpath für {obj.Id}: {ex.Message}");
+                }
+            }
+
+            doc.Views.Redraw();
+            RhinoApp.WriteLine($"[CamPanel] Toolpaths für {cleared} Operation(en) gelöscht.");
+        }
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[CamPanel] Fehler beim Löschen der Toolpaths: {ex.Message}");
+        }
     }
 
     private void RegenerateToolpath(RhinoDoc doc, RhinoObject obj, string operationType, double toolDiameter)
@@ -1182,6 +1282,103 @@ public sealed class CamPanel : Panel
 
     #endregion
 
+    #region Validation
+
+    private void RunValidation()
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null)
+        {
+            ShowValidationResult(null, "Kein aktives Dokument.");
+            return;
+        }
+
+        var format = GetCurrentMachineKey() switch
+        {
+            "biesse" => MachineFormat.Biesse,
+            "maestrocadt" => MachineFormat.Xilog,
+            _ => MachineFormat.Xilog
+        };
+
+        var result = CamValidator.Validate(doc, _allTools, format);
+
+        ShowValidationResult(result, null);
+
+        // Select/highlight objects with errors in viewport
+        if (result.HasErrors || result.HasWarnings)
+        {
+            doc.Objects.UnselectAll();
+            foreach (var issue in result.Issues)
+            {
+                if (issue.ObjectId.HasValue)
+                    doc.Objects.Select(issue.ObjectId.Value, true);
+            }
+            doc.Views.Redraw();
+        }
+
+        // Log all issues to Rhino output
+        foreach (var issue in result.Issues)
+        {
+            var prefix = issue.Severity switch
+            {
+                Severity.Error => "❌",
+                Severity.Warning => "⚠️",
+                _ => "ℹ️"
+            };
+            RhinoApp.WriteLine($"[Validierung] {prefix} [{issue.Category}] {issue.Message}");
+        }
+
+        if (result.IsClean)
+            RhinoApp.WriteLine("[Validierung] ✅ Alle Prüfungen bestanden — Export möglich.");
+    }
+
+    private void ShowValidationResult(ValidationResult? result, string? customMessage)
+    {
+        if (result == null && customMessage != null)
+        {
+            _validationResultLabel.Text = $"❌ {customMessage}";
+            _validationResultLabel.TextColor = Eto.Drawing.Color.FromArgb(220, 60, 60);
+            _validationResultLabel.Visible = true;
+            return;
+        }
+
+        if (result == null || result.IsClean)
+        {
+            _validationResultLabel.Text = "✅ Validierung bestanden — keine Probleme gefunden.";
+            _validationResultLabel.TextColor = Eto.Drawing.Color.FromArgb(60, 180, 80);
+            _validationResultLabel.Visible = true;
+            return;
+        }
+
+        var lines = new List<string>();
+
+        if (result.HasErrors)
+        {
+            _validationResultLabel.TextColor = Eto.Drawing.Color.FromArgb(220, 60, 60);
+            lines.Add($"❌ {result.FormatSummary()} — Export blockiert.");
+        }
+        else if (result.HasWarnings)
+        {
+            _validationResultLabel.TextColor = Eto.Drawing.Color.FromArgb(220, 200, 40);
+            lines.Add($"⚠ {result.FormatSummary()} — Export möglich.");
+        }
+
+        // Show first few issues inline
+        var shownCount = 0;
+        foreach (var issue in result.Issues.OrderByDescending(i => i.Severity))
+        {
+            if (shownCount >= 5) { lines.Add("… weitere Probleme in Rhino-Ausgabe"); break; }
+            var icon = issue.Severity == Severity.Error ? "❌" : issue.Severity == Severity.Warning ? "⚠" : "ℹ";
+            lines.Add($"  {icon} {issue.Message}");
+            shownCount++;
+        }
+
+        _validationResultLabel.Text = string.Join("\n", lines);
+        _validationResultLabel.Visible = true;
+    }
+
+    #endregion
+
     #region Export & 3D Preview
 
     private void ExportInteractiveCnc()
@@ -1190,6 +1387,26 @@ public sealed class CamPanel : Panel
         if (doc == null)
         {
             RhinoApp.WriteLine("[CamPanel] ❌ Kein aktives Rhino-Dokument.");
+            return;
+        }
+
+        // Pre-export validation
+        var exportFormat = GetCurrentMachineKey() switch
+        {
+            "biesse" => MachineFormat.Biesse,
+            _ => MachineFormat.Xilog
+        };
+        var validationResult = CamValidator.Validate(doc, _allTools, exportFormat);
+        ShowValidationResult(validationResult, null);
+
+        if (validationResult.HasErrors)
+        {
+            RhinoApp.WriteLine("[CamPanel] ❌ Export abgebrochen — Validierungsfehler vorhanden. Bitte zuerst beheben.");
+            // Highlight error objects
+            doc.Objects.UnselectAll();
+            foreach (var issue in validationResult.Issues.Where(i => i.Severity == Severity.Error && i.ObjectId.HasValue))
+                doc.Objects.Select(issue.ObjectId!.Value, true);
+            doc.Views.Redraw();
             return;
         }
 
@@ -1250,19 +1467,26 @@ public sealed class CamPanel : Panel
             outputPath = saveDialog.FileName;
         }
 
-        var result = _exportBridge.Export(doc, outputPath, format, profile);
+        try
+        {
+            var result = _exportBridge.Export(doc, outputPath, format, profile);
 
-        if (result.Success)
-        {
-            foreach (var file in result.ExportedFiles)
+            if (result.Success)
             {
-                RhinoApp.WriteLine($"[CamPanel] ✅ CNC erstellt: {file}");
+                foreach (var file in result.ExportedFiles)
+                {
+                    RhinoApp.WriteLine($"[CamPanel] ✅ CNC erstellt: {file}");
+                }
+                RhinoApp.WriteLine($"[CamPanel] Export erfolgreich: {result.OperationCount} Op., {result.PlateCount} Platte(n), {result.ExportedFiles.Count} Datei(en)");
             }
-            RhinoApp.WriteLine($"[CamPanel] Export erfolgreich: {result.OperationCount} Op., {result.PlateCount} Platte(n), {result.ExportedFiles.Count} Datei(en)");
+            else
+            {
+                RhinoApp.WriteLine($"[CamPanel] ❌ Export fehlgeschlagen: {result.Error}");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            RhinoApp.WriteLine($"[CamPanel] ❌ Export fehlgeschlagen: {result.Error}");
+            RhinoApp.WriteLine($"[CamPanel] ❌ Export-Fehler: {ex.Message}");
         }
     }
 
@@ -1271,36 +1495,48 @@ public sealed class CamPanel : Panel
         var doc = RhinoDoc.ActiveDoc;
         if (doc == null) return;
 
-        var is3D = _3dPreviewCheckBox.Checked ?? false;
-        var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
-
-        foreach (var obj in operations)
+        try
         {
-            var op = CncOperationService.GetOperation(obj);
-            if (op == null) continue;
+            var is3D = _3dPreviewCheckBox.Checked ?? false;
+            var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
 
-            var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
-            if (toolDiam <= 0) continue;
-
-            var depth = op.Depth ?? 0;
-
-            if (is3D)
+            foreach (var obj in operations)
             {
-                // Generate 3D toolpaths
-                ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
-                var geometry3D = Generate3DToolpath(obj, op.Type, toolDiam, depth);
-                if (geometry3D.Count > 0)
-                    ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
+                try
+                {
+                    var op = CncOperationService.GetOperation(obj);
+                    if (op == null) continue;
+
+                    var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
+                    if (toolDiam <= 0) continue;
+
+                    var depth = op.Depth ?? 0;
+
+                    if (is3D)
+                    {
+                        ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+                        var geometry3D = Generate3DToolpath(obj, op.Type, toolDiam, depth);
+                        if (geometry3D.Count > 0)
+                            ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
+                    }
+                    else
+                    {
+                        ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    RhinoApp.WriteLine($"[CamPanel] 3D-Vorschau-Fehler für {obj.Id}: {ex.Message}");
+                }
             }
-            else
-            {
-                // Remove 3D toolpaths
-                ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
-            }
+
+            doc.Views.Redraw();
+            RhinoApp.WriteLine($"[CamPanel] 3D-Vorschau {(is3D ? "aktiviert" : "deaktiviert")} für {operations.Count} Operation(en).");
         }
-
-        doc.Views.Redraw();
-        RhinoApp.WriteLine($"[CamPanel] 3D-Vorschau {(is3D ? "aktiviert" : "deaktiviert")} für {operations.Count} Operation(en).");
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[CamPanel] 3D-Vorschau-Fehler: {ex.Message}");
+        }
     }
 
     private List<GeometryBase> Generate3DToolpath(RhinoObject obj, string operationType, double toolDiameter, double depth)

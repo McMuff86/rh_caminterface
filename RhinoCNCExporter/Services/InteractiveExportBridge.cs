@@ -29,28 +29,55 @@ public class InteractiveExportBridge
     /// </summary>
     public IReadOnlyList<InteractiveOperation> CollectOperations(RhinoDoc doc)
     {
+        if (doc == null) return Array.Empty<InteractiveOperation>();
+
         var result = new List<InteractiveOperation>();
-        var objects = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+
+        IEnumerable<RhinoObject> objects;
+        try
+        {
+            objects = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+        }
+        catch (Exception ex)
+        {
+            RhinoApp.WriteLine($"[ExportBridge] Fehler beim Lesen der Operationen: {ex.Message}");
+            return result;
+        }
 
         foreach (var obj in objects)
         {
-            var op = CncOperationService.GetOperation(obj);
-            if (op == null) continue;
-
-            var machining = ConvertToMachining(doc, obj, op);
-            if (machining == null) continue;
-
-            // Try to determine plate/source brep
-            var sourceBrepId = obj.Attributes.GetUserString(CncOperationSchema.CNC_SOURCE_BREP);
-
-            result.Add(new InteractiveOperation
+            try
             {
-                ObjectId = obj.Id,
-                Operation = op,
-                Machining = machining,
-                SourceBrepId = string.IsNullOrEmpty(sourceBrepId) ? null : sourceBrepId,
-                LayerName = doc.Layers[obj.Attributes.LayerIndex]?.Name ?? "Default"
-            });
+                var op = CncOperationService.GetOperation(obj);
+                if (op == null) continue;
+
+                // Guard against malformed UserText
+                if (string.IsNullOrEmpty(op.Type)) continue;
+
+                var machining = ConvertToMachining(doc, obj, op);
+                if (machining == null) continue;
+
+                // Try to determine plate/source brep
+                var sourceBrepId = obj.Attributes.GetUserString(CncOperationSchema.CNC_SOURCE_BREP);
+
+                var layerIndex = obj.Attributes.LayerIndex;
+                var layerName = layerIndex >= 0 && layerIndex < doc.Layers.Count
+                    ? doc.Layers[layerIndex]?.Name ?? "Default"
+                    : "Default";
+
+                result.Add(new InteractiveOperation
+                {
+                    ObjectId = obj.Id,
+                    Operation = op,
+                    Machining = machining,
+                    SourceBrepId = string.IsNullOrEmpty(sourceBrepId) ? null : sourceBrepId,
+                    LayerName = layerName
+                });
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[ExportBridge] Fehler bei Objekt {obj.Id}: {ex.Message}");
+            }
         }
 
         return result;
@@ -201,15 +228,47 @@ public class InteractiveExportBridge
                 if (!outputPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
                     outputPath = Path.ChangeExtension(outputPath, extension);
 
-                File.WriteAllText(outputPath, program, System.Text.Encoding.UTF8);
+                try
+                {
+                    File.WriteAllText(outputPath, program, System.Text.Encoding.UTF8);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    result.Success = false;
+                    result.Error = $"Keine Schreibberechtigung für '{outputPath}'.";
+                    return result;
+                }
+                catch (PathTooLongException)
+                {
+                    result.Success = false;
+                    result.Error = $"Dateipfad zu lang: '{outputPath}'.";
+                    return result;
+                }
+                catch (IOException ioEx)
+                {
+                    result.Success = false;
+                    result.Error = $"Fehler beim Schreiben: {ioEx.Message}";
+                    return result;
+                }
+
                 result.ExportedFiles.Add(outputPath);
             }
             else
             {
                 // Multiple plates → directory with one file per plate
                 var dir = Path.GetDirectoryName(outputPath) ?? outputPath;
-                if (!Directory.Exists(dir))
-                    Directory.CreateDirectory(dir);
+
+                try
+                {
+                    if (!Directory.Exists(dir))
+                        Directory.CreateDirectory(dir);
+                }
+                catch (Exception dirEx)
+                {
+                    result.Success = false;
+                    result.Error = $"Verzeichnis konnte nicht erstellt werden: {dirEx.Message}";
+                    return result;
+                }
 
                 foreach (var group in groups)
                 {
@@ -223,7 +282,17 @@ public class InteractiveExportBridge
                     var fileName = SanitizeFileName(group.PlateName) + extension;
                     var filePath = Path.Combine(dir, fileName);
 
-                    File.WriteAllText(filePath, program, System.Text.Encoding.UTF8);
+                    try
+                    {
+                        File.WriteAllText(filePath, program, System.Text.Encoding.UTF8);
+                    }
+                    catch (Exception writeEx)
+                    {
+                        result.Success = false;
+                        result.Error = $"Fehler beim Schreiben von '{filePath}': {writeEx.Message}";
+                        return result;
+                    }
+
                     result.ExportedFiles.Add(filePath);
                 }
             }
