@@ -793,7 +793,7 @@ User checks "3D Toolpath-Vorschau"
 | `UI/CamPanel.cs` | Validate button + result display, pre-export validation block, try/catch on all operations |
 | `docs/CONTEXT-HANDOFF-CAM.md` | Updated with session #6 results |
 
-**Commit:** TBD
+**Commit:** `4c48857` — "feat: pre-export validation system, operation defaults, robust error handling"
 
 ### 11.3 Architecture Notes
 
