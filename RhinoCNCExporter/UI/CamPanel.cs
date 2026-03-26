@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Eto.Drawing;
@@ -82,6 +83,15 @@ public sealed class CamPanel : Panel
 
     // Status bar
     private readonly Label _statusLabel;
+
+    // Export bridge
+    private readonly InteractiveExportBridge _exportBridge = new();
+
+    // 3D preview toggle
+    private readonly CheckBox _3dPreviewCheckBox;
+
+    // Statistics labels
+    private readonly Label _statsLabel;
 
     // State
     private readonly ToolLibraryStore _toolLibraryStore = new();
@@ -228,6 +238,33 @@ public sealed class CamPanel : Panel
             Items = { generateAllBtn, clearAllBtn, refreshBtn }
         };
 
+        // --- 3D Preview Toggle ---
+        _3dPreviewCheckBox = new CheckBox
+        {
+            Text = "3D Toolpath-Vorschau (mit Tiefe)",
+            TextColor = FgText,
+            Checked = false,
+            ToolTip = "Toolpaths mit tatsächlicher Schnitttiefe anzeigen (Z-Offset)"
+        };
+        _3dPreviewCheckBox.CheckedChanged += (_, _) => OnToggle3DPreview();
+
+        // --- Export CNC Button ---
+        var exportCncBtn = new Button { Text = "📤 Export CNC", Height = 34, ToolTip = "Interaktive Operationen als CNC-Programm exportieren" };
+        exportCncBtn.Click += (_, _) => ExportInteractiveCnc();
+
+        var exportRow = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Items = { new StackLayoutItem(exportCncBtn, true) }
+        };
+
+        // --- Statistics Panel ---
+        _statsLabel = CreateLabel("—", 9, false);
+        _statsLabel.TextColor = FgDim;
+
+        var statsSection = CreateSection("Statistik", _statsLabel, "Bearbeitungsübersicht", false);
+
         // --- Status Bar ---
         _statusLabel = CreateLabel("Keine Operationen", 9, false);
         _statusLabel.TextColor = FgDim;
@@ -248,6 +285,9 @@ public sealed class CamPanel : Panel
                     opsSection,
                     propsSection,
                     actionButtons,
+                    _3dPreviewCheckBox,
+                    exportRow,
+                    statsSection,
                     _statusLabel
                 }
             }
@@ -458,6 +498,7 @@ public sealed class CamPanel : Panel
         _operationsTree.DataStore = _treeItems;
         UpdateStatusBar(totalOps, toolNames.Count, warnings);
         ShowEmptyState(totalOps == 0);
+        UpdateStatistics();
     }
 
     private void ShowEmptyState(bool show)
@@ -835,6 +876,7 @@ public sealed class CamPanel : Panel
 
         var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
         int generated = 0;
+        var is3D = _3dPreviewCheckBox.Checked ?? false;
 
         foreach (var obj in operations)
         {
@@ -844,16 +886,27 @@ public sealed class CamPanel : Panel
             var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
             if (toolDiam <= 0) continue;
 
-            // Remove existing toolpath first
+            // Remove existing toolpaths first
             ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+            ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
 
-            // Regenerate
+            // Regenerate 2D
             RegenerateToolpath(doc, obj, op.Type, toolDiam);
+
+            // Regenerate 3D if enabled
+            if (is3D)
+            {
+                var depth = op.Depth ?? 0;
+                var geometry3D = Generate3DToolpath(obj, op.Type, toolDiam, depth);
+                if (geometry3D.Count > 0)
+                    ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
+            }
+
             generated++;
         }
 
         doc.Views.Redraw();
-        RhinoApp.WriteLine($"[CamPanel] Toolpaths für {generated} Operation(en) generiert.");
+        RhinoApp.WriteLine($"[CamPanel] Toolpaths für {generated} Operation(en) generiert{(is3D ? " (2D+3D)" : "")}.");
         RefreshOperationsTree();
     }
 
@@ -868,6 +921,7 @@ public sealed class CamPanel : Panel
         foreach (var obj in operations)
         {
             ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+            ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
             cleared++;
         }
 
@@ -1124,6 +1178,180 @@ public sealed class CamPanel : Panel
         if (e.RhinoObject?.Document?.RuntimeSerialNumber != _lastDocSerialNumber) return;
 
         Application.Instance.AsyncInvoke(() => RefreshOperationsTree());
+    }
+
+    #endregion
+
+    #region Export & 3D Preview
+
+    private void ExportInteractiveCnc()
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null)
+        {
+            RhinoApp.WriteLine("[CamPanel] ❌ Kein aktives Rhino-Dokument.");
+            return;
+        }
+
+        var operations = _exportBridge.CollectOperations(doc);
+        if (operations.Count == 0)
+        {
+            RhinoApp.WriteLine("[CamPanel] ❌ Keine interaktiven CNC-Operationen gefunden.");
+            return;
+        }
+
+        // Determine format from machine profile
+        var profile = GetCurrentMachineProfile();
+        var format = GetCurrentMachineKey() switch
+        {
+            "biesse" => MachineFormat.Biesse,
+            _ => MachineFormat.Xilog
+        };
+
+        var extension = format switch
+        {
+            MachineFormat.Biesse => ".cix",
+            _ => ".xcs"
+        };
+
+        // Show save dialog
+        var defaultName = string.IsNullOrWhiteSpace(doc.Name)
+            ? "program" + extension
+            : Path.ChangeExtension(doc.Name, extension);
+
+        var groups = _exportBridge.GroupByPlate(doc, operations);
+        string outputPath;
+
+        if (groups.Count > 1)
+        {
+            // Multiple plates → folder dialog
+            var folderDialog = new SelectFolderDialog
+            {
+                Title = $"Export-Ordner wählen ({groups.Count} Platten)"
+            };
+
+            if (folderDialog.ShowDialog(this) != DialogResult.Ok || string.IsNullOrWhiteSpace(folderDialog.Directory))
+                return;
+
+            outputPath = folderDialog.Directory;
+        }
+        else
+        {
+            var saveDialog = new SaveFileDialog
+            {
+                Title = "CNC-Programm exportieren",
+                FileName = defaultName
+            };
+            saveDialog.Filters.Add(new FileFilter($"CNC Datei (*{extension})", extension));
+
+            if (saveDialog.ShowDialog(this) != DialogResult.Ok || string.IsNullOrWhiteSpace(saveDialog.FileName))
+                return;
+
+            outputPath = saveDialog.FileName;
+        }
+
+        var result = _exportBridge.Export(doc, outputPath, format, profile);
+
+        if (result.Success)
+        {
+            foreach (var file in result.ExportedFiles)
+            {
+                RhinoApp.WriteLine($"[CamPanel] ✅ CNC erstellt: {file}");
+            }
+            RhinoApp.WriteLine($"[CamPanel] Export erfolgreich: {result.OperationCount} Op., {result.PlateCount} Platte(n), {result.ExportedFiles.Count} Datei(en)");
+        }
+        else
+        {
+            RhinoApp.WriteLine($"[CamPanel] ❌ Export fehlgeschlagen: {result.Error}");
+        }
+    }
+
+    private void OnToggle3DPreview()
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        var is3D = _3dPreviewCheckBox.Checked ?? false;
+        var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+
+        foreach (var obj in operations)
+        {
+            var op = CncOperationService.GetOperation(obj);
+            if (op == null) continue;
+
+            var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
+            if (toolDiam <= 0) continue;
+
+            var depth = op.Depth ?? 0;
+
+            if (is3D)
+            {
+                // Generate 3D toolpaths
+                ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+                var geometry3D = Generate3DToolpath(obj, op.Type, toolDiam, depth);
+                if (geometry3D.Count > 0)
+                    ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
+            }
+            else
+            {
+                // Remove 3D toolpaths
+                ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+            }
+        }
+
+        doc.Views.Redraw();
+        RhinoApp.WriteLine($"[CamPanel] 3D-Vorschau {(is3D ? "aktiviert" : "deaktiviert")} für {operations.Count} Operation(en).");
+    }
+
+    private List<GeometryBase> Generate3DToolpath(RhinoObject obj, string operationType, double toolDiameter, double depth)
+    {
+        var geometry = obj.Geometry;
+
+        switch (operationType.ToUpperInvariant())
+        {
+            case "CONTOUR":
+            case "GROOVE":
+                if (geometry is Curve curve)
+                    return ToolpathVisualizer.CreateContourToolpath3D(curve, toolDiameter, depth);
+                break;
+            case "POCKET":
+                if (geometry is Curve pocketCurve)
+                {
+                    var stepover = GetStepoverFromObject(obj);
+                    return ToolpathVisualizer.CreatePocketToolpath3D(pocketCurve, toolDiameter, stepover, depth);
+                }
+                break;
+            case "DRILL":
+                Point3d center;
+                if (geometry is Rhino.Geometry.Point point)
+                    center = point.Location;
+                else if (geometry is Curve drillCurve)
+                    center = drillCurve.PointAtStart;
+                else
+                    return new List<GeometryBase>();
+                return ToolpathVisualizer.CreateDrillToolpath3D(center, toolDiameter, depth);
+        }
+
+        return new List<GeometryBase>();
+    }
+
+    private void UpdateStatistics()
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null)
+        {
+            _statsLabel.Text = "—";
+            return;
+        }
+
+        var stats = InteractiveExportBridge.GetStatistics(doc, _allTools);
+        if (stats.TotalOperations == 0)
+        {
+            _statsLabel.Text = "Keine Operationen";
+            return;
+        }
+
+        _statsLabel.Text = stats.FormatSummary();
     }
 
     #endregion

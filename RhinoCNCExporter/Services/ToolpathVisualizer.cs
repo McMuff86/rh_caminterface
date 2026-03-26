@@ -197,6 +197,343 @@ public static class ToolpathVisualizer
         }
     }
 
+    // --- 3D Toolpath Layer ---
+    private const string Root3DLayerName = "CNC_Toolpaths_3D";
+
+    /// <summary>
+    /// Creates 3D toolpath visualization for a contour/groove at actual cutting depth.
+    /// Shows top curve, bottom curve (at depth), and vertical connection lines.
+    /// </summary>
+    public static List<GeometryBase> CreateContourToolpath3D(Curve sourceCurve, double toolDiameter, double depth)
+    {
+        var result = new List<GeometryBase>();
+        if (depth <= 0.001) return CreateContourToolpath(sourceCurve, toolDiameter);
+
+        var radius = toolDiameter / 2.0;
+        var plane = GetCurvePlane(sourceCurve);
+        var tolerance = RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
+
+        // Top offset curves (at surface level)
+        var topLeft = sourceCurve.Offset(plane, radius, tolerance, CurveOffsetCornerStyle.Sharp);
+        var topRight = sourceCurve.Offset(plane, -radius, tolerance, CurveOffsetCornerStyle.Sharp);
+
+        if (topLeft != null) result.AddRange(topLeft);
+        if (topRight != null) result.AddRange(topRight);
+
+        // Bottom curves (at cutting depth) — translate down by depth along the plane normal
+        var depthTransform = Transform.Translation(-plane.ZAxis * depth);
+
+        if (topLeft != null)
+        {
+            foreach (var c in topLeft)
+            {
+                var bottomCurve = c.DuplicateCurve();
+                bottomCurve.Transform(depthTransform);
+                result.Add(bottomCurve);
+            }
+        }
+
+        if (topRight != null)
+        {
+            foreach (var c in topRight)
+            {
+                var bottomCurve = c.DuplicateCurve();
+                bottomCurve.Transform(depthTransform);
+                result.Add(bottomCurve);
+            }
+        }
+
+        // Vertical connection lines at intervals along the source curve
+        var curveLength = sourceCurve.GetLength();
+        var numConnections = Math.Max(4, (int)(curveLength / 50.0));
+
+        for (int i = 0; i <= numConnections; i++)
+        {
+            var t = (double)i / numConnections;
+            sourceCurve.NormalizedLengthParameter(t, out var param);
+            var topPoint = sourceCurve.PointAt(param);
+
+            // Left side connection
+            var topLeftPt = topPoint + plane.XAxis * 0 + GetPerpendicularOffset(sourceCurve, param, radius);
+            var bottomLeftPt = topLeftPt - plane.ZAxis * depth;
+            result.Add(new LineCurve(topLeftPt, bottomLeftPt));
+
+            // Right side connection
+            var topRightPt = topPoint - GetPerpendicularOffset(sourceCurve, param, radius);
+            var bottomRightPt = topRightPt - plane.ZAxis * depth;
+            result.Add(new LineCurve(topRightPt, bottomRightPt));
+        }
+
+        // Direction arrows on top curve
+        result.AddRange(CreateDirectionArrows(sourceCurve));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Creates 3D toolpath visualization for a drill at actual cutting depth.
+    /// Shows a cylinder outline (two circles + vertical lines) and cone tip.
+    /// </summary>
+    public static List<GeometryBase> CreateDrillToolpath3D(Point3d center, double diameter, double depth)
+    {
+        var result = new List<GeometryBase>();
+        if (depth <= 0.001) return CreateDrillToolpath(center, diameter);
+
+        var radius = diameter / 2.0;
+        if (radius <= 0.01) return result;
+
+        // Top circle
+        var topCircle = new ArcCurve(new Circle(center, radius));
+        result.Add(topCircle);
+
+        // Bottom circle at depth
+        var bottomCenter = new Point3d(center.X, center.Y, center.Z - depth);
+        var bottomCircle = new ArcCurve(new Circle(bottomCenter, radius));
+        result.Add(bottomCircle);
+
+        // Vertical lines connecting top and bottom circles (4 lines at cardinal directions)
+        for (int i = 0; i < 4; i++)
+        {
+            var angle = i * Math.PI / 2.0;
+            var dx = radius * Math.Cos(angle);
+            var dy = radius * Math.Sin(angle);
+            var topPt = new Point3d(center.X + dx, center.Y + dy, center.Z);
+            var bottomPt = new Point3d(center.X + dx, center.Y + dy, center.Z - depth);
+            result.Add(new LineCurve(topPt, bottomPt));
+        }
+
+        // Crosshair at top
+        var crossSize = radius * 0.6;
+        result.Add(new LineCurve(
+            new Point3d(center.X - crossSize, center.Y, center.Z),
+            new Point3d(center.X + crossSize, center.Y, center.Z)));
+        result.Add(new LineCurve(
+            new Point3d(center.X, center.Y - crossSize, center.Z),
+            new Point3d(center.X, center.Y + crossSize, center.Z)));
+
+        // Drill point indicator at bottom (X lines)
+        var tipSize = radius * 0.4;
+        result.Add(new LineCurve(
+            new Point3d(center.X - tipSize, center.Y - tipSize, center.Z - depth),
+            new Point3d(center.X + tipSize, center.Y + tipSize, center.Z - depth)));
+        result.Add(new LineCurve(
+            new Point3d(center.X - tipSize, center.Y + tipSize, center.Z - depth),
+            new Point3d(center.X + tipSize, center.Y - tipSize, center.Z - depth)));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Creates 3D toolpath visualization for a pocket at actual cutting depth.
+    /// Shows concentric offset curves at depth with connecting ramp indicators.
+    /// </summary>
+    public static List<GeometryBase> CreatePocketToolpath3D(Curve boundaryCurve, double toolDiameter, double stepoverPercent, double depth)
+    {
+        var result = new List<GeometryBase>();
+        if (depth <= 0.001) return CreatePocketToolpath(boundaryCurve, toolDiameter, stepoverPercent);
+
+        var radius = toolDiameter / 2.0;
+        var stepover = toolDiameter * (stepoverPercent / 100.0);
+        if (radius <= 0.01 || stepover <= 0.01) return result;
+
+        var tolerance = RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
+        var plane = GetCurvePlane(boundaryCurve);
+        var depthTransform = Transform.Translation(-plane.ZAxis * depth);
+
+        // Top boundary (at surface)
+        result.Add(boundaryCurve.DuplicateCurve());
+
+        // Bottom boundary (at depth)
+        var bottomBoundary = boundaryCurve.DuplicateCurve();
+        bottomBoundary.Transform(depthTransform);
+        result.Add(bottomBoundary);
+
+        // Vertical connection lines on boundary
+        var boundaryLength = boundaryCurve.GetLength();
+        var numConnections = Math.Max(4, (int)(boundaryLength / 60.0));
+        for (int i = 0; i < numConnections; i++)
+        {
+            var t = (double)i / numConnections;
+            boundaryCurve.NormalizedLengthParameter(t, out var param);
+            var topPt = boundaryCurve.PointAt(param);
+            var bottomPt = topPt - plane.ZAxis * depth;
+            result.Add(new LineCurve(topPt, bottomPt));
+        }
+
+        // Concentric offsets at depth level
+        var currentOffset = radius;
+        var maxIterations = 200;
+        var iteration = 0;
+
+        while (iteration < maxIterations)
+        {
+            var offsets = boundaryCurve.Offset(plane, -currentOffset, tolerance, CurveOffsetCornerStyle.Sharp);
+            if (offsets == null || offsets.Length == 0) break;
+
+            var addedAny = false;
+            foreach (var offset in offsets)
+            {
+                if (offset.GetLength() > toolDiameter * 0.5)
+                {
+                    // Add at depth level
+                    var depthOffset = offset.DuplicateCurve();
+                    depthOffset.Transform(depthTransform);
+                    result.Add(depthOffset);
+                    addedAny = true;
+                }
+            }
+
+            if (!addedAny) break;
+            currentOffset += stepover;
+            iteration++;
+        }
+
+        // Entry point marker at surface + ramp indicator to depth
+        var entryPoint = boundaryCurve.PointAtStart;
+        var entryCircle = new ArcCurve(new Circle(entryPoint, toolDiameter * 0.3));
+        result.Add(entryCircle);
+
+        // Ramp line from entry to depth
+        var entryBottom = entryPoint - plane.ZAxis * depth;
+        // Offset ramp slightly for visibility
+        var rampEnd = entryBottom + plane.XAxis * (toolDiameter * 2.0);
+        result.Add(new LineCurve(entryPoint, rampEnd));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Adds 3D toolpath geometry to the document on the CNC_Toolpaths_3D layer tree.
+    /// </summary>
+    public static void AddToolpath3DToDocument(
+        RhinoDoc doc,
+        RhinoObject sourceObject,
+        string operationType,
+        List<GeometryBase> toolpathGeometry)
+    {
+        if (toolpathGeometry.Count == 0) return;
+
+        var layerIndex = EnsureToolpath3DSubLayer(doc, operationType);
+        var color = GetOperationColor(operationType);
+        // Slightly lighter color for 3D to distinguish from 2D
+        var color3D = System.Drawing.Color.FromArgb(
+            Math.Min(255, color.R + 40),
+            Math.Min(255, color.G + 40),
+            Math.Min(255, color.B + 40));
+
+        var objectIds = new List<Guid>();
+
+        foreach (var geom in toolpathGeometry)
+        {
+            var attributes = new ObjectAttributes
+            {
+                LayerIndex = layerIndex,
+                ColorSource = ObjectColorSource.ColorFromObject,
+                ObjectColor = color3D,
+                PlotWeight = PlotWeight,
+                PlotWeightSource = ObjectPlotWeightSource.PlotWeightFromObject,
+            };
+
+            var id = Guid.Empty;
+            if (geom is Curve curve)
+                id = doc.Objects.AddCurve(curve, attributes);
+            else if (geom is Rhino.Geometry.Point point)
+                id = doc.Objects.AddPoint(point.Location, attributes);
+
+            if (id != Guid.Empty)
+                objectIds.Add(id);
+        }
+
+        // Store 3D group info on source object
+        if (objectIds.Count > 0)
+        {
+            var groupIndex = doc.Groups.Add(objectIds);
+            sourceObject.Attributes.SetUserString("CNC_GroupIndex3D", groupIndex.ToString());
+            sourceObject.CommitChanges();
+        }
+    }
+
+    /// <summary>
+    /// Removes all 3D toolpath geometry grouped with the source object.
+    /// </summary>
+    public static void RemoveToolpath3DGeometry(RhinoDoc doc, RhinoObject sourceObject)
+    {
+        var groupIndexStr = sourceObject.Attributes.GetUserString("CNC_GroupIndex3D");
+        if (string.IsNullOrEmpty(groupIndexStr) || !int.TryParse(groupIndexStr, out var groupIndex))
+            return;
+
+        var groupMembers = doc.Objects.FindByGroup(groupIndex);
+        if (groupMembers == null) return;
+
+        foreach (var member in groupMembers)
+        {
+            var layer = doc.Layers[member.Attributes.LayerIndex];
+            if (layer != null && layer.FullPath.StartsWith(Root3DLayerName, StringComparison.OrdinalIgnoreCase))
+            {
+                doc.Objects.Delete(member.Id, true);
+            }
+        }
+
+        doc.Groups.Delete(groupIndex);
+        sourceObject.Attributes.DeleteUserString("CNC_GroupIndex3D");
+        sourceObject.CommitChanges();
+    }
+
+    /// <summary>
+    /// Ensures the CNC_Toolpaths_3D root layer and sublayer exist.
+    /// </summary>
+    private static int EnsureToolpath3DSubLayer(RhinoDoc doc, string operationType)
+    {
+        var subLayerName = operationType switch
+        {
+            CncOperationSchema.TYPE_CONTOUR => ContourSubLayer,
+            CncOperationSchema.TYPE_POCKET => PocketSubLayer,
+            CncOperationSchema.TYPE_DRILL => DrillSubLayer,
+            CncOperationSchema.TYPE_GROOVE => GrooveSubLayer,
+            _ => operationType
+        };
+
+        var color = GetOperationColor(operationType);
+
+        var rootLayer = doc.Layers.FindByFullPath(Root3DLayerName, -1);
+        if (rootLayer < 0)
+        {
+            var layer = new Layer
+            {
+                Name = Root3DLayerName,
+                Color = Color.Gray
+            };
+            rootLayer = doc.Layers.Add(layer);
+        }
+
+        var fullPath = $"{Root3DLayerName}::{subLayerName}";
+        var subLayerIndex = doc.Layers.FindByFullPath(fullPath, -1);
+        if (subLayerIndex < 0)
+        {
+            var subLayer = new Layer
+            {
+                Name = subLayerName,
+                ParentLayerId = doc.Layers[rootLayer].Id,
+                Color = color
+            };
+            subLayerIndex = doc.Layers.Add(subLayer);
+        }
+
+        return subLayerIndex;
+    }
+
+    /// <summary>
+    /// Helper to get perpendicular offset point at a curve parameter.
+    /// </summary>
+    private static Vector3d GetPerpendicularOffset(Curve curve, double param, double distance)
+    {
+        var tangent = curve.TangentAt(param);
+        if (tangent.IsZero) return Vector3d.Zero;
+        tangent.Unitize();
+        var perp = new Vector3d(-tangent.Y, tangent.X, 0);
+        return perp * distance;
+    }
+
     /// <summary>
     /// Removes all toolpath geometry grouped with the source object.
     /// </summary>
