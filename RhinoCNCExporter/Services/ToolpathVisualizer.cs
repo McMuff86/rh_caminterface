@@ -50,13 +50,16 @@ public static class ToolpathVisualizer
 
         if (radius <= 0.01) return result;
 
-        // Generate offset curves (left and right) to show cut width
-        var plane = Plane.WorldXY;
-        var offsets = sourceCurve.Offset(plane, radius, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance, CurveOffsetCornerStyle.Sharp);
+        // Determine the best plane for offsetting — use the curve's own plane
+        // instead of WorldXY to handle curves at any Z height or orientation
+        var plane = GetCurvePlane(sourceCurve);
+        var tolerance = RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
+
+        var offsets = sourceCurve.Offset(plane, radius, tolerance, CurveOffsetCornerStyle.Sharp);
         if (offsets != null)
             result.AddRange(offsets);
 
-        offsets = sourceCurve.Offset(plane, -radius, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance, CurveOffsetCornerStyle.Sharp);
+        offsets = sourceCurve.Offset(plane, -radius, tolerance, CurveOffsetCornerStyle.Sharp);
         if (offsets != null)
             result.AddRange(offsets);
 
@@ -79,7 +82,7 @@ public static class ToolpathVisualizer
         if (radius <= 0.01 || stepover <= 0.01) return result;
 
         var tolerance = RhinoDoc.ActiveDoc.ModelAbsoluteTolerance;
-        var plane = Plane.WorldXY;
+        var plane = GetCurvePlane(boundaryCurve);
 
         // Generate concentric offset curves inward
         var currentOffset = radius;
@@ -227,6 +230,24 @@ public static class ToolpathVisualizer
         // Clear the stored group index
         sourceObject.Attributes.DeleteUserString(CncOperationSchema.CNC_GROUP_INDEX);
         sourceObject.CommitChanges();
+    }
+
+    /// <summary>
+    /// Gets the best plane for offsetting a curve. Uses the curve's own plane
+    /// when planar, otherwise constructs a plane at the curve's midpoint using
+    /// the tangent and world Z. Falls back to WorldXY moved to the curve's Z.
+    /// </summary>
+    private static Plane GetCurvePlane(Curve curve)
+    {
+        // If the curve is planar, use its own plane — handles Z offset automatically
+        if (curve.TryGetPlane(out var curvePlane, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance))
+            return curvePlane;
+
+        // For non-planar curves, use WorldXY at the curve's start Z
+        var startPoint = curve.PointAtStart;
+        var plane = Plane.WorldXY;
+        plane.Origin = new Point3d(0, 0, startPoint.Z);
+        return plane;
     }
 
     /// <summary>

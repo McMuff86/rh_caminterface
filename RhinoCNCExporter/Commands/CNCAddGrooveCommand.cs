@@ -30,14 +30,22 @@ public sealed class CNCAddGrooveCommand : Command
             if (go.CommandResult() != Result.Success)
                 return go.CommandResult();
 
-            var selectedObjects = new List<RhinoObject>();
+            // Collect both the RhinoObject (for UserText) and the actual curve geometry
+            var selections = new List<(RhinoObject obj, Curve curve)>();
             foreach (var objRef in go.Objects())
             {
-                if (objRef.Object() is RhinoObject rhinoObj && rhinoObj.Geometry is Curve)
-                    selectedObjects.Add(rhinoObj);
+                var rhinoObj = objRef.Object();
+                if (rhinoObj == null) continue;
+
+                var curve = objRef.Curve();
+                if (curve == null && rhinoObj.Geometry is Curve directCurve)
+                    curve = directCurve;
+
+                if (curve != null)
+                    selections.Add((rhinoObj, curve));
             }
 
-            if (selectedObjects.Count == 0)
+            if (selections.Count == 0)
             {
                 RhinoApp.WriteLine("Keine gültigen Kurven ausgewählt.");
                 return Result.Nothing;
@@ -59,13 +67,13 @@ public sealed class CNCAddGrooveCommand : Command
             var grooveWidth = GetGrooveWidth(parameters);
 
             // Apply operation to selected objects
-            foreach (var obj in selectedObjects)
+            foreach (var (obj, curve) in selections)
             {
                 CncOperationService.SetOperation(obj, CncOperationSchema.TYPE_GROOVE, parameters);
                 CncOperationService.SetOperationColor(obj, CncOperationSchema.TYPE_GROOVE);
 
                 // Generate and add toolpath visualization (same as contour — offset curves show groove width)
-                if (obj.Geometry is Curve curve && grooveWidth > 0)
+                if (grooveWidth > 0)
                 {
                     var toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, grooveWidth);
                     ToolpathVisualizer.AddToolpathToDocument(doc, obj, CncOperationSchema.TYPE_GROOVE, toolpathGeometry);
@@ -73,7 +81,7 @@ public sealed class CNCAddGrooveCommand : Command
             }
 
             doc.Views.Redraw();
-            RhinoApp.WriteLine($"Nut-Bearbeitung zu {selectedObjects.Count} Objekt(en) hinzugefügt.");
+            RhinoApp.WriteLine($"Nut-Bearbeitung zu {selections.Count} Objekt(en) hinzugefügt.");
 
             return Result.Success;
         }

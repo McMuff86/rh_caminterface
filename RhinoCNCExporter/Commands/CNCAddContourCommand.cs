@@ -30,14 +30,24 @@ public sealed class CNCAddContourCommand : Command
             if (go.CommandResult() != Result.Success)
                 return go.CommandResult();
 
-            var selectedObjects = new List<RhinoObject>();
+            // Collect both the RhinoObject (for UserText) and the actual curve geometry
+            // (which may differ when edges of a Brep are selected)
+            var selections = new List<(RhinoObject obj, Curve curve)>();
             foreach (var objRef in go.Objects())
             {
-                if (objRef.Object() is RhinoObject rhinoObj)
-                    selectedObjects.Add(rhinoObj);
+                var rhinoObj = objRef.Object();
+                if (rhinoObj == null) continue;
+
+                // Try to get the actual curve — works for standalone curves AND Brep edges
+                var curve = objRef.Curve();
+                if (curve == null && rhinoObj.Geometry is Curve directCurve)
+                    curve = directCurve;
+
+                if (curve != null)
+                    selections.Add((rhinoObj, curve));
             }
 
-            if (selectedObjects.Count == 0)
+            if (selections.Count == 0)
             {
                 RhinoApp.WriteLine("Keine gültigen Objekte ausgewählt.");
                 return Result.Nothing;
@@ -59,13 +69,13 @@ public sealed class CNCAddContourCommand : Command
             var toolDiameter = GetToolDiameter(parameters);
 
             // Apply operation to selected objects
-            foreach (var obj in selectedObjects)
+            foreach (var (obj, curve) in selections)
             {
                 CncOperationService.SetOperation(obj, CncOperationSchema.TYPE_CONTOUR, parameters);
                 CncOperationService.SetOperationColor(obj, CncOperationSchema.TYPE_CONTOUR);
 
-                // Generate and add toolpath visualization
-                if (obj.Geometry is Curve curve && toolDiameter > 0)
+                // Generate and add toolpath visualization using the actual curve geometry
+                if (toolDiameter > 0)
                 {
                     var toolpathGeometry = ToolpathVisualizer.CreateContourToolpath(curve, toolDiameter);
                     ToolpathVisualizer.AddToolpathToDocument(doc, obj, CncOperationSchema.TYPE_CONTOUR, toolpathGeometry);
@@ -73,7 +83,7 @@ public sealed class CNCAddContourCommand : Command
             }
 
             doc.Views.Redraw();
-            RhinoApp.WriteLine($"Konturbearbeitung zu {selectedObjects.Count} Objekt(en) hinzugefügt.");
+            RhinoApp.WriteLine($"Konturbearbeitung zu {selections.Count} Objekt(en) hinzugefügt.");
 
             return Result.Success;
         }

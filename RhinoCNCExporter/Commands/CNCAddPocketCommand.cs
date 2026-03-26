@@ -31,18 +31,23 @@ public sealed class CNCAddPocketCommand : Command
             if (go.CommandResult() != Result.Success)
                 return go.CommandResult();
 
-            var selectedObjects = new List<RhinoObject>();
+            // Collect both the RhinoObject (for UserText) and the actual curve geometry
+            var selections = new List<(RhinoObject obj, Curve curve)>();
             foreach (var objRef in go.Objects())
             {
-                if (objRef.Object() is RhinoObject rhinoObj)
-                {
-                    // Verify curve is closed
-                    if (rhinoObj.Geometry is Curve curve && curve.IsClosed)
-                        selectedObjects.Add(rhinoObj);
-                }
+                var rhinoObj = objRef.Object();
+                if (rhinoObj == null) continue;
+
+                var curve = objRef.Curve();
+                if (curve == null && rhinoObj.Geometry is Curve directCurve)
+                    curve = directCurve;
+
+                // Verify curve is closed
+                if (curve != null && curve.IsClosed)
+                    selections.Add((rhinoObj, curve));
             }
 
-            if (selectedObjects.Count == 0)
+            if (selections.Count == 0)
             {
                 RhinoApp.WriteLine("Keine geschlossenen Kurven ausgewählt.");
                 return Result.Nothing;
@@ -65,13 +70,13 @@ public sealed class CNCAddPocketCommand : Command
             var stepover = GetStepover(parameters);
 
             // Apply operation to selected objects
-            foreach (var obj in selectedObjects)
+            foreach (var (obj, curve) in selections)
             {
                 CncOperationService.SetOperation(obj, CncOperationSchema.TYPE_POCKET, parameters);
                 CncOperationService.SetOperationColor(obj, CncOperationSchema.TYPE_POCKET);
 
                 // Generate and add toolpath visualization
-                if (obj.Geometry is Curve curve && toolDiameter > 0)
+                if (toolDiameter > 0)
                 {
                     var toolpathGeometry = ToolpathVisualizer.CreatePocketToolpath(curve, toolDiameter, stepover);
                     ToolpathVisualizer.AddToolpathToDocument(doc, obj, CncOperationSchema.TYPE_POCKET, toolpathGeometry);
@@ -79,7 +84,7 @@ public sealed class CNCAddPocketCommand : Command
             }
 
             doc.Views.Redraw();
-            RhinoApp.WriteLine($"Taschenbearbeitung zu {selectedObjects.Count} Objekt(en) hinzugefügt.");
+            RhinoApp.WriteLine($"Taschenbearbeitung zu {selections.Count} Objekt(en) hinzugefügt.");
 
             return Result.Success;
         }
