@@ -7,6 +7,8 @@ using System.Runtime.InteropServices;
 using Eto.Drawing;
 using Eto.Forms;
 using Rhino;
+using Rhino.DocObjects;
+using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Pipeline;
 using RhinoCNCExporter.Core.Profiles;
@@ -1003,12 +1005,84 @@ public sealed class ExportPanel : Panel
                 return;
             }
 
+            // Also regenerate toolpaths for UserText-based interactive CAM operations
+            // using the unified ToolpathVisualizer (CNC_Toolpaths layer)
+            var interactiveOps = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+            int interactiveCount = 0;
+            foreach (var obj in interactiveOps)
+            {
+                var op = CncOperationService.GetOperation(obj);
+                if (op == null) continue;
+
+                var toolDiam = op.Diameter ?? 0;
+                if (toolDiam <= 0 && !string.IsNullOrEmpty(op.Tool))
+                {
+                    // Try to resolve diameter from current tool library
+                    if (TryGetCurrentProfile(out var prof, out _) && prof != null)
+                    {
+                        var lib = _toolLibraryStore.LoadOrCreate(prof);
+                        var toolDef = lib.Tools.FirstOrDefault(t =>
+                            t.Name.Equals(op.Tool, StringComparison.OrdinalIgnoreCase));
+                        toolDiam = toolDef?.NominalDiameter ?? 0;
+                    }
+                }
+
+                if (toolDiam <= 0) continue;
+
+                ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+                RegenerateInteractiveToolpath(doc, obj, op.Type, toolDiam, op);
+                interactiveCount++;
+            }
+
             RefreshToolLibrarySummary();
-            Log($"✅ Vorschau erstellt: {result.PlateCount} Platte(n), {result.OperationCount} Pfade, {result.ObjectCount} Objekte");
+            var interactiveMsg = interactiveCount > 0 ? $", {interactiveCount} interaktive Op." : "";
+            Log($"✅ Vorschau erstellt: {result.PlateCount} Platte(n), {result.OperationCount} Pfade, {result.ObjectCount} Objekte{interactiveMsg}");
         }
         catch (Exception ex)
         {
             Log($"❌ Vorschau-Fehler: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Regenerates toolpath visualization for an interactive CNC operation
+    /// using the unified ToolpathVisualizer system.
+    /// </summary>
+    private static void RegenerateInteractiveToolpath(RhinoDoc doc, Rhino.DocObjects.RhinoObject obj, string operationType, double toolDiameter, MachiningOperation op)
+    {
+        var geometry = obj.Geometry;
+
+        switch (operationType.ToUpperInvariant())
+        {
+            case "CONTOUR":
+            case "GROOVE":
+                if (geometry is Rhino.Geometry.Curve curve)
+                {
+                    var tpGeom = ToolpathVisualizer.CreateContourToolpath(curve, toolDiameter);
+                    ToolpathVisualizer.AddToolpathToDocument(doc, obj, operationType, tpGeom);
+                }
+                break;
+            case "POCKET":
+                if (geometry is Rhino.Geometry.Curve pocketCurve)
+                {
+                    double stepover = 50.0;
+                    if (op.Stepover.HasValue) stepover = op.Stepover.Value;
+                    var tpGeom = ToolpathVisualizer.CreatePocketToolpath(pocketCurve, toolDiameter, stepover);
+                    ToolpathVisualizer.AddToolpathToDocument(doc, obj, operationType, tpGeom);
+                }
+                break;
+            case "DRILL":
+                Rhino.Geometry.Point3d center;
+                if (geometry is Rhino.Geometry.Point pt)
+                    center = pt.Location;
+                else if (geometry is Rhino.Geometry.Curve drillCurve)
+                    center = drillCurve.PointAtStart;
+                else
+                    return;
+
+                var drillGeom = ToolpathVisualizer.CreateDrillToolpath(center, toolDiameter);
+                ToolpathVisualizer.AddToolpathToDocument(doc, obj, operationType, drillGeom);
+                break;
         }
     }
 

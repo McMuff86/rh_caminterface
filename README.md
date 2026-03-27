@@ -10,6 +10,25 @@
 
 **Einsatzgebiet:** Holzbearbeitung/Möbelindustrie — Platten fräsen, bohren, Nuten schneiden, Verbinder setzen.
 
+### 🆕 Interaktives CAM-System (März 2026)
+
+Neben dem bewährten Layer-basierten Export bietet das Plugin jetzt ein **interaktives CAM-System** — CNC-Bearbeitungen direkt auf Geometrie definieren, visualisieren und exportieren:
+
+- **4 Operationstypen:** Kontur 🔴, Tasche 🔵, Bohrung 🟡, Nut 🟢
+- **Brep-Kanten-Unterstützung:** Direkte Auswahl von Kanten an 3D-Körpern
+- **Dockbares CNC Operations Panel:** Operationsliste, Eigenschafts-Editor, Schnellzugriff
+- **Werkzeugbahn-Vorschau:** 2D + 3D Visualisierung mit Tiefendarstellung
+- **Werkzeugbahn-Simulation:** Animierte Werkzeugbewegung entlang der Bahnen
+- **Werkzeugbibliothek:** Pro Maschinenprofil, mit CRUD-Verwaltung
+- **Pre-Export-Validierung:** 12 automatische Prüfungen (Werkzeug, Tiefe, Geometrie, …)
+- **Export-Vorschau:** CNC-Code mit Syntax-Highlighting, Zeilennummern, Kopieren, Editor-Export
+- **Maschinenprofile:** SCM (Xilog), Biesse (CIX), MaestroCadT — profilspezifische Standards
+- **Undo-Support:** Alle Operationen in Rhinos Undo-System integriert
+
+**Befehle:** `CNCAddContour`, `CNCAddPocket`, `CNCAddDrill`, `CNCAddGroove`, `CNCRemoveOperation`, `CNCPanel`, `CNCListOperations`
+
+📖 Ausführliche Dokumentation: [`docs/CAM-INTERACTIVE-GUIDE.md`](docs/CAM-INTERACTIVE-GUIDE.md)
+
 ### Status auf einen Blick
 - **Referenz-Codebasis (Python)**: `RH_caminterface_v007.py` (Quelle der Wahrheit für Regeln/Mappings)
 - **Maestro-Handbuch (lokal analysierbar)**:

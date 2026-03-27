@@ -78,7 +78,7 @@ public static class FeatureReader
         try
         {
             // Get common properties
-            var name = GetStringTag(tags, "Description", $"FaceFeature_{faceIndex}");
+            var name = GetStringTag(tags, "Description", $"FaceFeature_{faceIndex}") ?? $"FaceFeature_{faceIndex}";
             var side = GetMachiningSide(tags);
             var techCode = GetStringTag(tags, "TechCode", null);
 
@@ -228,16 +228,16 @@ public static class FeatureReader
         }
 
         // Parse macro parameters
-        var parameters = new List<string?>();
+        var macroParams = new List<string>();
         if (tags.TryGetValue("MacroParams", out var paramStr) && !string.IsNullOrWhiteSpace(paramStr))
         {
-            parameters.AddRange(paramStr.Split(',').Select(p => p.Trim()));
+            macroParams.AddRange(paramStr.Split(',').Select(p => p.Trim()));
         }
 
         // Add orientation if specified
         if (tags.TryGetValue("Orientation", out var orientStr) && !string.IsNullOrWhiteSpace(orientStr))
         {
-            parameters.Insert(0, orientStr);
+            macroParams.Insert(0, orientStr);
         }
 
         return new MacroMachining
@@ -247,7 +247,7 @@ public static class FeatureReader
             TechCode = techCode,
             Source = MachiningSource.FaceTag,
             MacroName = macroName,
-            Parameters = parameters.AsReadOnly()
+            Parameters = macroParams.Select(p => (string?)p).ToList().AsReadOnly()
         };
     }
 
@@ -325,7 +325,7 @@ public static class FeatureReader
             if (curve != null)
             {
                 // Sample the curve to get boundary points
-                if (curve.TryGetPolyline(out var poly))
+                if (curve.TryGetPolyline(out var poly) && poly != null)
                 {
                     boundary.AddRange(poly.Select(pt => (pt.X, pt.Y)));
                 }

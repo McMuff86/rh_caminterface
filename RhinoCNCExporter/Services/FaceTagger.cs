@@ -72,12 +72,13 @@ public static class FaceTagger
             var allUserStrings = obj.Attributes.GetUserStrings();
             if (allUserStrings == null) return tags;
 
-            foreach (string key in allUserStrings.AllKeys)
+            foreach (string? key in allUserStrings.AllKeys)
             {
+                if (key == null) continue;
                 if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 {
                     string cncKey = key.Substring(prefix.Length);
-                    string value = allUserStrings[key];
+                    string? value = allUserStrings[key];
                     if (!string.IsNullOrEmpty(value))
                     {
                         tags[cncKey] = value;
@@ -175,12 +176,13 @@ public static class FaceTagger
             if (userStrings == null) return true;
 
             var keysToRemove = userStrings.AllKeys
-                .Where(key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .Where(key => key != null && key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .Select(key => key!)
                 .ToList();
 
             foreach (string key in keysToRemove)
             {
-                obj.Attributes.SetUserString(key, null);
+                obj.Attributes.DeleteUserString(key);
             }
 
             if (keysToRemove.Count > 0)
@@ -212,9 +214,9 @@ public static class FaceTagger
             var userStrings = obj.Attributes.GetUserStrings();
             if (userStrings == null) return faceIndices.ToList();
 
-            foreach (string key in userStrings.AllKeys)
+            foreach (string? key in userStrings.AllKeys)
             {
-                if (key.StartsWith("CNC_Face_", StringComparison.OrdinalIgnoreCase))
+                if (key != null && key.StartsWith("CNC_Face_", StringComparison.OrdinalIgnoreCase))
                 {
                     // Extract face index from key like "CNC_Face_3_Type"
                     var parts = key.Split('_');
