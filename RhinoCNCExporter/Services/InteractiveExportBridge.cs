@@ -12,6 +12,7 @@ using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Naming;
 using RhinoCNCExporter.Core.Pipeline;
 using RhinoCNCExporter.Core.Profiles;
+using RhinoCNCExporter.UI;
 
 namespace RhinoCNCExporter.Services;
 
@@ -537,6 +538,61 @@ public class InteractiveExportBridge
         var invalid = Path.GetInvalidFileNameChars();
         var sanitized = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
         return string.IsNullOrWhiteSpace(sanitized) ? "program" : sanitized;
+    }
+
+    /// <summary>
+    /// Generates CNC code strings for all plates WITHOUT writing to file.
+    /// Used by ExportPreviewDialog to show generated code before export.
+    /// Returns a list of PlatePreview objects with the generated code per plate.
+    /// </summary>
+    public IReadOnlyList<UI.PlatePreview> GenerateCode(
+        RhinoDoc doc,
+        MachineFormat format,
+        IMachineProfile profile)
+    {
+        var result = new List<UI.PlatePreview>();
+
+        var operations = CollectOperations(doc);
+        if (operations.Count == 0)
+            return result;
+
+        var groups = GroupByPlate(doc, operations);
+        var nameService = new NameService();
+        var emitter = CreateEmitter(format, nameService);
+
+        if (emitter == null)
+            return result;
+
+        foreach (var group in groups)
+        {
+            nameService = new NameService(); // Fresh per plate
+            emitter = CreateEmitter(format, nameService);
+            var router = new EmitterRouter(emitter!, nameService, profile);
+
+            var plate = BuildPlate(group);
+            string code;
+
+            try
+            {
+                code = router.GenerateProgram(plate);
+            }
+            catch (Exception ex)
+            {
+                code = $"// FEHLER bei Code-Generierung: {ex.Message}";
+            }
+
+            result.Add(new UI.PlatePreview
+            {
+                Name = group.PlateName,
+                LengthX = group.LengthX,
+                WidthY = group.WidthY,
+                Thickness = group.Thickness,
+                OperationCount = group.Operations.Count,
+                Code = code
+            });
+        }
+
+        return result;
     }
 
     /// <summary>

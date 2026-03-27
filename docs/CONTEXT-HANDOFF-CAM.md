@@ -931,7 +931,127 @@ User runs CNCAddContour command
 ### 12.4 Next Steps
 
 1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
-2. **P2: "Standardwerte" section in CamPanel** — Eto UI for editing operation defaults
-3. **P3: Export preview dialog** — show generated CNC code before saving
+2. ~~**P2: "Standardwerte" section in CamPanel**~~ — ✅ Done in Night Session #8
+3. ~~**P3: Export preview dialog**~~ — ✅ Done in Night Session #8
 4. **P4: Orphan edge curve cleanup** — detect when parent Brep is deleted
 5. **P5: Toolpath animation** — animate tool movement along paths with speed control
+
+---
+
+## 13. Night Session #8: Export Preview Dialog + Standardwerte UI (27. März 2026)
+
+### 13.1 What Was Implemented
+
+#### Export Preview Dialog (`UI/ExportPreviewDialog.cs`) ✅
+
+**New modal dialog** shown BEFORE writing CNC files:
+
+**Layout:**
+- **Left side (270px):** Plate list (`ListBox`) showing plate name + operation count. Below: plate info label with dimensions.
+- **Right side:** Read-only `TextArea` with monospace font (`Consolas`) showing generated CNC code for selected plate.
+- **Bottom:** Summary line ("N Platten | N Operationen | ~N Zeilen CNC-Code"), then "Abbrechen" + "📤 Exportieren" buttons.
+
+**Behavior:**
+- Clicking a plate in the list shows its CNC code and updates the info label with dimensions (L×W×T) and line count.
+- First plate auto-selected on open.
+- Returns `true` (export confirmed) or `false` (cancelled).
+- Dialog is resizable, minimum 900×600.
+
+**Integration into CamPanel export flow:**
+1. Validation runs → if clean/warnings-only → continue
+2. `InteractiveExportBridge.GenerateCode()` generates CNC code strings per plate WITHOUT writing files
+3. `ExportPreviewDialog` shows the generated code
+4. Only after user clicks "Exportieren" → SaveFileDialog/SelectFolderDialog → `Export()` writes files
+
+#### `InteractiveExportBridge.GenerateCode()` ✅
+
+New method on `InteractiveExportBridge`:
+```csharp
+public IReadOnlyList<PlatePreview> GenerateCode(RhinoDoc doc, MachineFormat format, IMachineProfile profile)
+```
+- Collects operations, groups by plate, generates CNC code string per plate using `EmitterRouter.GenerateProgram()`
+- Returns `PlatePreview` objects (name, dimensions, operation count, code string)
+- Does NOT write any files — pure code generation
+- Error handling: if code generation fails for a plate, the code string contains a comment with the error
+
+#### Enhanced "Standardwerte" Section in CamPanel ✅
+
+**Replaced read-only labels with editable form:**
+
+**UI:**
+1. **Operation type dropdown** at the top — "🔴 Kontur", "🔵 Tasche", "🟡 Bohrung", "🟢 Nut"
+2. Switching type shows type-specific editable fields:
+   - **Common (all types):** Depth (mm), Feedrate (mm/min)
+   - **Contour/Groove:** + Strategy dropdown (Rough/Finish/Both)
+   - **Pocket:** + Strategy, Stepover (%)
+   - **Drill:** + Diameter (mm), Peck checkbox, Peck depth (mm)
+   - **Groove:** + Width (mm)
+3. **"💾 Speichern"** → reads field values → calls `OperationDefaults.SaveDefaults()` → persists in document UserText
+4. **"↩ Zurücksetzen"** → clears doc UserText overrides → reloads machine profile built-in defaults
+5. **Machine-profile-aware:** changing machine dropdown refreshes defaults display with new profile values
+
+**Field visibility:** Uses `SetRowVisibility()` pattern (same as properties panel) to show/hide type-specific rows when operation type changes.
+
+### 13.2 Files Changed in Night Session #8
+
+| File | Change |
+|------|--------|
+| `UI/ExportPreviewDialog.cs` | **NEW** — Modal export preview dialog with plate list + code preview |
+| `Services/InteractiveExportBridge.cs` | Added `GenerateCode()` method, added `using RhinoCNCExporter.UI` |
+| `UI/CamPanel.cs` | Replaced defaults labels with editable fields + type dropdown; integrated ExportPreviewDialog into export flow |
+| `docs/CONTEXT-HANDOFF-CAM.md` | Updated with session #8 results |
+
+**Commit:** `nightly: export preview dialog + defaults UI`
+
+### 13.3 Architecture Notes
+
+**Export Preview Flow:**
+```
+User clicks "📤 Export CNC" in CamPanel
+  ├── CamValidator.Validate() → block if errors
+  ├── InteractiveExportBridge.CollectOperations()
+  ├── InteractiveExportBridge.GenerateCode(doc, format, profile)
+  │   ├── GroupByPlate()
+  │   ├── For each PlateGroup:
+  │   │   ├── EmitterRouter.GenerateProgram(plate) → code string
+  │   │   └── → PlatePreview { Name, Dims, Code }
+  │   └── Returns List<PlatePreview>
+  ├── ExportPreviewDialog(previews).ShowModalOnTop()
+  │   ├── User reviews code, clicks plates
+  │   └── Returns true (export) or false (cancel)
+  ├── If confirmed → SaveFileDialog / SelectFolderDialog
+  └── InteractiveExportBridge.Export() → writes files
+```
+
+**Standardwerte Data Flow:**
+```
+User selects "Contour" in defaults dropdown
+  ├── OnDefaultsTypeChanged()
+  │   └── UpdateDefaultsDisplay()
+  │       ├── OperationDefaults.GetDefaults("Contour", machineKey)
+  │       │   ├── OperationDefaultsBase.GetMachineProfileDefaults() → built-in
+  │       │   └── doc.Strings overrides
+  │       ├── Populate Depth, Feedrate, Strategy fields
+  │       └── Show/hide type-specific rows
+  │
+User clicks "💾 Speichern"
+  ├── SaveDefaultsFromFields()
+  │   ├── Read all visible field values
+  │   └── OperationDefaults.SaveDefaults(typeKey, values)
+  │       └── doc.Strings.SetString("CNC_Defaults_CONTOUR_Depth", ...)
+```
+
+### 13.4 Known Limitations / TODO
+
+- ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
+- ⚠ **Export preview shows code twice** — `GenerateCode()` and then `Export()` both generate code separately. Could cache the previewed code and write it directly, but this ensures the written code is always fresh.
+- ⚠ **No syntax highlighting in preview** — TextArea is plain monospace. Could use colored rich text in future.
+- ⚠ **No copy-to-clipboard in preview** — user can select+copy manually, but no dedicated button.
+
+### 13.5 Next Steps
+
+1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
+2. **P2: Orphan edge curve cleanup** — detect when parent Brep is deleted
+3. **P3: Toolpath animation** — animate tool movement along paths with speed control
+4. **P4: Export code caching** — cache generated code from preview to avoid double generation
+5. **P5: Syntax highlighting in preview** — colored CNC code for better readability

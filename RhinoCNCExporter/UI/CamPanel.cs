@@ -97,12 +97,24 @@ public sealed class CamPanel : Panel
     // Statistics labels
     private readonly Label _statsLabel;
 
-    // Defaults section
+    // Defaults section (editable Standardwerte)
     private readonly StackLayout _defaultsPanel;
-    private readonly Label _defaultsContourLabel;
-    private readonly Label _defaultsPocketLabel;
-    private readonly Label _defaultsDrillLabel;
-    private readonly Label _defaultsGrooveLabel;
+    private readonly DropDown _defaultsTypeDropDown;
+    private readonly TextBox _defaultsDepthTextBox;
+    private readonly TextBox _defaultsFeedrateTextBox;
+    private readonly DropDown _defaultsStrategyDropDown;
+    private readonly TextBox _defaultsStepoverTextBox;
+    private readonly TextBox _defaultsWidthTextBox;
+    private readonly TextBox _defaultsDiameterTextBox;
+    private readonly CheckBox _defaultsPeckCheckBox;
+    private readonly TextBox _defaultsPeckDepthTextBox;
+    // Rows for conditional visibility
+    private readonly TableRow _defStrategyRow;
+    private readonly TableRow _defStepoverRow;
+    private readonly TableRow _defWidthRow;
+    private readonly TableRow _defDiameterRow;
+    private readonly TableRow _defPeckRow;
+    private readonly TableRow _defPeckDepthRow;
 
     // State
     private readonly ToolLibraryStore _toolLibraryStore = new();
@@ -283,18 +295,44 @@ public sealed class CamPanel : Panel
             }
         };
 
-        // --- Defaults Section ---
-        _defaultsContourLabel = CreateLabel("—", 8, false);
-        _defaultsContourLabel.TextColor = FgDim;
-        _defaultsPocketLabel = CreateLabel("—", 8, false);
-        _defaultsPocketLabel.TextColor = FgDim;
-        _defaultsDrillLabel = CreateLabel("—", 8, false);
-        _defaultsDrillLabel.TextColor = FgDim;
-        _defaultsGrooveLabel = CreateLabel("—", 8, false);
-        _defaultsGrooveLabel.TextColor = FgDim;
+        // --- Defaults Section (editable) ---
+        _defaultsTypeDropDown = new DropDown { ToolTip = "Operationstyp für Standardwerte wählen" };
+        _defaultsTypeDropDown.Items.Add(new ListItem { Text = "🔴 Kontur (Contour)", Key = "Contour" });
+        _defaultsTypeDropDown.Items.Add(new ListItem { Text = "🔵 Tasche (Pocket)", Key = "Pocket" });
+        _defaultsTypeDropDown.Items.Add(new ListItem { Text = "🟡 Bohrung (Drill)", Key = "Drill" });
+        _defaultsTypeDropDown.Items.Add(new ListItem { Text = "🟢 Nut (Groove)", Key = "Groove" });
+        _defaultsTypeDropDown.SelectedIndex = 0;
+        _defaultsTypeDropDown.SelectedIndexChanged += (_, _) => OnDefaultsTypeChanged();
 
-        var saveDefaultsBtn = new Button { Text = "💾 Speichern", Height = 26, ToolTip = "Aktuelle Eigenschaftswerte als neue Standardwerte speichern" };
-        saveDefaultsBtn.Click += (_, _) => SaveCurrentDefaults();
+        _defaultsDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 100, ToolTip = "Standard-Bearbeitungstiefe in mm" };
+        _defaultsFeedrateTextBox = new TextBox { PlaceholderText = "mm/min", Width = 100, ToolTip = "Standard-Vorschubgeschwindigkeit in mm/min" };
+        _defaultsStrategyDropDown = new DropDown { ToolTip = "Standard-Bearbeitungsstrategie" };
+        _defaultsStrategyDropDown.Items.Add("Rough");
+        _defaultsStrategyDropDown.Items.Add("Finish");
+        _defaultsStrategyDropDown.Items.Add("Both");
+        _defaultsStepoverTextBox = new TextBox { PlaceholderText = "%", Width = 100, ToolTip = "Standard-Zustellung in %" };
+        _defaultsWidthTextBox = new TextBox { PlaceholderText = "mm", Width = 100, ToolTip = "Standard-Nutbreite in mm" };
+        _defaultsDiameterTextBox = new TextBox { PlaceholderText = "mm", Width = 100, ToolTip = "Standard-Bohrdurchmesser in mm" };
+        _defaultsPeckCheckBox = new CheckBox { Text = "Peck drilling", TextColor = FgText, ToolTip = "Standard für spänebrechendes Bohren" };
+        _defaultsPeckDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 100, ToolTip = "Standard-Peck-Tiefe in mm" };
+
+        var defDepthRow = new TableRow(CreateLabel("Tiefe:", 9, false), new TableCell(_defaultsDepthTextBox, true));
+        var defFeedrateRow = new TableRow(CreateLabel("Vorschub:", 9, false), new TableCell(_defaultsFeedrateTextBox, true));
+        _defStrategyRow = new TableRow(CreateLabel("Strategie:", 9, false), new TableCell(_defaultsStrategyDropDown, true));
+        _defStepoverRow = new TableRow(CreateLabel("Stepover:", 9, false), new TableCell(_defaultsStepoverTextBox, true));
+        _defWidthRow = new TableRow(CreateLabel("Breite:", 9, false), new TableCell(_defaultsWidthTextBox, true));
+        _defDiameterRow = new TableRow(CreateLabel("Ø Bohrung:", 9, false), new TableCell(_defaultsDiameterTextBox, true));
+        _defPeckRow = new TableRow(new TableCell(_defaultsPeckCheckBox) { ScaleWidth = true });
+        _defPeckDepthRow = new TableRow(CreateLabel("Peck-Tiefe:", 9, false), new TableCell(_defaultsPeckDepthTextBox, true));
+
+        var defaultsFieldTable = new TableLayout
+        {
+            Spacing = new Size(8, 4),
+            Rows = { defDepthRow, defFeedrateRow, _defStrategyRow, _defStepoverRow, _defWidthRow, _defDiameterRow, _defPeckRow, _defPeckDepthRow }
+        };
+
+        var saveDefaultsBtn = new Button { Text = "💾 Speichern", Height = 26, ToolTip = "Angezeigte Werte als neue Standardwerte speichern" };
+        saveDefaultsBtn.Click += (_, _) => SaveDefaultsFromFields();
         var resetDefaultsBtn = new Button { Text = "↩ Zurücksetzen", Height = 26, ToolTip = "Maschinenspezifische Standardwerte wiederherstellen" };
         resetDefaultsBtn.Click += (_, _) => ResetDefaults();
 
@@ -307,18 +345,16 @@ public sealed class CamPanel : Panel
 
         _defaultsPanel = new StackLayout
         {
-            Spacing = 4,
+            Spacing = 6,
             Items =
             {
-                CreateLabel("🔴 Kontur:", 9, true), _defaultsContourLabel,
-                CreateLabel("🔵 Tasche:", 9, true), _defaultsPocketLabel,
-                CreateLabel("🟡 Bohrung:", 9, true), _defaultsDrillLabel,
-                CreateLabel("🟢 Nut:", 9, true), _defaultsGrooveLabel,
+                _defaultsTypeDropDown,
+                defaultsFieldTable,
                 defaultsBtnRow
             }
         };
 
-        var defaultsSection = CreateSection("Standardwerte", _defaultsPanel, "Vorgabewerte pro Operationstyp", false);
+        var defaultsSection = CreateSection("⚙ Standardwerte", _defaultsPanel, "Vorgabewerte pro Operationstyp", false);
 
         // --- Statistics Panel ---
         _statsLabel = CreateLabel("—", 9, false);
@@ -1452,7 +1488,6 @@ public sealed class CamPanel : Panel
         if (validationResult.HasErrors)
         {
             RhinoApp.WriteLine("[CamPanel] ❌ Export abgebrochen — Validierungsfehler vorhanden. Bitte zuerst beheben.");
-            // Highlight error objects
             doc.Objects.UnselectAll();
             foreach (var issue in validationResult.Issues.Where(i => i.Severity == Severity.Error && i.ObjectId.HasValue))
                 doc.Objects.Select(issue.ObjectId!.Value, true);
@@ -1475,26 +1510,42 @@ public sealed class CamPanel : Panel
             _ => MachineFormat.Xilog
         };
 
+        // Generate CNC code preview (without writing to file)
+        var previews = _exportBridge.GenerateCode(doc, format, profile);
+        if (previews.Count == 0)
+        {
+            RhinoApp.WriteLine("[CamPanel] ❌ Code-Generierung fehlgeschlagen — keine Platten erzeugt.");
+            return;
+        }
+
+        // Show ExportPreviewDialog
+        var previewDialog = new ExportPreviewDialog(previews);
+        var confirmed = previewDialog.ShowModalOnTop();
+
+        if (!confirmed)
+        {
+            RhinoApp.WriteLine("[CamPanel] Export abgebrochen durch Benutzer.");
+            return;
+        }
+
+        // User confirmed → choose output path and write
         var extension = format switch
         {
             MachineFormat.Biesse => ".cix",
             _ => ".xcs"
         };
 
-        // Show save dialog
         var defaultName = string.IsNullOrWhiteSpace(doc.Name)
             ? "program" + extension
             : Path.ChangeExtension(doc.Name, extension);
 
-        var groups = _exportBridge.GroupByPlate(doc, operations);
         string outputPath;
 
-        if (groups.Count > 1)
+        if (previews.Count > 1)
         {
-            // Multiple plates → folder dialog
             var folderDialog = new SelectFolderDialog
             {
-                Title = $"Export-Ordner wählen ({groups.Count} Platten)"
+                Title = $"Export-Ordner wählen ({previews.Count} Platten)"
             };
 
             if (folderDialog.ShowDialog(this) != DialogResult.Ok || string.IsNullOrWhiteSpace(folderDialog.Directory))
@@ -1645,76 +1696,134 @@ public sealed class CamPanel : Panel
     #region Defaults Management
 
     /// <summary>
-    /// Updates the defaults display labels with current values for the active machine profile.
+    /// Updates the defaults editor fields with current values for the selected operation type.
     /// </summary>
     private void UpdateDefaultsDisplay()
     {
         var machineKey = GetCurrentMachineKey();
+        var typeKey = GetSelectedDefaultsType();
 
-        var contour = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_CONTOUR, machineKey);
-        _defaultsContourLabel.Text = $"Tiefe: {contour.Depth:F1}mm | Vorschub: {contour.Feedrate:F0} mm/min | Strategie: {contour.Strategy}";
+        var defaults = OperationDefaults.GetDefaults(typeKey, machineKey);
 
-        var pocket = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_POCKET, machineKey);
-        _defaultsPocketLabel.Text = $"Tiefe: {pocket.Depth:F1}mm | Vorschub: {pocket.Feedrate:F0} mm/min | Stepover: {pocket.Stepover:F0}% | Eintauchen: {pocket.RampEntry}";
+        // Populate common fields
+        _defaultsDepthTextBox.Text = defaults.Depth.ToString("F1", CultureInfo.InvariantCulture);
+        _defaultsFeedrateTextBox.Text = defaults.Feedrate.ToString("F0", CultureInfo.InvariantCulture);
 
-        var drill = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_DRILL, machineKey);
-        _defaultsDrillLabel.Text = $"Tiefe: {drill.Depth:F1}mm | Ø{drill.Diameter:F1}mm | Vorschub: {drill.Feedrate:F0} mm/min | Peck: {(drill.Peck ? "Ja" : "Nein")}";
+        // Show/hide type-specific fields
+        var isContour = typeKey.Equals("Contour", StringComparison.OrdinalIgnoreCase);
+        var isPocket = typeKey.Equals("Pocket", StringComparison.OrdinalIgnoreCase);
+        var isDrill = typeKey.Equals("Drill", StringComparison.OrdinalIgnoreCase);
+        var isGroove = typeKey.Equals("Groove", StringComparison.OrdinalIgnoreCase);
 
-        var groove = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_GROOVE, machineKey);
-        _defaultsGrooveLabel.Text = $"Tiefe: {groove.Depth:F1}mm | Breite: {groove.Width:F1}mm | Vorschub: {groove.Feedrate:F0} mm/min";
+        SetRowVisibility(_defStrategyRow, isContour || isPocket || isGroove);
+        SetRowVisibility(_defStepoverRow, isPocket);
+        SetRowVisibility(_defWidthRow, isGroove);
+        SetRowVisibility(_defDiameterRow, isDrill);
+        SetRowVisibility(_defPeckRow, isDrill);
+        SetRowVisibility(_defPeckDepthRow, isDrill);
+
+        // Strategy
+        if (isContour || isPocket || isGroove)
+        {
+            _defaultsStrategyDropDown.SelectedIndex = defaults.Strategy?.ToUpperInvariant() switch
+            {
+                "FINISH" => 1,
+                "BOTH" => 2,
+                _ => 0
+            };
+        }
+
+        // Pocket-specific
+        if (isPocket)
+        {
+            _defaultsStepoverTextBox.Text = defaults.Stepover.ToString("F0", CultureInfo.InvariantCulture);
+        }
+
+        // Drill-specific
+        if (isDrill)
+        {
+            _defaultsDiameterTextBox.Text = defaults.Diameter.ToString("F1", CultureInfo.InvariantCulture);
+            _defaultsPeckCheckBox.Checked = defaults.Peck;
+            _defaultsPeckDepthTextBox.Text = defaults.PeckDepth.ToString("F1", CultureInfo.InvariantCulture);
+        }
+
+        // Groove-specific
+        if (isGroove)
+        {
+            _defaultsWidthTextBox.Text = defaults.Width.ToString("F1", CultureInfo.InvariantCulture);
+        }
     }
 
     /// <summary>
-    /// Saves the currently displayed property values as new defaults for the selected operation type.
+    /// Called when the defaults operation type dropdown changes.
     /// </summary>
-    private void SaveCurrentDefaults()
+    private void OnDefaultsTypeChanged()
     {
-        if (_selectedOperation == null)
-        {
-            RhinoApp.WriteLine("[CamPanel] Bitte zuerst eine Operation auswählen, deren Werte als Standard gespeichert werden sollen.");
-            return;
-        }
+        UpdateDefaultsDisplay();
+    }
 
-        var op = _selectedOperation.Operation;
+    /// <summary>
+    /// Gets the currently selected operation type key from the defaults dropdown.
+    /// </summary>
+    private string GetSelectedDefaultsType()
+    {
+        if (_defaultsTypeDropDown.SelectedIndex < 0) return "Contour";
+        var item = _defaultsTypeDropDown.Items[_defaultsTypeDropDown.SelectedIndex] as ListItem;
+        return item?.Key ?? "Contour";
+    }
+
+    /// <summary>
+    /// Saves the currently displayed defaults field values for the selected operation type.
+    /// </summary>
+    private void SaveDefaultsFromFields()
+    {
+        var typeKey = GetSelectedDefaultsType();
         var values = new OperationDefaultValues();
 
-        // Read common fields
-        if (double.TryParse(_propDepthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var depth))
+        // Common fields
+        if (double.TryParse(_defaultsDepthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var depth))
             values.Depth = depth;
+        if (double.TryParse(_defaultsFeedrateTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var feedrate))
+            values.Feedrate = feedrate;
 
         // Type-specific fields
-        switch (op.Type.ToUpperInvariant())
+        switch (typeKey.ToUpperInvariant())
         {
             case "CONTOUR":
-                values.Strategy = GetSelectedStrategy();
+            case "GROOVE":
+                values.Strategy = _defaultsStrategyDropDown.SelectedIndex switch
+                {
+                    1 => CncOperationSchema.STRATEGY_FINISH,
+                    2 => CncOperationSchema.STRATEGY_BOTH,
+                    _ => CncOperationSchema.STRATEGY_ROUGH
+                };
+                if (typeKey.Equals("Groove", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (double.TryParse(_defaultsWidthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var width))
+                        values.Width = width;
+                }
                 break;
             case "POCKET":
-                if (double.TryParse(_propStepoverTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var stepover))
+                values.Strategy = _defaultsStrategyDropDown.SelectedIndex switch
+                {
+                    1 => CncOperationSchema.STRATEGY_FINISH,
+                    2 => CncOperationSchema.STRATEGY_BOTH,
+                    _ => CncOperationSchema.STRATEGY_ROUGH
+                };
+                if (double.TryParse(_defaultsStepoverTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var stepover))
                     values.Stepover = stepover;
-                values.Strategy = GetSelectedStrategy();
-                values.RampEntry = GetSelectedRampEntry();
                 break;
             case "DRILL":
-                if (double.TryParse(_propDiameterTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var diam))
+                if (double.TryParse(_defaultsDiameterTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var diam))
                     values.Diameter = diam;
-                values.Peck = _propPeckCheckBox.Checked ?? false;
-                if (double.TryParse(_propPeckDepthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var peckD))
+                values.Peck = _defaultsPeckCheckBox.Checked ?? false;
+                if (double.TryParse(_defaultsPeckDepthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var peckD))
                     values.PeckDepth = peckD;
-                break;
-            case "GROOVE":
-                if (double.TryParse(_propWidthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var width))
-                    values.Width = width;
                 break;
         }
 
-        // Get tool name
-        var selectedTool = GetSelectedTool();
-        if (selectedTool != null)
-            values.ToolName = selectedTool.Name;
-
-        OperationDefaults.SaveDefaults(op.Type, values);
-        UpdateDefaultsDisplay();
-        RhinoApp.WriteLine($"[CamPanel] Standardwerte für {op.Type} gespeichert.");
+        OperationDefaults.SaveDefaults(typeKey, values);
+        RhinoApp.WriteLine($"[CamPanel] ✅ Standardwerte für {typeKey} gespeichert.");
     }
 
     /// <summary>
