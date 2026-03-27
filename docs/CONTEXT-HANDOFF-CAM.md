@@ -1199,6 +1199,112 @@ User clicks "▶ Simulation"
 
 1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
 2. **P2: Export code caching** — cache generated code from preview to avoid double generation
-3. **P3: Syntax highlighting in preview** — colored CNC code for better readability
+3. ~~**P3: Syntax highlighting in preview**~~ — ✅ Done in Night Session #10
 4. **P4: Animation trail** — show "already machined" path in a different color/style
+5. **P5: Multi-pass animation** — for operations with rough+finish strategy, animate both passes
+
+---
+
+## 15. Night Session #10: Export Preview Polish + CAM Documentation (27. März 2026)
+
+### 15.1 What Was Implemented
+
+#### Export Preview Dialog — Syntax Highlighting & UX Polish (`UI/ExportPreviewDialog.cs`) ✅
+
+**Complete rewrite of the code preview area** — replaced plain `TextArea` with a custom `Drawable` + `Scrollable` for full syntax highlighting:
+
+**Syntax Highlighting (custom `Drawable` painting):**
+- **Comments** (lines starting with `;`, `(`, `//`, `'`, `REM`) → Green (`#6A9955`)
+- **G-codes** (G0, G1, G2, G3 etc.) → Blue (`#569CD6`)
+- **M-codes** (M0, M3, M5, M30 etc.) → Orange (`#CE914B`)
+- **XCS commands** (Create*, Add*, Set*) → Blue (same as G-codes)
+- **Default text** → Light gray (`#D4D4D4`)
+- **Background** → Dark theme (`#1E1E1E`) matching VS Code dark
+
+**Line Numbers:**
+- Separate gutter panel on the left (`55px` wide) with slightly lighter background (`#282828`)
+- Right-aligned line numbers in dim gray (`#6E6E6E`)
+- Vertical separator line between gutter and code
+
+**New Buttons:**
+- **📋 Kopieren** — copies current plate's CNC code to clipboard
+- **📂 In Datei öffnen** — writes code to temp file (`%TEMP%/RhinoCNC_Preview/<platename>.nc`) and opens in default editor via `Process.Start(UseShellExecute=true)`
+
+**Color Legend:**
+- Below the code area: colored squares + labels for Comment, G-Code, M-Code, Standard
+
+**Other improvements:**
+- Monospace font: Consolas 9.5pt
+- Dark background throughout (code area + gutter)
+- Minimum dialog size increased to 950×650
+- Code classification handles both standard G-code and XCS-specific formats
+
+#### CAM Interactive Guide (`docs/CAM-INTERACTIVE-GUIDE.md`) ✅
+
+**New user-facing documentation** in German, covering all interactive CAM features:
+
+1. **Übersicht** — what the system does, comparison table Layer-based vs Interactive CAM
+2. **Schnellstart** — step-by-step for contour operation on a plate edge (6 steps)
+3. **Befehle** — all 7 CNC commands with descriptions, inputs, dialogs, colors
+4. **CNC Operations Panel** — detailed section-by-section guide (header, toolbar, operations list, properties, defaults, actions, validation, status bar)
+5. **Maschinenprofile** — 3 profiles table, how to switch, what changes
+6. **Werkzeugbibliothek** — tool properties, compatibility matrix, default tools
+7. **Export-Workflow** — full flow diagram (define → check → validate → preview → export), validation checks table, plate grouping explanation
+8. **Tipps & Tricks** — Brep edges, 3D preview, simulation, keyboard shortcuts, undo, workflow recommendations, known limitations
+
+#### README Update ✅
+
+Added "🆕 Interaktives CAM-System (März 2026)" section to the main README with:
+- Feature bullet list (12 features)
+- Command list
+- Link to `docs/CAM-INTERACTIVE-GUIDE.md`
+
+### 15.2 Files Changed in Night Session #10
+
+| File | Change |
+|------|--------|
+| `UI/ExportPreviewDialog.cs` | **Major rewrite** — Drawable-based syntax highlighting, line numbers, copy/open buttons, dark theme, color legend |
+| `docs/CAM-INTERACTIVE-GUIDE.md` | **NEW** — Complete user-facing guide in German (8 chapters) |
+| `README.md` | Added interactive CAM section with feature list |
+| `docs/CONTEXT-HANDOFF-CAM.md` | Updated with session #10 results |
+
+**Commit:** `nightly: export preview polish + CAM documentation`
+
+### 15.3 Architecture Notes
+
+**Syntax Highlighting Approach:**
+
+Chose `Drawable` + custom `Paint` event over `RichTextArea` because:
+- Eto.Forms `RichTextArea` doesn't support per-line coloring easily (RTF formatting is platform-specific)
+- `Drawable` inside `Scrollable` gives full control over rendering
+- Line-by-line classification is simple and efficient for CNC code (no complex tokenizer needed)
+- Dark theme matches modern IDE aesthetic
+
+**Classification algorithm:**
+```
+For each line:
+  TrimStart() → check first character/prefix:
+  ├── ';', '(', '//', '\'', 'REM ' → Comment (green)
+  ├── ContainsMCode() → M-code (orange)  [checked before G-code — less common]
+  ├── ContainsGCode() → G-code (blue)
+  ├── StartsWith 'Create'/'Add'/'Set' → XCS command (blue)
+  └── Default → standard (gray)
+```
+
+G/M code detection: scan for letter + digit pattern, ensuring it's at word boundary (start of line, after space/tab, or after N-number).
+
+### 15.4 Known Limitations / TODO
+
+- ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
+- ⚠ **Drawable text selection not supported** — users can't select/copy text from the highlighted view; use the "Kopieren" button instead
+- ⚠ **No per-token highlighting** — classification is per-line, not per-token. A line with both G-code and coordinates is all one color.
+- ⚠ **Font fallback** — if Consolas isn't available, Eto falls back to platform default monospace
+- ⚠ **Export code caching** — `GenerateCode()` and `Export()` still generate code separately
+
+### 15.5 Next Steps
+
+1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
+2. **P2: Export code caching** — cache generated code from preview to avoid double generation
+3. **P3: Animation trail** — show "already machined" path in a different color/style
+4. **P4: Per-token syntax highlighting** — highlight G/M codes, coordinates, values within a line
 5. **P5: Multi-pass animation** — for operations with rough+finish strategy, animate both passes
