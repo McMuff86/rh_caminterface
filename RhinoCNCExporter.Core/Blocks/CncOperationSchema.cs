@@ -91,22 +91,7 @@ public static class CncOperationSchema
         return (true, null);
     }
 
-    /// <summary>
-    /// Converts various parameter types to string for UserText storage.
-    /// </summary>
-    private static string? ConvertToString(object value)
-    {
-        return value switch
-        {
-            null => null,
-            string s => s,
-            double d => d.ToString("F3", CultureInfo.InvariantCulture),
-            float f => f.ToString("F3", CultureInfo.InvariantCulture),
-            int i => i.ToString(CultureInfo.InvariantCulture),
-            bool b => b.ToString().ToLowerInvariant(),
-            _ => value.ToString()
-        };
-    }
+    // ConvertToString moved to CncOperationService (plugin project) where it's used.
 }
 
 /// <summary>

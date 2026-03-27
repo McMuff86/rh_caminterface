@@ -3,7 +3,7 @@
 **Datum:** 27. März 2026  
 **Autor:** Sentinel (Night Session #1 + #2)  
 **Branch:** `feat/interactive-cam-commands`  
-**Status:** Dockable CAM Panel Implemented ✅ — Next: UI Polish + Viz Unification
+**Status:** ✅ COMPLETE — All interactive CAM features implemented. Ready for Windows testing.
 
 ---
 
@@ -1308,3 +1308,170 @@ G/M code detection: scan for letter + digit pattern, ensuring it's at word bound
 3. **P3: Animation trail** — show "already machined" path in a different color/style
 4. **P4: Per-token syntax highlighting** — highlight G/M codes, coordinates, values within a line
 5. **P5: Multi-pass animation** — for operations with rough+finish strategy, animate both passes
+
+---
+
+## 16. Night Session #11 (Final): Integration Tests + Code Review (27. März 2026)
+
+### 16.1 What Was Implemented
+
+#### Additional Unit Tests ✅
+
+Added 41 new tests in `RhinoCNCExporter.Tests/AdditionalCoreTests.cs`:
+
+**CncOperationSchema.ValidateOperation edge cases (11 tests):**
+- Null type, empty string type → returns invalid
+- Missing individual required params per type (Contour missing depth, Pocket missing tool/depth, Drill missing depth, Groove missing tool/width/depth)
+- Extra unknown parameters → still valid (not rejected)
+- Empty parameter values → still counts as "present" (schema checks key existence, not value validity)
+
+**MachiningOperation record edge cases (11 tests):**
+- Empty parameters dict → all properties null
+- Whitespace tool values → returned as-is
+- InvariantCulture parsing (dots work, commas don't)
+- Negative values, zero values, very large numbers
+- Record equality semantics
+- Empty string for bool values → null
+- All parameters set at once → all parsed correctly
+
+**OperationDefaultsBase edge cases (7 tests):**
+- Empty/unknown machine key → defaults to non-SCM (Biesse) path
+- All types return non-null strategy
+- Pocket defaults have valid ramp entry constants
+- Drill peck depth ≤ depth
+- Groove has positive default width
+- AllOperationTypes list immutability
+
+**ValidationResult + OperationStatistics edge cases (6 tests):**
+- 100 mixed-severity issues → correct counting
+- Format summary with all three types
+- Statistics: only drills, very long time, sub-second time
+
+**Constant integrity (4 tests):**
+- Edge extraction keys follow CNC_ convention
+- Strategies, ramp entries, operation types all unique
+
+**Cross-model integration (2 tests):**
+- Default strategies match schema constants
+- Default ramp entries match schema constants
+- Operations created with defaults always pass validation
+
+**All 41 tests pass. Total: 596 passed, 7 pre-existing failures unchanged.**
+
+#### Code Review Fixes ✅
+
+1. **Removed dead code:** `ConvertToString()` private method in `CncOperationSchema.cs` — was unused (the actual implementation is in `CncOperationService.cs` in the plugin project). Replaced with a comment noting the move.
+2. **No TODOs/FIXMEs found** in any changed files
+3. **No hardcoded strings** that should be constants (all UserText keys use `CncOperationSchema` constants)
+4. **No unused imports** found in changed files
+5. **Minor architecture note:** `InteractiveExportBridge` depends on `RhinoCNCExporter.UI` for `PlatePreview` model — this is a layering concern (services→UI) but `PlatePreview` is just a data record, so it's acceptable for now
+
+### 16.2 Files Changed
+
+| File | Change |
+|------|--------|
+| `RhinoCNCExporter.Core/Blocks/CncOperationSchema.cs` | Removed unused private `ConvertToString()` method |
+| `RhinoCNCExporter.Tests/AdditionalCoreTests.cs` | **NEW** — 41 additional unit tests |
+| `docs/CONTEXT-HANDOFF-CAM.md` | Final update with session #11 results + "Ready for Windows Testing" section |
+
+---
+
+## What's Ready for Windows Testing ✅
+
+### Features to Test (Priority Order)
+
+1. **`dotnet build`** — Verify the full solution compiles on Windows with RhinoCommon NuGet
+2. **Load plugin in Rhino 8** — Check that RhinoCNCExporter loads without errors
+3. **CNCPanel command** — Toggle the dockable CAM panel, verify it opens/closes
+4. **Machine profile selector** — Switch between SCM/Biesse/MaestroCadT in the panel
+5. **CNCAddContour** — Select a Brep edge → verify edge extraction + toolpath viz + CNC_EdgeCurves layer
+6. **CNCAddDrill** — Click points → verify drill markers + circle geometry
+7. **CNCAddPocket** — Select closed curve → verify concentric offsets
+8. **CNCAddGroove** — Select curve → verify offset visualization
+9. **CNCRemoveOperation** — Remove an operation → verify cleanup (geometry, UserText, color)
+10. **Operations tree in CamPanel** — Verify all operations show up with correct type/tool/depth
+11. **Right-click context menu** — Edit, Remove, Regenerate, Select, Zoom
+12. **Properties panel** — Select operation → edit parameters → Apply
+13. **3D Toolpath toggle** — Check 3D depth visualization with vertical lines
+14. **Toolpath simulation** — ▶ button → watch tool animate along paths
+15. **Validation** — ✔ Validieren → check for errors/warnings
+16. **Export preview** — 📤 Export CNC → review code with syntax highlighting → export
+17. **Undo/Redo** — All operations should be undoable (Ctrl+Z)
+18. **Edge extraction** — Multiple ops on different edges of same Brep → each gets its own curve
+19. **Orphan cleanup** — Delete a Brep → extracted edge curves auto-removed
+20. **Standardwerte** — Edit defaults per operation type → verify they persist
+
+### Commands Added
+
+| Command | Description |
+|---------|-------------|
+| `CNCAddContour` | Add contour operation to selected curves/edges |
+| `CNCAddDrill` | Add drill operation at clicked points |
+| `CNCAddPocket` | Add pocket operation to closed curves |
+| `CNCAddGroove` | Add groove operation to selected curves |
+| `CNCRemoveOperation` | Remove CNC operation from selected objects |
+| `CNCListOperations` | List all CNC operations in the document |
+| `CNCPanel` | Toggle the dockable CNC Operations panel |
+
+### New Files (Not in main)
+
+**Core (no RhinoCommon):**
+- `RhinoCNCExporter.Core/Blocks/CncOperationSchema.cs` — UserText keys, operation types, validation
+- `RhinoCNCExporter.Core/Models/OperationDefaultValues.cs` — Default values model + machine-aware base
+- `RhinoCNCExporter.Core/Models/ValidationModels.cs` — ValidationResult, ValidationIssue, Severity
+- `RhinoCNCExporter.Core/Models/OperationStatistics.cs` — Operation statistics model
+- `RhinoCNCExporter.Core/Pipeline/IMachiningBuilder.cs` — MergeAllSources interface
+- `RhinoCNCExporter.Core/Pipeline/MachiningBuilder.cs` — Multi-source machining merge + dedup
+
+**Plugin (RhinoCommon + Eto):**
+- `Commands/CNCAddContourCommand.cs` — Interactive contour command
+- `Commands/CNCAddDrillCommand.cs` — Interactive drill command
+- `Commands/CNCAddPocketCommand.cs` — Interactive pocket command
+- `Commands/CNCAddGrooveCommand.cs` — Interactive groove command
+- `Commands/CNCRemoveOperationCommand.cs` — Remove operation command
+- `Commands/CNCListOperationsCommand.cs` — List operations command
+- `Commands/CNCPanelCommand.cs` — Panel toggle command
+- `Helpers/MachineProfileHelper.cs` — Profile resolution from string key
+- `Services/CamValidator.cs` — Pre-export validation (12 check types)
+- `Services/CncOperationService.cs` — UserText CRUD for operations
+- `Services/EdgeCurveHelper.cs` — Brep edge extraction utility
+- `Services/InteractiveExportBridge.cs` — Export pipeline bridge
+- `Services/OperationDefaults.cs` — Machine-aware defaults + doc persistence
+- `Services/OrphanCurveCleanup.cs` — Auto + manual orphan cleanup
+- `Services/ToolpathAnimator.cs` — Toolpath simulation with DisplayConduit
+- `Services/ToolpathVisualizer.cs` — 2D + 3D toolpath visualization
+- `Services/UserTextMachiningReader.cs` — Read UserText as Machining objects
+- `UI/CamPanel.cs` — Full dockable CAM panel (operations tree, properties, defaults, export)
+- `UI/CamOperationDialogBase.cs` — Base dialog for operation parameters
+- `UI/ContourOperationDialog.cs` — Contour-specific dialog
+- `UI/DrillOperationDialog.cs` — Drill-specific dialog
+- `UI/PocketOperationDialog.cs` — Pocket-specific dialog
+- `UI/GrooveOperationDialog.cs` — Groove-specific dialog
+- `UI/ExportPreviewDialog.cs` — CNC code preview with syntax highlighting
+
+**Tests:**
+- `RhinoCNCExporter.Tests/AdditionalCoreTests.cs` — 41 edge case tests
+- `RhinoCNCExporter.Tests/CncOperationSchemaTests.cs` — Schema validation tests
+- `RhinoCNCExporter.Tests/CncOperationSchemaKeyTests.cs` — Key naming convention tests
+- `RhinoCNCExporter.Tests/OperationDefaultsTests.cs` — Machine defaults tests
+- `RhinoCNCExporter.Tests/CamValidatorModelTests.cs` — Validation model tests
+- `RhinoCNCExporter.Tests/InteractiveExportBridgeModelTests.cs` — Export bridge model tests
+- `RhinoCNCExporter.Tests/InteractiveCamIntegrationTests.cs` — Pipeline integration tests
+- `RhinoCNCExporter.Tests/MachiningOperationTests.cs` — MachiningOperation record tests
+- `RhinoCNCExporter.Tests/MachiningStrategyTests.cs` — Strategy + override tests
+- `RhinoCNCExporter.Tests/ToolLibraryTests.cs` — Tool library CRUD tests
+
+**Documentation:**
+- `docs/CAM-INTERACTIVE-GUIDE.md` — User-facing guide (German)
+- `docs/CONTEXT-HANDOFF-CAM.md` — This file
+
+---
+
+## Remaining TODOs (Post-Windows Testing)
+
+1. **Export code caching** — avoid double code generation between preview and export
+2. **Animation trail** — show "already machined" path in different color
+3. **Per-token syntax highlighting** — highlight G/M codes within a line, not whole line
+4. **Multi-pass animation** — rough + finish strategy animated separately
+5. **PlatePreview model** — consider moving from UI namespace to Core or shared namespace
+6. **Drawable text selection** — export preview code area doesn't support text selection
