@@ -1051,7 +1051,154 @@ User clicks "💾 Speichern"
 ### 13.5 Next Steps
 
 1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
-2. **P2: Orphan edge curve cleanup** — detect when parent Brep is deleted
-3. **P3: Toolpath animation** — animate tool movement along paths with speed control
+2. ~~**P2: Orphan edge curve cleanup**~~ — ✅ Done in Night Session #9
+3. ~~**P3: Toolpath animation**~~ — ✅ Done in Night Session #9
 4. **P4: Export code caching** — cache generated code from preview to avoid double generation
 5. **P5: Syntax highlighting in preview** — colored CNC code for better readability
+
+---
+
+## 14. Night Session #9: Orphan Cleanup + Toolpath Animation (27. März 2026)
+
+### 14.1 What Was Implemented
+
+#### Orphan Edge Curve Cleanup (`Services/OrphanCurveCleanup.cs`) ✅
+
+**Problem solved:** When a parent Brep is deleted, extracted edge curves (on `CNC_EdgeCurves` layer with `CNC_SourceBrep` UserText) remain orphaned in the document along with their toolpath geometry.
+
+**`OrphanCurveCleanup` class (IDisposable):**
+- **Auto-detection:** Subscribes to `RhinoDoc.DeleteRhinoObject` event. When a Brep is deleted, defers a scan via `Application.Instance.AsyncInvoke()` (to let the delete transaction finish first) and removes all edge curves referencing that Brep GUID.
+- **Per-orphan cleanup:** For each orphaned edge curve: removes 2D toolpath geometry (`ToolpathVisualizer.RemoveToolpathGeometry`), removes 3D toolpath geometry (`ToolpathVisualizer.RemoveToolpath3DGeometry`), then deletes the edge curve object itself.
+- **Status message:** `RhinoApp.WriteLine("X verwaiste CNC-Operationen entfernt")`
+- **Manual cleanup:** `CleanupAllOrphans(RhinoDoc doc)` static method scans ALL objects with `CNC_SourceBrep` and verifies the referenced Brep still exists. If not → orphan → remove. Handles malformed GUIDs too.
+- **Event lifecycle:** `Subscribe()` / `Unsubscribe()` / `Dispose()` for clean event management.
+
+**Integration in CamPanel:**
+- **"🧹 Bereinigen" button** added to the panel layout between action buttons and 3D preview toggle.
+- Click → calls `OrphanCurveCleanup.CleanupAllOrphans()` → reports count to Rhino output → refreshes operations tree.
+- `OrphanCurveCleanup.Subscribe()` called in CamPanel constructor.
+- Both `_orphanCleanup` and `_animator` disposed in `CamPanel.Dispose()`.
+
+#### Toolpath Animation (`Services/ToolpathAnimator.cs`) ✅
+
+**Simple toolpath simulation using DisplayConduit + RhinoApp.Idle:**
+
+**`ToolpathAnimator` class (IDisposable):**
+- **`Load(doc, operationObjects?)`** — Collects animation segments from CNC operations:
+  - Contour/Pocket/Groove: uses the source Curve geometry
+  - Drill: creates a vertical LineCurve from surface to depth
+- **`Start()`** — Enables the `ToolConduit` DisplayConduit, subscribes to `RhinoApp.Idle` for frame updates.
+- **`Stop()`** — Unsubscribes from Idle, disables conduit.
+- **`Toggle()`** — Start/stop convenience.
+- **`SpeedMultiplier`** — 1×, 2×, 5×, 10× speed options.
+- **`RunningChanged` event** — fires `Action<bool>` for UI button state updates.
+
+**Frame update logic (OnIdle):**
+- Calculates dt from frame timing (capped at 0.2s to avoid jumps).
+- Base feed speed: 50 mm/s (3000 mm/min) × SpeedMultiplier.
+- Drill plunges at 30% speed.
+- Increments `t` (0→1) proportional to curve length.
+- When `t >= 1`, advances to next segment.
+- When all segments done, calls `Stop()`.
+- Uses `Curve.NormalizedLengthParameter(t)` + `PointAt()` for position, `TangentAt()` for direction.
+
+**DisplayConduit (`ToolConduit`):**
+- Draws in `PostDrawObjects` (stays on main thread).
+- **Routing tool:** Circle at tool position (radius = tool diameter/2), direction arrow along tangent, crosshair at center.
+- **Drill tool:** Circle at current position, vertical line from surface to current depth, crosshair, drill-point V-shape indicator.
+- Color-coded by operation type (red/blue/yellow/green with alpha for semi-transparency).
+
+**CamPanel integration:**
+- **"▶ Simulation" / "⏹ Stopp" button** — toggles animation. When selected operation exists, animates just that one; otherwise all operations sequentially.
+- **Speed dropdown** — 1×, 2×, 5×, 10× (updates `animator.SpeedMultiplier`).
+- **Button text auto-update** via `RunningChanged` event with `AsyncInvoke` for thread safety.
+
+### 14.2 Files Changed in Night Session #9
+
+| File | Change |
+|------|--------|
+| `Services/OrphanCurveCleanup.cs` | **NEW** — Auto + manual orphan edge curve cleanup with event lifecycle |
+| `Services/ToolpathAnimator.cs` | **NEW** — Toolpath animation with DisplayConduit + RhinoApp.Idle frame updates |
+| `UI/CamPanel.cs` | Added simulation button + speed dropdown, cleanup button, OrphanCurveCleanup subscription, Dispose cleanup |
+| `docs/CONTEXT-HANDOFF-CAM.md` | Updated with session #9 results |
+
+**Commit:** `nightly: orphan cleanup + toolpath animation`
+
+### 14.3 Architecture Notes
+
+**Orphan Cleanup Flow:**
+```
+Brep deleted in Rhino
+  ├── RhinoDoc.DeleteRhinoObject event fires
+  ├── OnDeleteRhinoObject() checks: is it a Brep?
+  ├── AsyncInvoke (deferred, after delete transaction)
+  │   └── CleanupOrphansForBrep(doc, deletedBrepGuid)
+  │       ├── Scan all objects for CNC_SourceBrep == guid
+  │       ├── For each match:
+  │       │   ├── ToolpathVisualizer.RemoveToolpathGeometry()
+  │       │   ├── ToolpathVisualizer.RemoveToolpath3DGeometry()
+  │       │   └── doc.Objects.Delete(orphan)
+  │       └── RhinoApp.WriteLine("X verwaiste CNC-Operationen entfernt")
+```
+
+**Manual Cleanup Flow:**
+```
+User clicks "🧹 Bereinigen"
+  ├── OrphanCurveCleanup.CleanupAllOrphans(doc)
+  │   ├── For each object with CNC_SourceBrep:
+  │   │   ├── Guid.TryParse(sourceBrepStr) → valid?
+  │   │   ├── doc.Objects.FindId(sourceGuid) → exists?
+  │   │   └── If not → add to orphan list
+  │   ├── RemoveOrphans(doc, orphans)
+  │   └── Returns count
+  └── RhinoApp.WriteLine("🧹 X verwaiste CNC-Operationen entfernt")
+```
+
+**Animation Flow:**
+```
+User clicks "▶ Simulation"
+  ├── ToggleSimulation()
+  │   ├── animator.Load(doc, selectedOps or allOps)
+  │   │   └── Build AnimationSegment list (curve + toolDiam + type)
+  │   └── animator.Start()
+  │       ├── Enable ToolConduit (DisplayConduit)
+  │       └── Subscribe to RhinoApp.Idle
+  │
+  [Every idle frame]:
+  ├── OnIdle()
+  │   ├── dt = timeSinceLastFrame
+  │   ├── tIncrement = (feedSpeed × dt) / curveLength
+  │   ├── t += tIncrement
+  │   ├── If t >= 1 → next segment (or stop if done)
+  │   ├── position = curve.PointAt(NormalizedLengthParameter(t))
+  │   ├── Update conduit: ToolPosition, ToolDiameter, ToolTangent, IsDrill
+  │   └── doc.Views.Redraw()
+  │
+  [PostDrawObjects in conduit]:
+  ├── Draw circle (tool envelope)
+  ├── Draw direction arrow (tangent)
+  └── Draw crosshair / drill indicators
+```
+
+**Threading safety:**
+- `RhinoApp.Idle` fires on the main Rhino UI thread → safe for viewport access.
+- `DisplayConduit.PostDrawObjects` is called by Rhino's display pipeline → safe.
+- `RunningChanged` callback uses `Application.Instance.AsyncInvoke` to marshal UI updates to the Eto thread.
+- `OrphanCurveCleanup.OnDeleteRhinoObject` uses `AsyncInvoke` to defer scanning until after the delete transaction completes.
+
+### 14.4 Known Limitations / TODO
+
+- ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
+- ⚠ **Animation doesn't show cut trail** — only the current tool position, no "already machined" visualization
+- ⚠ **Animation doesn't handle rapid moves** — tool jumps instantly between segments (no rapid move lines)
+- ⚠ **Drill animation is simplified** — vertical line only, no peck cycle visualization
+- ⚠ **Tool diameter in animation** — falls back to 10mm default if not resolvable from UserText
+- ⚠ **Orphan cleanup doesn't undo** — removed orphans are not wrapped in an undo record (intentional: orphans are cleanup, not user operations)
+
+### 14.5 Next Steps
+
+1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
+2. **P2: Export code caching** — cache generated code from preview to avoid double generation
+3. **P3: Syntax highlighting in preview** — colored CNC code for better readability
+4. **P4: Animation trail** — show "already machined" path in a different color/style
+5. **P5: Multi-pass animation** — for operations with rough+finish strategy, animate both passes

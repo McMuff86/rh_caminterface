@@ -116,6 +116,14 @@ public sealed class CamPanel : Panel
     private readonly TableRow _defPeckRow;
     private readonly TableRow _defPeckDepthRow;
 
+    // Simulation controls
+    private readonly Button _simulationButton;
+    private readonly DropDown _simSpeedDropDown;
+    private readonly ToolpathAnimator _animator = new();
+
+    // Orphan cleanup
+    private readonly OrphanCurveCleanup _orphanCleanup = new();
+
     // State
     private readonly ToolLibraryStore _toolLibraryStore = new();
     private List<ToolDefinition> _allTools = new();
@@ -356,6 +364,34 @@ public sealed class CamPanel : Panel
 
         var defaultsSection = CreateSection("⚙ Standardwerte", _defaultsPanel, "Vorgabewerte pro Operationstyp", false);
 
+        // --- Simulation Controls ---
+        _simulationButton = new Button { Text = "▶ Simulation", Height = 30, ToolTip = "Werkzeug-Simulation starten/stoppen" };
+        _simulationButton.Click += (_, _) => ToggleSimulation();
+        _animator.RunningChanged += OnAnimatorRunningChanged;
+
+        _simSpeedDropDown = new DropDown { ToolTip = "Simulationsgeschwindigkeit" };
+        _simSpeedDropDown.Items.Add(new ListItem { Text = "1×", Key = "1" });
+        _simSpeedDropDown.Items.Add(new ListItem { Text = "2×", Key = "2" });
+        _simSpeedDropDown.Items.Add(new ListItem { Text = "5×", Key = "5" });
+        _simSpeedDropDown.Items.Add(new ListItem { Text = "10×", Key = "10" });
+        _simSpeedDropDown.SelectedIndex = 0;
+        _simSpeedDropDown.SelectedIndexChanged += (_, _) => OnSimSpeedChanged();
+
+        var simRow = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Items =
+            {
+                new StackLayoutItem(_simulationButton, true),
+                _simSpeedDropDown
+            }
+        };
+
+        // --- Cleanup Button ---
+        var cleanupBtn = new Button { Text = "🧹 Bereinigen", Height = 26, ToolTip = "Verwaiste Kantenkurven entfernen (Quell-Brep gelöscht)" };
+        cleanupBtn.Click += (_, _) => RunManualCleanup();
+
         // --- Statistics Panel ---
         _statsLabel = CreateLabel("—", 9, false);
         _statsLabel.TextColor = FgDim;
@@ -383,7 +419,9 @@ public sealed class CamPanel : Panel
                     propsSection,
                     defaultsSection,
                     actionButtons,
+                    cleanupBtn,
                     _3dPreviewCheckBox,
+                    simRow,
                     exportRow,
                     _validationResultLabel,
                     statsSection,
@@ -402,6 +440,9 @@ public sealed class CamPanel : Panel
 
         // Wire keyboard shortcuts
         KeyDown += OnPanelKeyDown;
+
+        // Subscribe orphan cleanup to auto-detect Brep deletions
+        _orphanCleanup.Subscribe();
     }
 
     #region Machine Profile
@@ -1166,6 +1207,86 @@ public sealed class CamPanel : Panel
         if (double.TryParse(stepoverStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
             return val;
         return 50.0; // Default 50%
+    }
+
+    #endregion
+
+    #region Simulation
+
+    private void ToggleSimulation()
+    {
+        if (_animator.IsRunning)
+        {
+            _animator.Stop();
+            return;
+        }
+
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        // If a specific operation is selected, animate just that one;
+        // otherwise animate all operations sequentially.
+        if (_selectedOperation != null)
+        {
+            var obj = doc.Objects.FindId(_selectedOperation.ObjectId);
+            if (obj != null)
+            {
+                _animator.Load(doc, new[] { obj });
+            }
+            else
+            {
+                _animator.Load(doc);
+            }
+        }
+        else
+        {
+            _animator.Load(doc);
+        }
+
+        _animator.Start();
+    }
+
+    private void OnAnimatorRunningChanged(bool isRunning)
+    {
+        // Must update UI on main thread
+        Eto.Forms.Application.Instance.AsyncInvoke(() =>
+        {
+            _simulationButton.Text = isRunning ? "⏹ Stopp" : "▶ Simulation";
+        });
+    }
+
+    private void OnSimSpeedChanged()
+    {
+        var index = _simSpeedDropDown.SelectedIndex;
+        _animator.SpeedMultiplier = index switch
+        {
+            0 => 1.0,
+            1 => 2.0,
+            2 => 5.0,
+            3 => 10.0,
+            _ => 1.0
+        };
+    }
+
+    #endregion
+
+    #region Orphan Cleanup
+
+    private void RunManualCleanup()
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        var count = OrphanCurveCleanup.CleanupAllOrphans(doc);
+        if (count > 0)
+        {
+            RhinoApp.WriteLine($"🧹 {count} verwaiste CNC-Operationen entfernt");
+            RefreshOperationsTree();
+        }
+        else
+        {
+            RhinoApp.WriteLine("🧹 Keine verwaisten Operationen gefunden — alles sauber.");
+        }
     }
 
     #endregion
@@ -2005,6 +2126,8 @@ public sealed class CamPanel : Panel
     {
         if (disposing)
         {
+            _animator.Dispose();
+            _orphanCleanup.Dispose();
             UnhookObjectEvents();
             RhinoDoc.ActiveDocumentChanged -= OnActiveDocumentChanged;
             RhinoDoc.CloseDocument -= OnDocumentClosed;
