@@ -829,7 +829,7 @@ User creates new operation (CNCAddContour etc.)
 ### 11.4 Known Limitations / TODO
 
 - ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
-- ⚠ **OperationDefaults not yet wired into CNCAdd* commands** — defaults exist but commands don't call `ApplyDefaults()` yet. The defaults service is ready; the commands need a small change to call it when creating new operations.
+- ~~⚠ **OperationDefaults not yet wired into CNCAdd* commands**~~ — ✅ Done in Night Session #7
 - ⚠ **No "Standardwerte" section in CamPanel** — the task mentions a UI section for editing defaults. The persistence layer (`OperationDefaults.SaveDefaults()`) is implemented but no Eto UI section yet.
 - ⚠ **Validation doesn't check feedrate range** — could add min/max bounds per machine profile
 - ⚠ **No validation for tool length vs depth** — would need tool length data in ToolDefinition
@@ -837,8 +837,101 @@ User creates new operation (CNCAddContour etc.)
 ### 11.5 Next Steps
 
 1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
-2. **P2: Wire OperationDefaults into CNCAdd* commands** — call `ApplyDefaults()` in command parameters
+2. ~~**P2: Wire OperationDefaults into CNCAdd* commands**~~ — ✅ Done in Night Session #7
 3. **P3: "Standardwerte" section in CamPanel** — Eto UI for editing operation defaults
 4. **P4: Export preview dialog** — show generated CNC code before saving
 5. **P5: Orphan edge curve cleanup** — detect when parent Brep is deleted
 6. **P6: Toolpath animation** — animate tool movement along paths with speed control
+
+---
+
+## 12. Night Session #7: Wire Defaults + Unit Tests (27. März 2026)
+
+### 12.1 What Was Implemented
+
+#### OperationDefaults Wired into All CNCAdd* Commands ✅
+
+All 4 CNCAdd* commands now:
+1. **Read machine profile from document** via `doc.Strings.GetValue("CNC_MachineProfile")` (default "xilog") instead of hardcoding `ScmProfile`
+2. **Resolve profile dynamically** via new `MachineProfileHelper.ResolveProfile(machineKey)` — returns ScmProfile, BiesseProfile, or MaestroCadTProfile based on the key
+3. **Pre-fill dialogs with defaults** — already done in prior session via `OperationDefaults.GetDefaults()` passed to dialog constructors
+4. **Apply defaults after dialog** — calls `OperationDefaults.ApplyDefaults(parameters, operationType, machineKey)` after the dialog returns, filling any values the user left empty
+
+**New helper class: `Helpers/MachineProfileHelper.cs`**
+- `ResolveProfile(string machineKey)` → returns appropriate `IMachineProfile` instance
+- Handles case-insensitive matching for "biesse", "maestro", defaults to SCM/xilog
+
+**Changes per command:**
+| Command | Changes |
+|---------|---------|
+| `CNCAddContourCommand` | machineKey from doc, `MachineProfileHelper`, `ApplyDefaults()` after dialog |
+| `CNCAddDrillCommand` | machineKey from doc, `MachineProfileHelper`, `ApplyDefaults()` after dialog |
+| `CNCAddPocketCommand` | machineKey from doc, `MachineProfileHelper`, `ApplyDefaults()` after dialog |
+| `CNCAddGrooveCommand` | machineKey from doc, `MachineProfileHelper`, `ApplyDefaults()` after dialog |
+
+#### Unit Tests for Core ✅
+
+Added 54 new tests across 2 test files in the existing `RhinoCNCExporter.Tests` project (which references `RhinoCNCExporter.Core`):
+
+**`ToolLibraryCrudTests.cs`** (38 tests):
+- `CreateDefault` — xilog/biesse/unknown, tool counts by kind
+- `AddOrUpdate` — new tool, replace existing, case-insensitive ID, sort order
+- `Remove` — existing, nonexistent, case-insensitive
+- `AddOrUpdateHolder` / `RemoveHolder` — CRUD, holder reference cleanup
+- `FindById` / `FindByTechCode` / `FindClosestDiameter` — exact, closest, null, filters
+- `SuggestTool` — drill machining, routing machining, no compatible tools
+- `GetCompatibleTools` / `IsCompatible` — kind/motion profile matching
+- `MergeDefaults` — fills missing, preserves user overrides
+- `JSON serialization` — round-trip, property preservation, error handling
+- `SuggestRoughingTool` — larger tool for roughing, null for drills
+- `FindHolderById` — existing, null/empty
+
+**`MachiningStrategyTests.cs`** (16 tests):
+- `CreateDefault` — basic routing/drill, finishing tool assignment
+- Roughing strategies — enabled/disabled, larger tool selection
+- `HasRoughingPass` logic — both tools + stock, missing tool, zero stock
+- Tool override — compatible override used, incompatible falls back
+- `ToolpathPlanningOptions` — defaults, FindOverride case-insensitive
+- `MachiningToolOverride` — HasOverride logic
+
+**All 54 tests pass.** (8 pre-existing failures in unrelated BladeCut/BatchExport tests remain unchanged.)
+
+### 12.2 Files Changed in Night Session #7
+
+| File | Change |
+|------|--------|
+| `Helpers/MachineProfileHelper.cs` | **NEW** — Machine profile resolution from key string |
+| `Commands/CNCAddContourCommand.cs` | machineKey from doc, MachineProfileHelper, ApplyDefaults after dialog |
+| `Commands/CNCAddDrillCommand.cs` | machineKey from doc, MachineProfileHelper, ApplyDefaults after dialog |
+| `Commands/CNCAddPocketCommand.cs` | machineKey from doc, MachineProfileHelper, ApplyDefaults after dialog |
+| `Commands/CNCAddGrooveCommand.cs` | machineKey from doc, MachineProfileHelper, ApplyDefaults after dialog |
+| `RhinoCNCExporter.Tests/ToolLibraryTests.cs` | **NEW** — 38 tests for ToolLibrary CRUD, find, suggest, merge, JSON |
+| `RhinoCNCExporter.Tests/MachiningStrategyTests.cs` | **NEW** — 16 tests for MachiningStrategy, roughing, overrides |
+| `docs/CONTEXT-HANDOFF-CAM.md` | Updated with session #7 results |
+
+**Commit:** `nightly: wire operation defaults + unit tests`
+
+### 12.3 Architecture Notes
+
+**Defaults Flow (Complete):**
+```
+User runs CNCAddContour command
+  ├── machineKey = doc.Strings.GetValue("CNC_MachineProfile") ?? "xilog"
+  ├── profile = MachineProfileHelper.ResolveProfile(machineKey)
+  ├── toolLibrary = toolLibraryStore.LoadOrCreate(profile)
+  ├── defaults = OperationDefaults.GetDefaults("Contour", machineKey)
+  │   ├── OperationDefaultsBase.GetMachineProfileDefaults() → built-in values
+  │   └── Override from doc.Strings (CNC_Defaults_CONTOUR_Depth, etc.)
+  ├── dialog = new ContourOperationDialog(..., defaults)  ← PRE-FILL
+  ├── parameters = dialog.ShowModalOnTop()
+  ├── OperationDefaults.ApplyDefaults(parameters, "Contour", machineKey)  ← FILL MISSING
+  └── ... apply to objects
+```
+
+### 12.4 Next Steps
+
+1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
+2. **P2: "Standardwerte" section in CamPanel** — Eto UI for editing operation defaults
+3. **P3: Export preview dialog** — show generated CNC code before saving
+4. **P4: Orphan edge curve cleanup** — detect when parent Brep is deleted
+5. **P5: Toolpath animation** — animate tool movement along paths with speed control

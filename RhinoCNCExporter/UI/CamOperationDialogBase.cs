@@ -23,10 +23,30 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
     protected Button _okButton = null!;
     protected Button _cancelButton = null!;
 
+    /// <summary>
+    /// Optional operation defaults from <see cref="Services.OperationDefaults"/> to pre-fill dialog fields.
+    /// Set before calling <see cref="LoadDefaults"/> via the constructor overload that accepts defaults.
+    /// </summary>
+    protected OperationDefaultValues? _operationDefaults;
+
     protected CamOperationDialogBase(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary, string title, ToolKind toolKind)
+        : this(toolLibraryStore, toolLibrary, title, toolKind, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new operation dialog with optional pre-filled defaults from the machine profile.
+    /// </summary>
+    /// <param name="toolLibraryStore">Tool library persistence store.</param>
+    /// <param name="toolLibrary">Tool library for the current machine profile.</param>
+    /// <param name="title">Dialog window title.</param>
+    /// <param name="toolKind">Filter tools to this kind (Router, Drill, etc.).</param>
+    /// <param name="defaults">Optional defaults from <see cref="Services.OperationDefaults"/>.</param>
+    protected CamOperationDialogBase(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary, string title, ToolKind toolKind, OperationDefaultValues? defaults)
     {
         _toolLibraryStore = toolLibraryStore ?? throw new ArgumentNullException(nameof(toolLibraryStore));
         _toolLibrary = toolLibrary ?? throw new ArgumentNullException(nameof(toolLibrary));
+        _operationDefaults = defaults;
 
         Title = title;
         ClientSize = new Size(400, 380);
@@ -112,11 +132,27 @@ public abstract class CamOperationDialogBase : Dialog<Dictionary<string, object>
 
     protected virtual void LoadDefaults()
     {
-        if (_availableTools.Count > 0)
+        // If operation defaults are provided, try to select the default tool
+        if (_operationDefaults?.ToolName != null)
+        {
+            for (int i = 0; i < _availableTools.Count; i++)
+            {
+                if (_availableTools[i].Name.Equals(_operationDefaults.ToolName, StringComparison.OrdinalIgnoreCase))
+                {
+                    _toolDropDown.SelectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (_toolDropDown.SelectedIndex < 0 && _availableTools.Count > 0)
         {
             _toolDropDown.SelectedIndex = 0;
         }
-        _depthTextBox.Text = "10.0";
+
+        // Use default depth from machine profile if available
+        var depth = _operationDefaults?.Depth ?? 10.0;
+        _depthTextBox.Text = depth.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     protected virtual void OnToolChanged(object? sender, EventArgs e)

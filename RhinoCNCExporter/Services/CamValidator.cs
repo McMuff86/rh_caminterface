@@ -11,57 +11,6 @@ using RhinoCNCExporter.Core.Models;
 namespace RhinoCNCExporter.Services;
 
 /// <summary>
-/// Severity levels for validation issues.
-/// </summary>
-public enum Severity
-{
-    Info,
-    Warning,
-    Error
-}
-
-/// <summary>
-/// A single validation issue found during pre-export checks.
-/// </summary>
-public class ValidationIssue
-{
-    public Severity Severity { get; set; }
-    public string Message { get; set; } = string.Empty;
-    public Guid? ObjectId { get; set; }
-    public string Category { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Result of a validation run containing all discovered issues.
-/// </summary>
-public class ValidationResult
-{
-    public List<ValidationIssue> Issues { get; } = new();
-    public bool HasErrors => Issues.Any(i => i.Severity == Severity.Error);
-    public bool HasWarnings => Issues.Any(i => i.Severity == Severity.Warning);
-    public bool IsClean => Issues.Count == 0;
-
-    public int ErrorCount => Issues.Count(i => i.Severity == Severity.Error);
-    public int WarningCount => Issues.Count(i => i.Severity == Severity.Warning);
-    public int InfoCount => Issues.Count(i => i.Severity == Severity.Info);
-
-    /// <summary>
-    /// Returns a short summary string like "2 Fehler, 3 Warnungen".
-    /// </summary>
-    public string FormatSummary()
-    {
-        var parts = new List<string>();
-        if (ErrorCount > 0)
-            parts.Add($"{ErrorCount} Fehler");
-        if (WarningCount > 0)
-            parts.Add($"{WarningCount} Warnung{(WarningCount != 1 ? "en" : "")}");
-        if (InfoCount > 0)
-            parts.Add($"{InfoCount} Info{(InfoCount != 1 ? "s" : "")}");
-        return parts.Count > 0 ? string.Join(", ", parts) : "Keine Probleme gefunden";
-    }
-}
-
-/// <summary>
 /// Pre-export validation system for CNC operations.
 /// Checks all operations in the document for common issues before export.
 /// </summary>

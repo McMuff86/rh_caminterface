@@ -18,6 +18,14 @@ public sealed class GrooveOperationDialog : CamOperationDialogBase
     {
     }
 
+    /// <summary>
+    /// Creates a groove dialog with machine-profile defaults pre-filled.
+    /// </summary>
+    public GrooveOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary, OperationDefaultValues defaults)
+        : base(toolLibraryStore, toolLibrary, "Nut hinzufügen", ToolKind.Router, defaults)
+    {
+    }
+
     protected override void InitializeControls()
     {
         base.InitializeControls();
@@ -41,8 +49,9 @@ public sealed class GrooveOperationDialog : CamOperationDialogBase
     protected override void LoadDefaults()
     {
         base.LoadDefaults();
-        _widthTextBox.Text = "5.0";
-        _depthTextBox.Text = "8.0"; // Override default depth for grooves
+        var width = _operationDefaults?.Width ?? 5.0;
+        _widthTextBox.Text = width.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+        // Depth is already set by base.LoadDefaults() from _operationDefaults
     }
 
     public override void PreFill(MachiningOperation operation)

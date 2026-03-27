@@ -20,6 +20,14 @@ public sealed class DrillOperationDialog : CamOperationDialogBase
     {
     }
 
+    /// <summary>
+    /// Creates a drill dialog with machine-profile defaults pre-filled.
+    /// </summary>
+    public DrillOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary, OperationDefaultValues defaults)
+        : base(toolLibraryStore, toolLibrary, "Bohrung hinzufügen", ToolKind.Drill, defaults)
+    {
+    }
+
     protected override void InitializeControls()
     {
         base.InitializeControls();
@@ -54,9 +62,18 @@ public sealed class DrillOperationDialog : CamOperationDialogBase
     protected override void LoadDefaults()
     {
         base.LoadDefaults();
-        _diameterTextBox.Text = "5.0";
-        _peckDepthTextBox.Text = "3.0";
-        
+        var diameter = _operationDefaults?.Diameter ?? 5.0;
+        _diameterTextBox.Text = diameter.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+        var peckDepth = _operationDefaults?.PeckDepth ?? 3.0;
+        _peckDepthTextBox.Text = peckDepth.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+        if (_operationDefaults != null)
+        {
+            _peckDrillingCheckBox.Checked = _operationDefaults.Peck;
+            _peckDepthTextBox.Enabled = _operationDefaults.Peck;
+        }
+
         // Auto-select diameter if we have a matching tool
         UpdateToolSelection();
     }

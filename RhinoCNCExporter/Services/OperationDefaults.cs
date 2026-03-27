@@ -8,25 +8,9 @@ using RhinoCNCExporter.Core.Models;
 namespace RhinoCNCExporter.Services;
 
 /// <summary>
-/// Default values for a specific operation type.
-/// </summary>
-public class OperationDefaultValues
-{
-    public double Depth { get; set; }
-    public double Feedrate { get; set; }
-    public string Strategy { get; set; } = CncOperationSchema.STRATEGY_FINISH;
-    public string? ToolName { get; set; }
-    public double Stepover { get; set; } = 50.0;
-    public double Width { get; set; }
-    public double Diameter { get; set; }
-    public double PeckDepth { get; set; }
-    public bool Peck { get; set; }
-    public string RampEntry { get; set; } = CncOperationSchema.RAMP_STRAIGHT;
-}
-
-/// <summary>
 /// Provides and manages default operation values per operation type and machine profile.
-/// Defaults can be overridden by the user via document UserText.
+/// Delegates to <see cref="OperationDefaultsBase"/> for built-in defaults and adds
+/// document UserText persistence for user overrides.
 /// When a new operation is created, these defaults pre-fill the dialog fields
 /// instead of leaving them blank.
 /// </summary>
@@ -39,10 +23,13 @@ public static class OperationDefaults
     /// Gets the default values for an operation type, considering the machine profile.
     /// First checks document-stored overrides, then falls back to machine-profile defaults.
     /// </summary>
+    /// <param name="operationType">Operation type (Contour, Pocket, Drill, Groove).</param>
+    /// <param name="machineKey">Machine profile key (xilog, biesse, maestrocadt).</param>
+    /// <returns>Default values with any user overrides applied.</returns>
     public static OperationDefaultValues GetDefaults(string operationType, string machineKey)
     {
         var doc = RhinoDoc.ActiveDoc;
-        var defaults = GetMachineProfileDefaults(operationType, machineKey);
+        var defaults = OperationDefaultsBase.GetMachineProfileDefaults(operationType, machineKey);
 
         if (doc == null) return defaults;
 
@@ -83,54 +70,6 @@ public static class OperationDefaults
         SaveDouble(doc, $"{typeKey}_PeckDepth", values.PeckDepth);
         SaveBool(doc, $"{typeKey}_Peck", values.Peck);
         SaveString(doc, $"{typeKey}_RampEntry", values.RampEntry);
-    }
-
-    /// <summary>
-    /// Returns built-in defaults based on the machine profile.
-    /// SCM and Biesse have different typical feedrates and strategies.
-    /// </summary>
-    private static OperationDefaultValues GetMachineProfileDefaults(string operationType, string machineKey)
-    {
-        var isScm = machineKey.Equals("xilog", StringComparison.OrdinalIgnoreCase)
-                    || machineKey.Equals("maestrocadt", StringComparison.OrdinalIgnoreCase);
-
-        return operationType.ToUpperInvariant() switch
-        {
-            "CONTOUR" => new OperationDefaultValues
-            {
-                Depth = isScm ? 19.0 : 18.0,
-                Feedrate = isScm ? 3000.0 : 4000.0,
-                Strategy = CncOperationSchema.STRATEGY_FINISH,
-            },
-            "POCKET" => new OperationDefaultValues
-            {
-                Depth = isScm ? 5.0 : 5.0,
-                Feedrate = isScm ? 2000.0 : 2500.0,
-                Strategy = CncOperationSchema.STRATEGY_ROUGH,
-                Stepover = isScm ? 50.0 : 45.0,
-                RampEntry = CncOperationSchema.RAMP_SPIRAL,
-            },
-            "DRILL" => new OperationDefaultValues
-            {
-                Depth = isScm ? 19.0 : 18.0,
-                Feedrate = isScm ? 1500.0 : 1800.0,
-                Diameter = 5.0,
-                Peck = false,
-                PeckDepth = 5.0,
-            },
-            "GROOVE" => new OperationDefaultValues
-            {
-                Depth = isScm ? 8.0 : 8.0,
-                Feedrate = isScm ? 2500.0 : 3000.0,
-                Strategy = CncOperationSchema.STRATEGY_FINISH,
-                Width = 4.0,
-            },
-            _ => new OperationDefaultValues
-            {
-                Depth = 10.0,
-                Feedrate = 2000.0,
-            }
-        };
     }
 
     /// <summary>

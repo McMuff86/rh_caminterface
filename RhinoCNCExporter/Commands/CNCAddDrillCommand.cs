@@ -5,6 +5,7 @@ using Rhino.Geometry;
 using Rhino.Input;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Profiles;
+using RhinoCNCExporter.Helpers;
 using RhinoCNCExporter.Services;
 using RhinoCNCExporter.UI;
 
@@ -21,17 +22,26 @@ public sealed class CNCAddDrillCommand : Command
     {
         try
         {
+            // Resolve machine profile from document settings (default: xilog)
+            var machineKey = doc.Strings.GetValue("CNC_MachineProfile") ?? "xilog";
+            var profile = MachineProfileHelper.ResolveProfile(machineKey);
+
             // Load tool library first to have parameters ready
             var toolLibraryStore = new ToolLibraryStore();
-            var profile = new ScmProfile();
             var toolLibrary = toolLibraryStore.LoadOrCreate(profile);
 
-            // Show dialog for drill parameters
-            var dialog = new DrillOperationDialog(toolLibraryStore, toolLibrary);
+            // Get defaults for the machine profile
+            var defaults = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_DRILL, machineKey);
+
+            // Show dialog for drill parameters (pre-filled with defaults)
+            var dialog = new DrillOperationDialog(toolLibraryStore, toolLibrary, defaults);
             var parameters = dialog.ShowModalOnTop();
 
             if (parameters == null)
                 return Result.Cancel;
+
+            // Apply machine-aware defaults for any missing values
+            OperationDefaults.ApplyDefaults(parameters, CncOperationSchema.TYPE_DRILL, machineKey);
 
             var drillPoints = new List<Point3d>();
 

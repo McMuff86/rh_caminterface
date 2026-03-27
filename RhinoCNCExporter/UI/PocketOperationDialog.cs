@@ -20,6 +20,14 @@ public sealed class PocketOperationDialog : CamOperationDialogBase
     {
     }
 
+    /// <summary>
+    /// Creates a pocket dialog with machine-profile defaults pre-filled.
+    /// </summary>
+    public PocketOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary, OperationDefaultValues defaults)
+        : base(toolLibraryStore, toolLibrary, "Tasche hinzufügen", ToolKind.Router, defaults)
+    {
+    }
+
     protected override void InitializeControls()
     {
         base.InitializeControls();
@@ -57,7 +65,31 @@ public sealed class PocketOperationDialog : CamOperationDialogBase
     protected override void LoadDefaults()
     {
         base.LoadDefaults();
-        _stepoverTextBox.Text = "60";
+        var stepover = _operationDefaults?.Stepover ?? 60.0;
+        _stepoverTextBox.Text = stepover.ToString("F0", System.Globalization.CultureInfo.InvariantCulture);
+
+        // Map strategy default
+        if (_operationDefaults?.Strategy != null)
+        {
+            _strategyDropDown.SelectedIndex = _operationDefaults.Strategy.ToUpperInvariant() switch
+            {
+                "ROUGH" => 0,
+                "FINISH" => 1,
+                _ => 2 // Both
+            };
+        }
+
+        // Map ramp entry default
+        if (_operationDefaults?.RampEntry != null)
+        {
+            _rampEntryDropDown.SelectedIndex = _operationDefaults.RampEntry.ToUpperInvariant() switch
+            {
+                "STRAIGHT" => 0,
+                "SPIRAL" => 1,
+                "PROFILE" => 2,
+                _ => 1
+            };
+        }
     }
 
     public override void PreFill(MachiningOperation operation)

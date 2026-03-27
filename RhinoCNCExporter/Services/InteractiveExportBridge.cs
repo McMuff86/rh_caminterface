@@ -650,39 +650,4 @@ public class InteractiveExportResult
     public List<string> ExportedFiles { get; set; } = new();
 }
 
-/// <summary>
-/// Statistics about CNC operations in the document.
-/// </summary>
-public class OperationStatistics
-{
-    public int TotalOperations { get; set; }
-    public int ContourCount { get; set; }
-    public int PocketCount { get; set; }
-    public int DrillCount { get; set; }
-    public int GrooveCount { get; set; }
-    public int ToolChanges { get; set; }
-    public double MaxDepth { get; set; }
-    public double EstimatedTimeMinutes { get; set; }
-
-    public string FormatSummary()
-    {
-        var parts = new List<string>();
-
-        if (ContourCount > 0) parts.Add($"{ContourCount}× Contour");
-        if (PocketCount > 0) parts.Add($"{PocketCount}× Pocket");
-        if (DrillCount > 0) parts.Add($"{DrillCount}× Drill");
-        if (GrooveCount > 0) parts.Add($"{GrooveCount}× Groove");
-
-        var typeSummary = parts.Count > 0 ? string.Join(", ", parts) : "—";
-
-        var timeParts = new List<string>();
-        if (EstimatedTimeMinutes >= 1)
-            timeParts.Add($"~{EstimatedTimeMinutes:F1} min");
-        else if (EstimatedTimeMinutes > 0)
-            timeParts.Add($"~{EstimatedTimeMinutes * 60:F0} sec");
-
-        var timeSummary = timeParts.Count > 0 ? timeParts[0] : "—";
-
-        return $"{TotalOperations} Op. ({typeSummary}) | {ToolChanges} Werkzeugwechsel | Max. Tiefe: {MaxDepth:F1}mm | Zeit: {timeSummary}";
-    }
-}
+// OperationStatistics is now in RhinoCNCExporter.Core.Models

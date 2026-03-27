@@ -20,6 +20,14 @@ public sealed class ContourOperationDialog : CamOperationDialogBase
     {
     }
 
+    /// <summary>
+    /// Creates a contour dialog with machine-profile defaults pre-filled.
+    /// </summary>
+    public ContourOperationDialog(ToolLibraryStore toolLibraryStore, ToolLibrary toolLibrary, OperationDefaultValues defaults)
+        : base(toolLibraryStore, toolLibrary, "Kontur-Bearbeitung hinzufügen", ToolKind.Router, defaults)
+    {
+    }
+
     protected override void InitializeControls()
     {
         base.InitializeControls();
@@ -57,7 +65,19 @@ public sealed class ContourOperationDialog : CamOperationDialogBase
     protected override void LoadDefaults()
     {
         base.LoadDefaults();
-        _feedrateTextBox.Text = "3000";
+        var feedrate = _operationDefaults?.Feedrate ?? 3000.0;
+        _feedrateTextBox.Text = feedrate.ToString("F0", System.Globalization.CultureInfo.InvariantCulture);
+
+        // Map strategy default
+        if (_operationDefaults?.Strategy != null)
+        {
+            _operationTypeDropDown.SelectedIndex = _operationDefaults.Strategy.ToUpperInvariant() switch
+            {
+                "ROUGH" => 1,
+                "FINISH" => 2,
+                _ => 0
+            };
+        }
     }
 
     public override void PreFill(MachiningOperation operation)

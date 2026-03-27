@@ -4,6 +4,7 @@ using Rhino.DocObjects;
 using Rhino.Geometry;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Profiles;
+using RhinoCNCExporter.Helpers;
 using RhinoCNCExporter.Services;
 using RhinoCNCExporter.UI;
 
@@ -30,17 +31,26 @@ public sealed class CNCAddPocketCommand : Command
             if (go.CommandResult() != Result.Success)
                 return go.CommandResult();
 
+            // Resolve machine profile from document settings (default: xilog)
+            var machineKey = doc.Strings.GetValue("CNC_MachineProfile") ?? "xilog";
+            var profile = MachineProfileHelper.ResolveProfile(machineKey);
+
             // Load tool library
             var toolLibraryStore = new ToolLibraryStore();
-            var profile = new ScmProfile();
             var toolLibrary = toolLibraryStore.LoadOrCreate(profile);
 
-            // Show dialog for operation parameters
-            var dialog = new PocketOperationDialog(toolLibraryStore, toolLibrary);
+            // Get defaults for the machine profile
+            var defaults = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_POCKET, machineKey);
+
+            // Show dialog for operation parameters (pre-filled with defaults)
+            var dialog = new PocketOperationDialog(toolLibraryStore, toolLibrary, defaults);
             var parameters = dialog.ShowModalOnTop();
 
             if (parameters == null)
                 return Result.Cancel;
+
+            // Apply machine-aware defaults for any missing values
+            OperationDefaults.ApplyDefaults(parameters, CncOperationSchema.TYPE_POCKET, machineKey);
 
             var toolDiameter = GetToolDiameter(parameters);
             var stepover = GetStepover(parameters);

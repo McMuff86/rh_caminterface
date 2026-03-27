@@ -97,6 +97,13 @@ public sealed class CamPanel : Panel
     // Statistics labels
     private readonly Label _statsLabel;
 
+    // Defaults section
+    private readonly StackLayout _defaultsPanel;
+    private readonly Label _defaultsContourLabel;
+    private readonly Label _defaultsPocketLabel;
+    private readonly Label _defaultsDrillLabel;
+    private readonly Label _defaultsGrooveLabel;
+
     // State
     private readonly ToolLibraryStore _toolLibraryStore = new();
     private List<ToolDefinition> _allTools = new();
@@ -276,6 +283,43 @@ public sealed class CamPanel : Panel
             }
         };
 
+        // --- Defaults Section ---
+        _defaultsContourLabel = CreateLabel("—", 8, false);
+        _defaultsContourLabel.TextColor = FgDim;
+        _defaultsPocketLabel = CreateLabel("—", 8, false);
+        _defaultsPocketLabel.TextColor = FgDim;
+        _defaultsDrillLabel = CreateLabel("—", 8, false);
+        _defaultsDrillLabel.TextColor = FgDim;
+        _defaultsGrooveLabel = CreateLabel("—", 8, false);
+        _defaultsGrooveLabel.TextColor = FgDim;
+
+        var saveDefaultsBtn = new Button { Text = "💾 Speichern", Height = 26, ToolTip = "Aktuelle Eigenschaftswerte als neue Standardwerte speichern" };
+        saveDefaultsBtn.Click += (_, _) => SaveCurrentDefaults();
+        var resetDefaultsBtn = new Button { Text = "↩ Zurücksetzen", Height = 26, ToolTip = "Maschinenspezifische Standardwerte wiederherstellen" };
+        resetDefaultsBtn.Click += (_, _) => ResetDefaults();
+
+        var defaultsBtnRow = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Items = { saveDefaultsBtn, resetDefaultsBtn }
+        };
+
+        _defaultsPanel = new StackLayout
+        {
+            Spacing = 4,
+            Items =
+            {
+                CreateLabel("🔴 Kontur:", 9, true), _defaultsContourLabel,
+                CreateLabel("🔵 Tasche:", 9, true), _defaultsPocketLabel,
+                CreateLabel("🟡 Bohrung:", 9, true), _defaultsDrillLabel,
+                CreateLabel("🟢 Nut:", 9, true), _defaultsGrooveLabel,
+                defaultsBtnRow
+            }
+        };
+
+        var defaultsSection = CreateSection("Standardwerte", _defaultsPanel, "Vorgabewerte pro Operationstyp", false);
+
         // --- Statistics Panel ---
         _statsLabel = CreateLabel("—", 9, false);
         _statsLabel.TextColor = FgDim;
@@ -301,6 +345,7 @@ public sealed class CamPanel : Panel
                     toolbar,
                     opsSection,
                     propsSection,
+                    defaultsSection,
                     actionButtons,
                     _3dPreviewCheckBox,
                     exportRow,
@@ -316,6 +361,7 @@ public sealed class CamPanel : Panel
         LoadMachineProfileFromDocument();
         LoadToolLibrary();
         RefreshOperationsTree();
+        UpdateDefaultsDisplay();
         HookDocumentEvents();
 
         // Wire keyboard shortcuts
@@ -329,6 +375,7 @@ public sealed class CamPanel : Panel
         SaveMachineProfileToDocument();
         LoadToolLibrary();
         RefreshOperationsTree();
+        UpdateDefaultsDisplay();
         // Re-populate tool dropdown if an operation is selected
         if (_selectedOperation != null)
             ShowPropertiesForOperation(_selectedOperation);
@@ -653,12 +700,15 @@ public sealed class CamPanel : Panel
             var profile = GetCurrentMachineProfile();
             var library = _toolLibraryStore.LoadOrCreate(profile);
 
+            var machineKey = GetCurrentMachineKey();
+            var opDefaults = OperationDefaults.GetDefaults(op.Type, machineKey);
+
             CamOperationDialogBase? dialog = op.Type.ToUpperInvariant() switch
             {
-                "CONTOUR" => new ContourOperationDialog(_toolLibraryStore, library),
-                "POCKET" => new PocketOperationDialog(_toolLibraryStore, library),
-                "DRILL" => new DrillOperationDialog(_toolLibraryStore, library),
-                "GROOVE" => new GrooveOperationDialog(_toolLibraryStore, library),
+                "CONTOUR" => new ContourOperationDialog(_toolLibraryStore, library, opDefaults),
+                "POCKET" => new PocketOperationDialog(_toolLibraryStore, library, opDefaults),
+                "DRILL" => new DrillOperationDialog(_toolLibraryStore, library, opDefaults),
+                "GROOVE" => new GrooveOperationDialog(_toolLibraryStore, library, opDefaults),
                 _ => null
             };
 
@@ -1588,6 +1638,115 @@ public sealed class CamPanel : Panel
         }
 
         _statsLabel.Text = stats.FormatSummary();
+    }
+
+    #endregion
+
+    #region Defaults Management
+
+    /// <summary>
+    /// Updates the defaults display labels with current values for the active machine profile.
+    /// </summary>
+    private void UpdateDefaultsDisplay()
+    {
+        var machineKey = GetCurrentMachineKey();
+
+        var contour = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_CONTOUR, machineKey);
+        _defaultsContourLabel.Text = $"Tiefe: {contour.Depth:F1}mm | Vorschub: {contour.Feedrate:F0} mm/min | Strategie: {contour.Strategy}";
+
+        var pocket = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_POCKET, machineKey);
+        _defaultsPocketLabel.Text = $"Tiefe: {pocket.Depth:F1}mm | Vorschub: {pocket.Feedrate:F0} mm/min | Stepover: {pocket.Stepover:F0}% | Eintauchen: {pocket.RampEntry}";
+
+        var drill = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_DRILL, machineKey);
+        _defaultsDrillLabel.Text = $"Tiefe: {drill.Depth:F1}mm | Ø{drill.Diameter:F1}mm | Vorschub: {drill.Feedrate:F0} mm/min | Peck: {(drill.Peck ? "Ja" : "Nein")}";
+
+        var groove = OperationDefaults.GetDefaults(CncOperationSchema.TYPE_GROOVE, machineKey);
+        _defaultsGrooveLabel.Text = $"Tiefe: {groove.Depth:F1}mm | Breite: {groove.Width:F1}mm | Vorschub: {groove.Feedrate:F0} mm/min";
+    }
+
+    /// <summary>
+    /// Saves the currently displayed property values as new defaults for the selected operation type.
+    /// </summary>
+    private void SaveCurrentDefaults()
+    {
+        if (_selectedOperation == null)
+        {
+            RhinoApp.WriteLine("[CamPanel] Bitte zuerst eine Operation auswählen, deren Werte als Standard gespeichert werden sollen.");
+            return;
+        }
+
+        var op = _selectedOperation.Operation;
+        var values = new OperationDefaultValues();
+
+        // Read common fields
+        if (double.TryParse(_propDepthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var depth))
+            values.Depth = depth;
+
+        // Type-specific fields
+        switch (op.Type.ToUpperInvariant())
+        {
+            case "CONTOUR":
+                values.Strategy = GetSelectedStrategy();
+                break;
+            case "POCKET":
+                if (double.TryParse(_propStepoverTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var stepover))
+                    values.Stepover = stepover;
+                values.Strategy = GetSelectedStrategy();
+                values.RampEntry = GetSelectedRampEntry();
+                break;
+            case "DRILL":
+                if (double.TryParse(_propDiameterTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var diam))
+                    values.Diameter = diam;
+                values.Peck = _propPeckCheckBox.Checked ?? false;
+                if (double.TryParse(_propPeckDepthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var peckD))
+                    values.PeckDepth = peckD;
+                break;
+            case "GROOVE":
+                if (double.TryParse(_propWidthTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var width))
+                    values.Width = width;
+                break;
+        }
+
+        // Get tool name
+        var selectedTool = GetSelectedTool();
+        if (selectedTool != null)
+            values.ToolName = selectedTool.Name;
+
+        OperationDefaults.SaveDefaults(op.Type, values);
+        UpdateDefaultsDisplay();
+        RhinoApp.WriteLine($"[CamPanel] Standardwerte für {op.Type} gespeichert.");
+    }
+
+    /// <summary>
+    /// Resets saved defaults by clearing document UserText overrides.
+    /// Machine profile built-in defaults will be used again.
+    /// </summary>
+    private void ResetDefaults()
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        // Clear all CNC_Defaults_* entries from document strings
+        // We know the exact suffixes used by OperationDefaults
+        var types = new[] { "CONTOUR", "POCKET", "DRILL", "GROOVE" };
+        var suffixes = new[] { "Depth", "Feedrate", "Strategy", "Tool", "Stepover", "Width", "Diameter", "PeckDepth", "Peck", "RampEntry" };
+
+        int removed = 0;
+        foreach (var type in types)
+        {
+            foreach (var suffix in suffixes)
+            {
+                var key = $"CNC_Defaults_{type}_{suffix}";
+                if (!string.IsNullOrEmpty(doc.Strings.GetValue(key)))
+                {
+                    doc.Strings.Delete(key);
+                    removed++;
+                }
+            }
+        }
+
+        UpdateDefaultsDisplay();
+        RhinoApp.WriteLine($"[CamPanel] Standardwerte auf Maschinenprofil-Defaults zurückgesetzt ({removed} Einträge entfernt).");
     }
 
     #endregion
