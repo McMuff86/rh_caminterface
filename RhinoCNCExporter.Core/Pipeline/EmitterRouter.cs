@@ -117,13 +117,28 @@ public class EmitterRouter : IEmitterRouter
             spec);
     }
 
+    /// <summary>
+    /// Emit a raw macro call for MacroMachining operations.
+    /// 
+    /// SawCut_Lamello macros are special-cased because they have a complex parameter list
+    /// with mixed types (numbers, booleans, nulls, strings, DZ-expressions). The parameter
+    /// types are inferred heuristically:
+    ///   - "null", "true", "false" → emit as bare keywords (no quotes)
+    ///   - Starts with "DZ" → emit as expression (e.g., DZ-9.5)
+    ///   - Parses as double AND doesn't start with "E" → emit as number
+    ///   - Everything else → emit as quoted string
+    /// 
+    /// The "E" prefix exception prevents tech codes like "E010" from being emitted
+    /// as the number 10 (they must remain quoted strings in the XCS output).
+    /// 
+    /// Generic (unrecognized) macros are emitted as comment placeholders until
+    /// their format is reverse-engineered from production references.
+    /// </summary>
     private string EmitMacroRaw(MacroMachining macro)
     {
-        // For SawCut_Lamello macros, emit the full CreateMacro line directly
         if (macro.MacroName.Equals("SawCut_Lamello", StringComparison.OrdinalIgnoreCase)
             && macro.Parameters.Count > 0)
         {
-            // Reconstruct CreateMacro from stored parameters
             var sb = new StringBuilder();
             sb.Append($"CreateMacro(\"{_nameService.CreateUnique(macro.Name)}\",\"SawCut_Lamello\",");
             for (int i = 0; i < macro.Parameters.Count; i++)
@@ -133,9 +148,9 @@ public class EmitterRouter : IEmitterRouter
                 if (p == null)
                     sb.Append("null");
                 else if (p == "true" || p == "false" || p == "null"
-                    || p.StartsWith("DZ") // DZ-9.5 expression
+                    || p.StartsWith("DZ") // DZ-9.5 expression — must remain unquoted
                     || (double.TryParse(p, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
-                        && !p.StartsWith("E")))
+                        && !p.StartsWith("E"))) // "E010" is a tech code string, not a number
                     sb.Append(p);
                 else
                     sb.Append($"\"{p}\"");
@@ -144,7 +159,8 @@ public class EmitterRouter : IEmitterRouter
             return sb.ToString();
         }
 
-        // Generic macro: emit as comment placeholder
+        // Generic macro: emit as comment placeholder.
+        // Known unhandled macros: Rectangle (2 occurrences in production references)
         return $"// MACRO: {macro.MacroName} ({macro.Parameters.Count} params)";
     }
 
@@ -175,7 +191,15 @@ public class EmitterRouter : IEmitterRouter
         _ => "Top"
     };
 
-    /// <summary>Standard machining order: Contours → Drills → Patterns → Grooves → Macros.</summary>
+    /// <summary>
+    /// Standard machining order when PreserveMachiningOrder is false.
+    /// Order: Closed contours/BladeCut (0) → Drills (1) → Drill Patterns (2)
+    ///      → Horizontal Drills (3) → Pockets (4) → Open routing (5)
+    ///      → RNT Grooves (6) → Macros (7) → Unknown (99).
+    /// 
+    /// This matches CNC best practices: outer contour first (establishes reference),
+    /// then hole operations (faster tool changes when grouped), then grooves/macros last.
+    /// </summary>
     internal static IEnumerable<Machining> OrderMachinings(IReadOnlyList<Machining> machinings)
     {
         return machinings
