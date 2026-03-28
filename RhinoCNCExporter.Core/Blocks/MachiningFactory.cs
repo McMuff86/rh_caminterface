@@ -191,22 +191,35 @@ public static class MachiningFactory
         };
     }
 
+    /// <summary>
+    /// CUT blocks generate routing machinings. Intentionally returns empty here because
+    /// CUT operations require Rhino geometry (curves from the block definition) that cannot
+    /// be represented as simple CNC_* attributes. The actual curve→routing conversion happens
+    /// in the Plugin layer via FeatureReader/ExportService when Rhino geometry is available.
+    /// </summary>
     private static IReadOnlyList<Machining> CreateCut(FittingBlock b, double x, double y, double dz)
     {
-        // CUT blocks generate routing machinings — placeholder for Phase 3
-        // For now, return empty (geometry comes from Rhino curves, not block attributes)
         return Array.Empty<Machining>();
     }
 
+    /// <summary>
+    /// POCKET blocks generate pocket machinings with offset loops. Intentionally returns empty
+    /// because pocket computation requires Rhino geometry (closed curves + offset operations).
+    /// Populated by FeatureReader in the Plugin layer.
+    /// </summary>
     private static IReadOnlyList<Machining> CreatePocket(FittingBlock b, double x, double y, double dz)
     {
-        // POCKET blocks generate pocket machinings — placeholder for Phase 3
         return Array.Empty<Machining>();
     }
 
+    /// <summary>
+    /// GROOVE blocks generate groove machinings from curve geometry. Intentionally returns empty
+    /// because groove path extraction requires Rhino geometry. For RNT-style grooves from
+    /// UserText attributes, use CNC_Type=MACRO with CNC_MacroName=RNT instead.
+    /// Populated by FeatureReader in the Plugin layer.
+    /// </summary>
     private static IReadOnlyList<Machining> CreateGroove(FittingBlock b, double x, double y, double dz)
     {
-        // GROOVE blocks generate groove machinings — placeholder for Phase 3
         return Array.Empty<Machining>();
     }
 
