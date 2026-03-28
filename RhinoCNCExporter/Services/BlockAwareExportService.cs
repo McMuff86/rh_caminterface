@@ -114,9 +114,10 @@ public static class BlockAwareExportService
                 result.Success = ExportService.ExportCNC(doc, onlySelection, filePath,
                     emitter, nameService, profile, layerStepdown);
             }
-            catch
+            catch (Exception fallbackEx)
             {
                 result.Success = false;
+                result.Error += $" | Legacy fallback also failed: {fallbackEx.Message}";
             }
             return result;
         }
@@ -196,9 +197,11 @@ public static class BlockAwareExportService
 
             File.AppendAllText(filePath, sb.ToString(), Encoding.UTF8);
         }
-        catch
+        catch (Exception ex)
         {
-            // Non-critical: don't fail export if comments can't be appended
+            // Non-critical: don't fail export if comments can't be appended.
+            // But log for debugging in case of recurring filesystem issues.
+            System.Diagnostics.Debug.WriteLine($"[BlockAwareExportService] Failed to append block comments to {filePath}: {ex.Message}");
         }
     }
 

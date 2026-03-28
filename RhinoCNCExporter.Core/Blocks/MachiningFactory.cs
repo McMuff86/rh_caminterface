@@ -342,9 +342,11 @@ public static class MachiningFactory
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fall back to empty if parsing fails
+            // Fall back to empty if segment parsing fails.
+            // Log-worthy: indicates malformed CNC_Segments attribute value.
+            System.Diagnostics.Debug.WriteLine($"[MachiningFactory] BladeCut segment parsing failed: {ex.Message}");
             return Array.Empty<BladeCutSegment>();
         }
 

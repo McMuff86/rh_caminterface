@@ -303,9 +303,9 @@ public static class FeatureReader
             var centerPoint = surface.PointAt(u, v);
             return (centerPoint.X, centerPoint.Y);
         }
-        catch
+        catch (Exception)
         {
-            // Fallback: use centroid of face
+            // Fallback: use centroid of face when surface parameterization fails
             var area = AreaMassProperties.Compute(face.ToBrep());
             var centroid = area?.Centroid ?? new Point3d(0, 0, 0);
             return (centroid.X, centroid.Y);

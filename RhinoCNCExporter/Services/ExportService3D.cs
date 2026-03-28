@@ -500,8 +500,9 @@ public static class ExportService3D
                    Math.Abs(dimensions[1] - expectedDims[1]) < tolerance &&
                    Math.Abs(dimensions[2] - expectedDims[2]) < tolerance;
         }
-        catch
+        catch (Exception)
         {
+            // Geometry validation can fail on degenerate Breps — treat as non-matching
             return false;
         }
     }
