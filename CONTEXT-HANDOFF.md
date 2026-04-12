@@ -38,6 +38,14 @@ Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nu
 - **Marktlücke bestätigt:** Kein existierendes Rhino-Plugin erzeugt CIX/MPR/XCS
 
 ### Was existiert und funktioniert
+- **DevEx / Automatisierung (12.04.2026)**:
+  - `scripts/build.ps1`, `scripts/test.ps1`, `scripts/package.ps1`, `scripts/install.ps1`
+  - `scripts/setup-agent-worktrees.ps1` für isolierte Multi-Agent-Worktrees
+  - GitHub Actions:
+    - `.github/workflows/core-ci.yml`
+    - `.github/workflows/windows-plugin-build.yml`
+  - Multi-Agent-Playbook: `docs/MULTI-AGENT-WORKFLOW.md`
+
 - **Python-Referenz** (`RH_caminterface_v007.py`): Vollständig funktional, kann .xcs-Dateien erzeugen
 - **Phase 1 (SCM/XCS)** — KOMPLETT:
   - LayerParser (Regex + DTOs): implementiert ✅

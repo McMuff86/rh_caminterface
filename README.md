@@ -197,11 +197,16 @@ RhinoCNCExporter/
 ## Tests & Qualität
 - **Philosophie**: Pure Logik testbar ohne Rhino-UI. Geometrienahe Tests können Rhino.Geometry headless nutzen.
 - **Kategorien**: Parser, Naming, Geometry, Emitter, Profile.
-- **CI-Idee**: Windows-Runner, `dotnet build` + `dotnet test`; RhinoCommon v8 nur bereitstellen, wo nötig.
+- **CI-Setup**:
+  - `core-ci.yml` auf GitHub Hosted Runnern für Core + Tests
+  - `windows-plugin-build.yml` auf Self-Hosted Windows Runnern mit Rhino 8 für Plugin-Build + Yak-Package
 
 ### Ausführung
-- Lokal: `dotnet test`
-- Hinweis: Für Rhino.Geometry-Tests muss RhinoCommon v8 referenziert sein (in CI nur auf Windows-Runnern mit Rhino 8 SDK).
+- Lokal Tests: `./scripts/test.ps1`
+- Lokal Build: `./scripts/build.ps1`
+- Lokal Package: `./scripts/package.ps1`
+- Komplett lokal: `./scripts/build-and-install.ps1`
+- Hinweis: Für Plugin-Build und Rhino.Geometry-nahe Tests muss Rhino 8 / RhinoCommon verfügbar sein.
 
 ### Beispiel-Testfälle (Auszug)
 ```csharp
@@ -262,11 +267,37 @@ public void Rnt_Macro_Is_Formatted_As_Specified()
 - Validierung/Warnings (Nut horizontal/vertikal, Layer-Mismatches, Template-Fehler)
 - Packaging (.rhi), Beispieldateien, interne Abnahme
 
-## CI/CD (Vorschlag)
-- GitHub Actions (Windows-Runner)
-- Schritte: `dotnet build` + `dotnet test`
-- RhinoCommon-Bereitstellung: Secret `RHINO_SDK_PATH` oder Cache mit RhinoCommon v8 (Lizenzbedingungen beachten)
-- Artefakte: `.rhp` + `manifest.yml` + `docs/*` + `samples/*` + `README`
+## CI/CD
+- **Workflow 1: Core CI**
+  - Datei: `.github/workflows/core-ci.yml`
+  - Hosted Runner
+  - baut `RhinoCNCExporter.Core` und `RhinoCNCExporter.Tests`
+  - führt xUnit-Tests aus
+- **Workflow 2: Windows Plugin Build**
+  - Datei: `.github/workflows/windows-plugin-build.yml`
+  - Self-hosted Windows Runner mit Label `Rhino8`
+  - baut Plugin, führt Tests aus, erzeugt Yak-Package
+  - lädt `.yak` und `.rhp` als Artifacts hoch
+- **Workflow 3: Release Package**
+  - Datei: `.github/workflows/release-package.yml`
+  - läuft bei Tags wie `v0.2.0`
+  - erzeugt GitHub Release mit `.yak`, `.rhp` und `manifest.yml`
+- **Scripts**
+  - `scripts/build.ps1`
+  - `scripts/test.ps1`
+  - `scripts/package.ps1`
+  - `scripts/install.ps1`
+  - `scripts/build-and-install.ps1`
+
+## Multi-Agent Setup
+- Worktree-Bootstrap: `./scripts/setup-agent-worktrees.ps1 -Ticket <name> -BaseBranch main`
+- Empfohlene Rollen:
+  - UI Agent
+  - Core/Test Agent
+  - CI/Build Agent
+  - Docs Agent
+  - Review Agent
+- Ausführliche Regeln: `docs/MULTI-AGENT-WORKFLOW.md`
 
 ## Coding-Standards & Qualität
 - C# 10/11, `nullable` enabled, IDisposable korrekt nutzen, PURE Core-Klassen wo möglich
@@ -295,6 +326,9 @@ public void Rnt_Macro_Is_Formatted_As_Specified()
 ## Hinweise für Beiträge
 - Änderungen am Verhalten in `docs/IMPLEMENTATION.md` dokumentieren (SOLL/IST, Motivation, Auswirkungen).
 - Layer-Kurzreferenz als eigenständige Datei `docs/LAYER_CHEATSHEET.md` pflegen.
+- PR-Template ausfüllen.
+- Bei grösseren Änderungen zusätzlich `CONTEXT-HANDOFF.md` und relevante Docs aktualisieren.
+- Für parallele Agent-Arbeit immer Worktrees verwenden, nicht denselben Checkout.
 
 ---
 
