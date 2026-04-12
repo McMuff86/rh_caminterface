@@ -29,6 +29,7 @@
 - Neue globale Workflow-Summary: Schon ohne Plattenauswahl wird jetzt über alle Workflow-Gruppen hinweg sichtbar, wie viele Gruppen noch `offen` und wie viele bereits `bereit` sind. Solange noch keine Maschine gewählt ist, zeigt die Summary stattdessen explizit `Werkzeugstatus nach Maschinenwahl`.
 - `AddDrill`-Face-Tags tragen jetzt eine stabile `FeatureId` sowie explizite Bohrungsmitte (`CenterX/Y/Z`). `FeatureReader` bevorzugt diese Werte, normalisiert sie mit Plattenkontext in Platten-Koordinaten und dedupliziert identische Drill-Faces, damit ein einziges AddDrill-Feature im Workflow nicht mehrfach als Bohrung auftaucht. Dabei wird die Bearbeitungsseite jetzt auch aus der lokalen Feature-Lage abgeleitet, sodass seitliche oder unterseitige AddDrill-Features im Workflow nicht mehr pauschal als `TOP` erscheinen.
 - `AddDrill` lehnt außerdem jetzt offene Breps früh ab, schließt seinen Undo-Record auch bei Fehlerpfaden sauber und taggt bevorzugt die nicht-planaren neuen Drill-Faces. Dadurch bleiben Fehlversuche stabiler und Blindloch-Bodenflächen landen seltener irrtümlich als eigene Bohr-Features im Workflow.
+- Neu im aktuellen Animator-Slice: Taschen bleiben in der Simulation jetzt zwischen den Offset-Loops auf Schnitttiefe verbunden, Ramp-Entry wird als längerer Einfahrweg entlang der ersten Loop angenähert, und Drill-Simulation berücksichtigt einfache Peck-Zyklen aus `CNC_Peck` / `CNC_PeckDepth`.
 - Wichtig zur Einordnung: `CNCAddDrill` ist weiterhin der UserText-/Preview-Befehl für interaktive Bohr-Operationen auf Kurven/Punkten. `AddDrill` ist der separate Boolean-/Face-Tag-Authoring-Befehl für feature-basierte Bohrungen direkt auf Platten-Breps.
 
 
@@ -1110,9 +1111,10 @@ User clicks "💾 Speichern"
 **Simple toolpath simulation using DisplayConduit + RhinoApp.Idle:**
 
 **`ToolpathAnimator` class (IDisposable):**
-- **`Load(doc, operationObjects?)`** — Collects animation segments from CNC operations:
-  - Contour/Pocket/Groove: uses the source Curve geometry
-  - Drill: creates a vertical LineCurve from surface to depth
+- **`Load(doc, operationObjects?)`** — Synthesizes 3D animation segments from CNC operations instead of animating only the raw source geometry:
+  - Contour/Groove: cut path is moved to the operation depth, with clearance, plunge and retract moves
+  - Pocket: regenerates concentric pocket loops from stepover/tool diameter, then animates those loops at cutting depth
+  - Drill: animates clearance → plunge → retract on the drill center
 - **`Start()`** — Enables the `ToolConduit` DisplayConduit, subscribes to `RhinoApp.Idle` for frame updates.
 - **`Stop()`** — Unsubscribes from Idle, disables conduit.
 - **`Toggle()`** — Start/stop convenience.
@@ -1121,18 +1123,17 @@ User clicks "💾 Speichern"
 
 **Frame update logic (OnIdle):**
 - Calculates dt from frame timing (capped at 0.2s to avoid jumps).
-- Base feed speed: 50 mm/s (3000 mm/min) × SpeedMultiplier.
-- Drill plunges at 30% speed.
-- Increments `t` (0→1) proportional to curve length.
-- When `t >= 1`, advances to next segment.
-- When all segments done, calls `Stop()`.
+- Uses segment-specific motion speeds (rapid, plunge, feed, retract, drill) × `SpeedMultiplier`.
+- Increments `t` (0→1) proportional to segment length.
+- When `t >= 1`, advances to the next synthesized segment.
+- When all segments are done, calls `Stop()`.
 - Uses `Curve.NormalizedLengthParameter(t)` + `PointAt()` for position, `TangentAt()` for direction.
 
 **DisplayConduit (`ToolConduit`):**
 - Draws in `PostDrawObjects` (stays on main thread).
-- **Routing tool:** Circle at tool position (radius = tool diameter/2), direction arrow along tangent, crosshair at center.
-- **Drill tool:** Circle at current position, vertical line from surface to current depth, crosshair, drill-point V-shape indicator.
-- Color-coded by operation type (red/blue/yellow/green with alpha for semi-transparency).
+- **Routing tool:** Circle at tool position, direction arrow, crosshair, plus a short spindle/shank line along the tool axis so vertical motion reads more clearly in 3D.
+- **Drill tool:** Circle at current position, plunge line from the segment start to the current point, crosshair, drill-point indicator.
+- Rapid moves are shown in a neutral light color; feed/drill colors stay operation-specific.
 
 **CamPanel integration:**
 - **"▶ Simulation" / "⏹ Stopp" button** — toggles animation. When selected operation exists, animates just that one; otherwise all operations sequentially.
@@ -1216,8 +1217,9 @@ User clicks "▶ Simulation"
 
 - ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
 - ⚠ **Animation doesn't show cut trail** — only the current tool position, no "already machined" visualization
-- ⚠ **Animation doesn't handle rapid moves** — tool jumps instantly between segments (no rapid move lines)
-- ⚠ **Drill animation is simplified** — vertical line only, no peck cycle visualization
+- ⚠ **Pocket entry is still heuristic** — `Straight` / `Profile` / `Spiral` all map to simple descending entry approximations, not machine-specific lead-in or true helix output
+- ⚠ **Pocket passes are still single-depth** — linked inner loops are more believable now, but step-downs, rough/finish separation and stock-to-leave from the planner are still not represented
+- ⚠ **Drill pecking is still approximate** — peck depth is honored, but chip-break retract height, dwell and controller-specific cycles remain heuristic
 - ⚠ **Tool diameter in animation** — falls back to 10mm default if not resolvable from UserText
 - ⚠ **Orphan cleanup doesn't undo** — removed orphans are not wrapped in an undo record (intentional: orphans are cleanup, not user operations)
 
