@@ -1425,15 +1425,10 @@ public sealed class ExportPanel : Panel
                 }
                 break;
             case "DRILL":
-                Rhino.Geometry.Point3d center;
-                if (geometry is Rhino.Geometry.Point pt)
-                    center = pt.Location;
-                else if (geometry is Rhino.Geometry.Curve drillCurve)
-                    center = drillCurve.PointAtStart;
-                else
+                if (geometry is not Rhino.Geometry.Point && geometry is not Rhino.Geometry.Curve)
                     return;
 
-                var drillGeom = ToolpathVisualizer.CreateDrillToolpath(center, toolDiameter);
+                var drillGeom = ToolpathVisualizer.CreateDrillToolpath(geometry, toolDiameter);
                 ToolpathVisualizer.AddToolpathToDocument(doc, obj, operationType, drillGeom);
                 break;
         }

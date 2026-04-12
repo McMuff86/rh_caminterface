@@ -15,6 +15,12 @@ Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nu
 
 ## Aktueller Stand (zuletzt aktualisiert: 2026-04-12, Sprint 9 Workflow UI + Night-Factory Cycle)
 
+### Drill-/Simulation-UX Follow-up (12.04.2026, spät)
+- `CNCAddDrill` zeigt manuell gesetzte Bohrpunkte jetzt schon während der Eingabe als Live-Vorschau statt erst nach Abschluss der gesamten Serie ✅
+- Drill-Operationen persistieren jetzt das gewählte Werkzeug auch im Dialog-/UserText-Pfad, sodass der Operationsbaum Bohrungen nicht mehr als "ohne Werkzeug" verlieren sollte ✅
+- Drill-Preview vermeidet bei kreisförmiger Bohr-Geometrie doppelte Outline-Kreise, was die bisher als "Extra-Geometrie" wahrgenommene Darstellung reduziert ✅
+- Simulation meldet jetzt klar, wenn 0 Segmente geladen wurden, inklusive Skip-Gründen, statt still scheinbar nichts zu tun ✅
+
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
 - **`docs/XCS-REFERENCE-ANALYSIS.md`** — Vollständige Analyse von 55 Produktions-XCS-Dateien:

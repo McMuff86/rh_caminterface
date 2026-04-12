@@ -131,16 +131,19 @@ public static class ToolpathVisualizer
     /// Creates toolpath visualization for a drill operation.
     /// Generates a circle showing hole diameter and a crosshair at center.
     /// </summary>
-    public static List<GeometryBase> CreateDrillToolpath(Point3d center, double diameter)
+    public static List<GeometryBase> CreateDrillToolpath(Point3d center, double diameter, bool includeOutline = true)
     {
         var result = new List<GeometryBase>();
         var radius = diameter / 2.0;
 
         if (radius <= 0.01 || !center.IsValid) return result;
 
-        // Circle showing hole diameter
-        var circle = new ArcCurve(new Circle(center, radius));
-        result.Add(circle);
+        if (includeOutline)
+        {
+            // Circle showing hole diameter
+            var circle = new ArcCurve(new Circle(center, radius));
+            result.Add(circle);
+        }
 
         // Crosshair (+) at center
         var crossSize = radius * 0.6;
@@ -155,6 +158,19 @@ public static class ToolpathVisualizer
         result.Add(vLine);
 
         return result;
+    }
+
+    /// <summary>
+    /// Creates drill visualization directly from source geometry.
+    /// When the source object is already a drill circle of the same diameter,
+    /// only the crosshair is generated to avoid a confusing duplicate outline.
+    /// </summary>
+    public static List<GeometryBase> CreateDrillToolpath(GeometryBase geometry, double diameter)
+    {
+        if (!TryResolveDrillPreview(geometry, diameter, out var center, out var includeOutline))
+            return new List<GeometryBase>();
+
+        return CreateDrillToolpath(center, diameter, includeOutline);
     }
 
     /// <summary>
@@ -603,6 +619,46 @@ public static class ToolpathVisualizer
         var plane = Plane.WorldXY;
         plane.Origin = new Point3d(0, 0, startPoint.Z);
         return plane;
+    }
+
+    private static bool TryResolveDrillPreview(GeometryBase geometry, double diameter, out Point3d center, out bool includeOutline)
+    {
+        center = Point3d.Unset;
+        includeOutline = true;
+
+        if (geometry == null)
+            return false;
+
+        switch (geometry)
+        {
+            case Rhino.Geometry.Point point:
+                center = point.Location;
+                return center.IsValid;
+
+            case Curve curve:
+            {
+                var tolerance = Math.Max(RhinoDoc.ActiveDoc?.ModelAbsoluteTolerance ?? 0.01, 0.01);
+                if (curve.TryGetCircle(out var circle, tolerance))
+                {
+                    center = circle.Center;
+                    includeOutline = Math.Abs((circle.Radius * 2.0) - diameter) > Math.Max(tolerance * 2.0, 0.1);
+                    return center.IsValid;
+                }
+
+                center = curve.PointAtStart;
+                return center.IsValid;
+            }
+
+            default:
+            {
+                var bbox = geometry.GetBoundingBox(true);
+                if (!bbox.IsValid)
+                    return false;
+
+                center = bbox.Center;
+                return center.IsValid;
+            }
+        }
     }
 
     /// <summary>

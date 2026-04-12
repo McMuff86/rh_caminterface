@@ -152,8 +152,10 @@ public sealed class DrillOperationDialog : CamOperationDialogBase
 
     protected override Dictionary<string, object> CreateParameters()
     {
+        var selectedTool = GetSelectedTool();
         var parameters = new Dictionary<string, object>
         {
+            [CncOperationSchema.CNC_TOOL] = selectedTool?.Name ?? "",
             [CncOperationSchema.CNC_DIAMETER] = double.Parse(_diameterTextBox.Text),
             [CncOperationSchema.CNC_DEPTH] = double.Parse(_depthTextBox.Text),
         };

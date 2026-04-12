@@ -650,6 +650,8 @@ public sealed class CamPanel : Panel
                 else if (op.IsEnabled)
                 {
                     warnings++;
+                    if (op.Type.Equals(CncOperationSchema.TYPE_DRILL, StringComparison.OrdinalIgnoreCase) && op.Diameter.HasValue)
+                        toolDisplay = $"Ø{op.Diameter.Value:F1} (nicht gespeichert)";
                 }
 
                 if (!op.IsEnabled)
@@ -1310,16 +1312,9 @@ public sealed class CamPanel : Panel
                 }
                 break;
             case "DRILL":
-                if (geometry is Rhino.Geometry.Point point)
+                if (geometry is Rhino.Geometry.Point || geometry is Curve)
                 {
-                    toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(point.Location, toolDiameter);
-                    ToolpathVisualizer.AddToolpathToDocument(doc, obj, operationType, toolpathGeometry);
-                }
-                else if (geometry is Curve drillCurve)
-                {
-                    // Drill points stored as small circles
-                    var center = drillCurve.PointAtStart;
-                    toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(center, toolDiameter);
+                    toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(geometry, toolDiameter);
                     ToolpathVisualizer.AddToolpathToDocument(doc, obj, operationType, toolpathGeometry);
                 }
                 break;
@@ -1351,12 +1346,13 @@ public sealed class CamPanel : Panel
 
         // If a specific operation is selected, animate just that one;
         // otherwise animate all operations sequentially.
+        ToolpathAnimationLoadResult loadResult;
         if (_selectedOperation != null)
         {
             var obj = doc.Objects.FindId(_selectedOperation.ObjectId);
             if (obj != null && CncOperationService.IsOperationEnabled(obj))
             {
-                _animator.Load(doc, new[] { obj });
+                loadResult = _animator.Load(doc, new[] { obj });
             }
             else if (obj != null)
             {
@@ -1365,13 +1361,24 @@ public sealed class CamPanel : Panel
             }
             else
             {
-                _animator.Load(doc);
+                loadResult = _animator.Load(doc);
             }
         }
         else
         {
-            _animator.Load(doc);
+            loadResult = _animator.Load(doc);
         }
+
+        if (loadResult.LoadedSegmentCount == 0)
+        {
+            var summary = loadResult.FormatSummary();
+            RhinoApp.WriteLine($"[CamPanel] Simulation nicht gestartet: {summary}");
+            _statusLabel.Text = $"Simulation: {summary}";
+            return;
+        }
+
+        if (loadResult.SkippedOperationCount > 0)
+            RhinoApp.WriteLine($"[CamPanel] Simulation: {loadResult.FormatSummary()}");
 
         _animator.Start();
     }

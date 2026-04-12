@@ -250,6 +250,8 @@ Der grösste produktive Gap ist aber nicht mehr "keine Visualisierung", sondern 
 
 **Night-Factory Update 12.04.2026:** Test-Suite wieder grün und weiter abgesichert (jetzt 663 Tests), BladeCut-Namen im XCS produktionsnäher, self-hosted Windows CI jetzt nur noch automatisch auf `main` plus manueller Dispatch und zusätzlich auf relevante Code-/Script-Pfade begrenzt, Follow-up-Härtung via concurrency/timeouts/credential-freies Checkout jetzt auch im tag-basierten `release-package`-Workflow, lokale `artifacts/`-Build/Test-Ausgaben sind gitignored, klarere Workflow-Assignment-CTAs, konsistentes Preview-Cleanup, sichtbare `bereit`/`ohne Werkzeug`-Status direkt im ExportPanel-Baum, direkter `nur ohne Werkzeug`-Fokus im `ToolStrategyDialog` für Gruppen-CTAs, offene-vs.-gesamt Counts direkt in CTA-/Baumtexten, direkter `Workflow-Fokus`-Sprung zur nächsten offenen Gruppe, jetzt mit kontextbezogenem CTA-Label für die empfohlene Gruppe, und eine globale Workflow-Summary mit `offen` vs. `bereit` über alle Platten.
 
+**UX-Follow-up 12.04.2026 (Drill/Simulation):** `CNCAddDrill` zeigt gesetzte Bohrpunkte jetzt schon während der Eingabe, Drill-Operationen speichern ihr ausgewähltes Werkzeug zuverlässig mit, Drill-Preview vermeidet doppelte Outline-Kreise bei kreisförmigen Bohr-Objekten, und die Simulation meldet Zero-Segment-Fälle jetzt mit expliziten Skip-Gründen statt still nichts zu tun.
+
 > **Entscheidung 23.03.2026:** Toolpath-Preview und Werkzeug-Datenbank sind nicht optional.
 > Ohne visuelle Kontrolle = Black Box. Kein Schreiner vertraut einer Black Box.
 

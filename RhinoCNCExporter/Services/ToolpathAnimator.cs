@@ -43,7 +43,7 @@ public sealed class ToolpathAnimator : IDisposable
     /// source geometry by synthesizing 3D feed/plunge/retract motion from the actual
     /// operation parameters.
     /// </summary>
-    public void Load(RhinoDoc doc, IEnumerable<RhinoObject>? operationObjects = null)
+    public ToolpathAnimationLoadResult Load(RhinoDoc doc, IEnumerable<RhinoObject>? operationObjects = null)
     {
         ArgumentNullException.ThrowIfNull(doc);
 
@@ -61,16 +61,64 @@ public sealed class ToolpathAnimator : IDisposable
                       ?? CncOperationService.GetEnabledOperationsInDocument(doc).ToList())
             .Where(CncOperationService.IsOperationEnabled)
             .ToList();
-
+        var skippedReasons = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         Point3d? currentSafePoint = null;
+
+        static void AddSkippedReason(IDictionary<string, int> reasons, string reason)
+        {
+            reasons[reason] = reasons.TryGetValue(reason, out var count) ? count + 1 : 1;
+        }
 
         foreach (var obj in objects)
         {
             var op = CncOperationService.GetOperation(obj);
-            if (op == null) continue;
+            if (op == null)
+            {
+                AddSkippedReason(skippedReasons, "ohne CNC-Operation");
+                continue;
+            }
+
+            var type = op.Type;
+            var toolDiameter = GetToolDiameter(op);
+            var depth = GetDepth(op);
+
+            if (toolDiameter <= 0)
+            {
+                AddSkippedReason(skippedReasons, "ohne gültigen Werkzeugdurchmesser");
+                continue;
+            }
+
+            if (type.Equals(CncOperationSchema.TYPE_DRILL, StringComparison.OrdinalIgnoreCase) && depth <= 0)
+            {
+                AddSkippedReason(skippedReasons, "Drill-Tiefe ist 0 oder fehlt");
+                continue;
+            }
 
             var segments = BuildSegmentsForOperation(doc, obj, op, currentSafePoint);
-            if (segments.Count == 0) continue;
+            if (segments.Count == 0)
+            {
+                if (type.Equals(CncOperationSchema.TYPE_DRILL, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (obj.Geometry is not Rhino.Geometry.Point && obj.Geometry is not Curve)
+                        AddSkippedReason(skippedReasons, "Drill-Geometrie wird nicht unterstützt");
+                    else
+                        AddSkippedReason(skippedReasons, "Drill: keine verwertbaren Segmente");
+                }
+                else if (obj.Geometry is not Curve)
+                {
+                    AddSkippedReason(skippedReasons, $"{type}: Geometrie ist keine Kurve");
+                }
+                else if (obj.Geometry is Curve curve && curve.GetLength() < MinimumSegmentLength)
+                {
+                    AddSkippedReason(skippedReasons, $"{type}: Kurve zu kurz");
+                }
+                else
+                {
+                    AddSkippedReason(skippedReasons, $"{type}: keine verwertbaren Segmente");
+                }
+
+                continue;
+            }
 
             _segments.AddRange(segments);
             currentSafePoint = segments[^1].Curve.PointAtEnd;
@@ -90,6 +138,8 @@ public sealed class ToolpathAnimator : IDisposable
             _conduit.OperationType = first.OperationType;
             _conduit.SegmentKind = first.Kind;
         }
+
+        return new ToolpathAnimationLoadResult(objects.Count, _segments.Count, skippedReasons);
     }
 
     /// <summary>
@@ -983,5 +1033,31 @@ public sealed class ToolpathAnimator : IDisposable
                     1);
             }
         }
+    }
+}
+
+public sealed record ToolpathAnimationLoadResult(
+    int RequestedOperationCount,
+    int LoadedSegmentCount,
+    IReadOnlyDictionary<string, int> SkippedReasons)
+{
+    public int SkippedOperationCount => SkippedReasons.Values.Sum();
+
+    public string FormatSummary()
+    {
+        if (LoadedSegmentCount > 0 && SkippedOperationCount == 0)
+            return $"{LoadedSegmentCount} Segment(e) aus {RequestedOperationCount} Operation(en) geladen.";
+
+        var reasons = SkippedReasons.Count == 0
+            ? "keine verwertbaren Operationen gefunden"
+            : string.Join(", ",
+                SkippedReasons
+                    .OrderByDescending(pair => pair.Value)
+                    .ThenBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(pair => $"{pair.Value}× {pair.Key}"));
+
+        return LoadedSegmentCount > 0
+            ? $"{LoadedSegmentCount} Segment(e) geladen, übersprungen: {reasons}."
+            : $"0 Segmente geladen, Gründe: {reasons}.";
     }
 }

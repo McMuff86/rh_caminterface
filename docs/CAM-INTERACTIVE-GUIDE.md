@@ -120,7 +120,8 @@ Befehl: CNCAddContour
 
 - **Eingabe:** Punkte anklicken oder bestehende Punkte/Kreise auswählen
 - **Dialog:** Werkzeug, Tiefe, Durchmesser, Pickelbohren (Ja/Nein), Pickeltiefe
-- **Visualisierung:** Kreis am Bohrpunkt + Fadenkreuz
+- **Während des Platzierens:** Jede gesetzte Bohrung wird sofort als Vorschau gezeigt, weitere Klicks ergänzen die Liste, `Enter` beendet die Serie
+- **Visualisierung:** Kreis am Bohrpunkt + Fadenkreuz, bei Bohr-Kreisen ohne doppelte Zusatzkontur
 - **Farbe:** 🟡 Gelb
 
 ### CNCAddGroove
@@ -377,6 +378,7 @@ Das interaktive CAM-System unterstützt die direkte Auswahl von **Brep-Kanten** 
 - Bereits abgefahrene Schnittsegmente bleiben als farbige Trail-Overlay sichtbar
 - Aktives Segment und Werkzeugmarker werden zusätzlich als Vordergrund-Overlay gezeichnet, damit die Simulation auch bei Schnitttiefe in oder hinter dem Material lesbar bleibt
 - Farbcodiert nach Operationstyp
+- Wenn keine verwertbaren Segmente geladen werden können, schreibt das Panel jetzt explizit den Grund in Rhino-Log und Statusleiste statt still nichts zu tun
 - Wichtig: Das ist eine Sichtbarkeits-/UX-Hilfe, keine echte Materialabtrags- oder Kollisionssimulation
 
 ### Tastenkürzel

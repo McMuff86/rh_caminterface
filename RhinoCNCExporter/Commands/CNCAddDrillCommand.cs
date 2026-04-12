@@ -3,6 +3,7 @@ using Rhino.Commands;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using Rhino.Input;
+using System.Drawing;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Profiles;
 using RhinoCNCExporter.Helpers;
@@ -43,6 +44,10 @@ public sealed class CNCAddDrillCommand : Command
             // Apply machine-aware defaults for any missing values
             OperationDefaults.ApplyDefaults(parameters, CncOperationSchema.TYPE_DRILL, machineKey);
 
+            var diameter = parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var dObj) && dObj is double d
+                ? d
+                : 5.0;
+
             var drillPoints = new List<Point3d>();
 
             // Option 1: Try to select existing points first
@@ -66,7 +71,9 @@ public sealed class CNCAddDrillCommand : Command
             {
                 // Option 2: Manual point picking
                 var gp = new Rhino.Input.Custom.GetPoint();
-                gp.SetCommandPrompt("Erste Bohrposition anklicken");
+                gp.SetCommandPrompt("Bohrposition anklicken (Enter zum Fertigstellen)");
+                gp.AcceptNothing(true);
+                gp.DynamicDraw += (_, e) => DrawDrillPreviews(e, drillPoints, diameter);
 
                 while (true)
                 {
@@ -75,9 +82,8 @@ public sealed class CNCAddDrillCommand : Command
                     if (result == GetResult.Point)
                     {
                         drillPoints.Add(gp.Point());
-                        RhinoApp.WriteLine($"Bohrung {drillPoints.Count} hinzugefügt. Enter für weitere, Esc zum Beenden.");
+                        RhinoApp.WriteLine($"Bohrung {drillPoints.Count} vorgemerkt. Enter zum Fertigstellen, nächster Klick für weitere Bohrung.");
                         gp.SetCommandPrompt("Nächste Bohrposition anklicken (Enter zum Beenden)");
-                        gp.AcceptNothing(true);
                     }
                     else if (result == GetResult.Nothing)
                     {
@@ -103,10 +109,6 @@ public sealed class CNCAddDrillCommand : Command
 
             try
             {
-                var diameter = parameters.TryGetValue(CncOperationSchema.CNC_DIAMETER, out var dObj) && dObj is double d
-                    ? d
-                    : 5.0;
-
                 int count = 0;
                 foreach (var point in drillPoints)
                 {
@@ -121,7 +123,7 @@ public sealed class CNCAddDrillCommand : Command
                     CncOperationService.SetOperation(circleObj, CncOperationSchema.TYPE_DRILL, parameters);
                     CncOperationService.SetOperationColor(circleObj, CncOperationSchema.TYPE_DRILL);
 
-                    var toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(point, diameter);
+                    var toolpathGeometry = ToolpathVisualizer.CreateDrillToolpath(circleObj.Geometry, diameter);
                     ToolpathVisualizer.AddToolpathToDocument(doc, circleObj, CncOperationSchema.TYPE_DRILL, toolpathGeometry);
                     count++;
                 }
@@ -142,5 +144,40 @@ public sealed class CNCAddDrillCommand : Command
             RhinoApp.WriteLine($"[CNCAddDrill] Fehler: {ex.Message}");
             return Result.Failure;
         }
+    }
+
+    private static void DrawDrillPreviews(Rhino.Input.Custom.GetPointDrawEventArgs e, IEnumerable<Point3d> drillPoints, double diameter)
+    {
+        var color = Color.Gold;
+        foreach (var point in drillPoints)
+        {
+            DrawSingleDrillPreview(e, point, diameter, color, 1);
+        }
+
+        DrawSingleDrillPreview(e, e.CurrentPoint, diameter, color, 2);
+    }
+
+    private static void DrawSingleDrillPreview(Rhino.Input.Custom.GetPointDrawEventArgs e, Point3d center, double diameter, Color color, int thickness)
+    {
+        if (!center.IsValid || diameter <= 0)
+            return;
+
+        var radius = diameter / 2.0;
+        if (radius <= 0.01)
+            return;
+
+        e.Display.DrawCircle(new Circle(center, radius), color, thickness);
+
+        var crossSize = radius * 0.6;
+        e.Display.DrawLine(
+            new Point3d(center.X - crossSize, center.Y, center.Z),
+            new Point3d(center.X + crossSize, center.Y, center.Z),
+            color,
+            thickness);
+        e.Display.DrawLine(
+            new Point3d(center.X, center.Y - crossSize, center.Z),
+            new Point3d(center.X, center.Y + crossSize, center.Z),
+            color,
+            thickness);
     }
 }
