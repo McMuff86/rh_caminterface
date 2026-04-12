@@ -53,6 +53,9 @@ public sealed class ToolpathAnimator : IDisposable
         _currentSegmentIndex = 0;
         _t = 0;
         _conduit.ToolPosition = Point3d.Unset;
+        _conduit.Segments = Array.Empty<AnimationSegment>();
+        _conduit.CurrentSegmentIndex = -1;
+        _conduit.CurrentSegmentProgress = 0;
 
         var objects = (operationObjects?.ToList()
                       ?? CncOperationService.GetEnabledOperationsInDocument(doc).ToList())
@@ -76,6 +79,9 @@ public sealed class ToolpathAnimator : IDisposable
         if (_segments.Count > 0)
         {
             var first = _segments[0];
+            _conduit.Segments = _segments;
+            _conduit.CurrentSegmentIndex = 0;
+            _conduit.CurrentSegmentProgress = 0;
             _conduit.ToolPosition = first.Curve.PointAtStart;
             _conduit.SegmentStart = first.Curve.PointAtStart;
             _conduit.ToolDiameter = first.ToolDiameter;
@@ -179,6 +185,8 @@ public sealed class ToolpathAnimator : IDisposable
             _conduit.ToolAxis = currentSeg.ToolAxis;
             _conduit.OperationType = currentSeg.OperationType;
             _conduit.SegmentKind = currentSeg.Kind;
+            _conduit.CurrentSegmentIndex = _currentSegmentIndex;
+            _conduit.CurrentSegmentProgress = clampedT;
         }
 
         _doc?.Views.Redraw();
@@ -732,6 +740,9 @@ public sealed class ToolpathAnimator : IDisposable
 
     private sealed class ToolConduit : DisplayConduit
     {
+        public IReadOnlyList<AnimationSegment> Segments { get; set; } = Array.Empty<AnimationSegment>();
+        public int CurrentSegmentIndex { get; set; } = -1;
+        public double CurrentSegmentProgress { get; set; }
         public Point3d ToolPosition { get; set; }
         public Point3d SegmentStart { get; set; }
         public double ToolDiameter { get; set; } = 10;
@@ -745,14 +756,54 @@ public sealed class ToolpathAnimator : IDisposable
         private static readonly Color ColorDrill = Color.FromArgb(200, 255, 200, 40);
         private static readonly Color ColorGroove = Color.FromArgb(200, 60, 200, 80);
         private static readonly Color ColorRapid = Color.FromArgb(180, 220, 220, 220);
+        private static readonly Color OverlayTextColor = Color.Black;
 
         protected override void PostDrawObjects(DrawEventArgs e)
         {
             base.PostDrawObjects(e);
 
-            if (!ToolPosition.IsValid) return;
+            if (!ToolPosition.IsValid)
+                return;
 
-            var color = SegmentKind == AnimationSegmentKind.Rapid
+            var color = GetSegmentColor();
+            var radius = GetToolRadius();
+
+            if (SegmentKind == AnimationSegmentKind.Drill)
+                DrawDrillTool(e, color, radius);
+            else
+                DrawRoutingTool(e, color, radius);
+        }
+
+        protected override void DrawForeground(DrawEventArgs e)
+        {
+            base.DrawForeground(e);
+
+            if (!ToolPosition.IsValid)
+                return;
+
+            var color = GetSegmentColor();
+            var radius = GetToolRadius();
+
+            DrawCompletedTrail(e);
+            DrawActiveSegmentOverlay(e, color);
+
+            if (SegmentKind == AnimationSegmentKind.Drill)
+                DrawDrillTool(e, WithAlpha(color, 255), radius);
+            else
+                DrawRoutingTool(e, WithAlpha(color, 255), radius);
+
+            e.Display.DrawDot(ToolPosition, GetStatusLabel(), WithAlpha(color, 245), OverlayTextColor);
+        }
+
+        private double GetToolRadius()
+        {
+            var radius = ToolDiameter / 2.0;
+            return radius < 0.5 ? 5.0 : radius;
+        }
+
+        private Color GetSegmentColor()
+        {
+            return SegmentKind == AnimationSegmentKind.Rapid
                 ? ColorRapid
                 : OperationType switch
                 {
@@ -762,14 +813,108 @@ public sealed class ToolpathAnimator : IDisposable
                     CncOperationSchema.TYPE_GROOVE => ColorGroove,
                     _ => Color.White
                 };
+        }
 
-            var radius = ToolDiameter / 2.0;
-            if (radius < 0.5) radius = 5;
+        private void DrawCompletedTrail(DrawEventArgs e)
+        {
+            if (Segments.Count == 0 || CurrentSegmentIndex < 0)
+                return;
 
-            if (SegmentKind == AnimationSegmentKind.Drill)
-                DrawDrillTool(e, color, radius);
-            else
-                DrawRoutingTool(e, color, radius);
+            var lastCompletedIndex = Math.Min(CurrentSegmentIndex - 1, Segments.Count - 1);
+            for (var index = 0; index <= lastCompletedIndex; index++)
+            {
+                var segment = Segments[index];
+                if (!ShouldDrawTrail(segment.Kind))
+                    continue;
+
+                e.Display.DrawCurve(segment.Curve, WithAlpha(GetColorForSegment(segment), 150), 4);
+            }
+        }
+
+        private void DrawActiveSegmentOverlay(DrawEventArgs e, Color color)
+        {
+            if (Segments.Count == 0 || CurrentSegmentIndex < 0 || CurrentSegmentIndex >= Segments.Count)
+                return;
+
+            var currentSegment = Segments[CurrentSegmentIndex];
+            e.Display.DrawCurve(currentSegment.Curve, WithAlpha(color, 80), 3);
+
+            if (!ShouldDrawTrail(currentSegment.Kind))
+                return;
+
+            var visitedCurve = CreateVisitedCurve(currentSegment.Curve, CurrentSegmentProgress);
+            if (visitedCurve == null)
+                return;
+
+            e.Display.DrawCurve(visitedCurve, WithAlpha(color, 255), 6);
+        }
+
+        private static bool ShouldDrawTrail(AnimationSegmentKind kind)
+        {
+            return kind is AnimationSegmentKind.Entry
+                or AnimationSegmentKind.Plunge
+                or AnimationSegmentKind.Feed
+                or AnimationSegmentKind.Drill;
+        }
+
+        private static Curve? CreateVisitedCurve(Curve sourceCurve, double normalizedProgress)
+        {
+            var clampedProgress = Math.Max(0, Math.Min(1, normalizedProgress));
+            if (clampedProgress <= 0.001)
+                return null;
+
+            if (clampedProgress >= 0.999)
+                return sourceCurve.DuplicateCurve();
+
+            if (!sourceCurve.NormalizedLengthParameter(clampedProgress, out var endParameter))
+                return null;
+
+            return sourceCurve.Trim(sourceCurve.Domain.T0, endParameter);
+        }
+
+        private string GetStatusLabel()
+        {
+            var motion = SegmentKind switch
+            {
+                AnimationSegmentKind.Rapid => "Rapid",
+                AnimationSegmentKind.Entry => "Entry",
+                AnimationSegmentKind.Plunge => "Plunge",
+                AnimationSegmentKind.Feed => "Cut",
+                AnimationSegmentKind.Retract => "Retract",
+                AnimationSegmentKind.Drill => "Drill",
+                _ => "Tool"
+            };
+
+            var operation = OperationType switch
+            {
+                CncOperationSchema.TYPE_CONTOUR => "Contour",
+                CncOperationSchema.TYPE_POCKET => "Pocket",
+                CncOperationSchema.TYPE_DRILL => "Drill",
+                CncOperationSchema.TYPE_GROOVE => "Groove",
+                _ => "CAM"
+            };
+
+            return $"{operation} {motion}";
+        }
+
+        private static Color GetColorForSegment(AnimationSegment segment)
+        {
+            return segment.Kind == AnimationSegmentKind.Rapid
+                ? ColorRapid
+                : segment.OperationType switch
+                {
+                    CncOperationSchema.TYPE_CONTOUR => ColorContour,
+                    CncOperationSchema.TYPE_POCKET => ColorPocket,
+                    CncOperationSchema.TYPE_DRILL => ColorDrill,
+                    CncOperationSchema.TYPE_GROOVE => ColorGroove,
+                    _ => Color.White
+                };
+        }
+
+        private static Color WithAlpha(Color color, int alpha)
+        {
+            var clamped = Math.Max(0, Math.Min(255, alpha));
+            return Color.FromArgb(clamped, color.R, color.G, color.B);
         }
 
         private void DrawRoutingTool(DrawEventArgs e, Color color, double radius)

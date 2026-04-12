@@ -1217,7 +1217,8 @@ User clicks "▶ Simulation"
 ### 14.4 Known Limitations / TODO
 
 - ⚠ **Not yet tested on Windows** — needs `dotnet build` verification + Rhino 8 runtime test
-- ⚠ **Animation doesn't show cut trail** — only the current tool position, no "already machined" visualization
+- ✅ **Animation visibility improved** — current tool + active segment are now also drawn as a foreground overlay, and visited cutting segments remain visible as a color trail even when the symbolic tool is inside/behind the Brep
+- ⚠ **Simulation is still readability-first** — overlay/trail improve visibility, but there is still no real material removal, occlusion-aware stock state, or collision analysis
 - ⚠ **Pocket entry is still heuristic** — `Straight` / `Profile` / `Spiral` all map to simple descending entry approximations, not machine-specific lead-in or true helix output
 - ⚠ **Pocket passes are still single-depth** — linked inner loops are more believable now, but step-downs, rough/finish separation and stock-to-leave from the planner are still not represented
 - ⚠ **Drill pecking is still approximate** — peck depth is honored, but chip-break retract height, dwell and controller-specific cycles remain heuristic
@@ -1229,8 +1230,8 @@ User clicks "▶ Simulation"
 1. **P1: Build & Test on Windows** — compile, load in Rhino 8, verify all features
 2. **P2: Export code caching** — cache generated code from preview to avoid double generation
 3. ~~**P3: Syntax highlighting in preview**~~ — ✅ Done in Night Session #10
-4. **P4: Animation trail** — show "already machined" path in a different color/style
-5. **P5: Multi-pass animation** — for operations with rough+finish strategy, animate both passes
+4. **P4: Multi-pass animation** — for operations with rough+finish strategy, animate both passes
+5. **P5: Optional stock-removal style preview** — if needed later, add a more physicalized cut-state visualization instead of readability-only overlays
 
 ---
 

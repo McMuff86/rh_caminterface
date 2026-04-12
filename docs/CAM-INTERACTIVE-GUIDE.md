@@ -373,8 +373,11 @@ Das interaktive CAM-System unterstützt die direkte Auswahl von **Brep-Kanten** 
 - Deaktivierte Operationen werden automatisch übersprungen
 - Ungültige Einzeloperationen blockieren die übrige Vorschau nicht mehr
 - Geschwindigkeit einstellbar: 1×, 2×, 5×, 10×
-- Zeigt: Werkzeugumriss (Kreis), Richtungspfeil, Fadenkreuz
+- Zeigt: Werkzeugumriss (Kreis), Richtungspfeil, Fadenkreuz und Status-Dot
+- Bereits abgefahrene Schnittsegmente bleiben als farbige Trail-Overlay sichtbar
+- Aktives Segment und Werkzeugmarker werden zusätzlich als Vordergrund-Overlay gezeichnet, damit die Simulation auch bei Schnitttiefe in oder hinter dem Material lesbar bleibt
 - Farbcodiert nach Operationstyp
+- Wichtig: Das ist eine Sichtbarkeits-/UX-Hilfe, keine echte Materialabtrags- oder Kollisionssimulation
 
 ### Tastenkürzel
 
