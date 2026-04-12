@@ -24,6 +24,7 @@ public static class CncOperationSchema
     public const string CNC_PECK_DEPTH = "CNC_PeckDepth";
     public const string CNC_RAMP_ENTRY = "CNC_RampEntry";
     public const string CNC_GROUP_INDEX = "CNC_GroupIndex";
+    public const string CNC_ENABLED = "CNC_Enabled";
 
     // --- Edge Extraction Reference Keys ---
     /// <summary>Source Brep GUID when this curve was extracted from a Brep edge.</summary>
@@ -109,6 +110,7 @@ public record MachiningOperation(string Type, IReadOnlyDictionary<string, string
     public bool? Peck => TryGetBool(CncOperationSchema.CNC_PECK);
     public double? PeckDepth => TryGetDouble(CncOperationSchema.CNC_PECK_DEPTH);
     public string? RampEntry => Parameters.GetValueOrDefault(CncOperationSchema.CNC_RAMP_ENTRY);
+    public bool IsEnabled => TryGetBool(CncOperationSchema.CNC_ENABLED) ?? true;
 
     private double? TryGetDouble(string key)
     {

@@ -31,6 +31,7 @@
 - `AddDrill` lehnt außerdem jetzt offene Breps früh ab, schließt seinen Undo-Record auch bei Fehlerpfaden sauber und taggt bevorzugt die nicht-planaren neuen Drill-Faces. Dadurch bleiben Fehlversuche stabiler und Blindloch-Bodenflächen landen seltener irrtümlich als eigene Bohr-Features im Workflow.
 - Neu im aktuellen Animator-Slice: Taschen bleiben in der Simulation jetzt zwischen den Offset-Loops auf Schnitttiefe verbunden, Ramp-Entry wird als längerer Einfahrweg entlang der ersten Loop angenähert, und Drill-Simulation berücksichtigt einfache Peck-Zyklen aus `CNC_Peck` / `CNC_PeckDepth`.
 - Wichtig zur Einordnung: `CNCAddDrill` ist weiterhin der UserText-/Preview-Befehl für interaktive Bohr-Operationen auf Kurven/Punkten. `AddDrill` ist der separate Boolean-/Face-Tag-Authoring-Befehl für feature-basierte Bohrungen direkt auf Platten-Breps.
+- Neuer UX-Stabilitätsslice (12.04.2026, Abend): robustere Edge-Proxy-Auflösung für `CNCAddContour` / `CNCAddGroove` (und gleichgezogen für `CNCAddPocket`), neue `CNC_Enabled`-Flag mit Aktivieren/Deaktivieren im Panel, sowie defensiveres Verhalten in Validierung, Vorschau, Simulation und Export. Deaktivierte oder lokal ungültige Operationen werden jetzt möglichst pro Objekt übersprungen statt den gesamten interaktiven Workflow zu vergiften.
 
 
 ### 1.1 Commands (All Implemented ✅)

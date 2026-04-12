@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Globalization;
 using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
@@ -24,8 +25,16 @@ public static class EdgeCurveHelper
     public static bool IsBrepEdge(Rhino.DocObjects.ObjRef objRef)
     {
         if (objRef == null) return false;
+
+        if (objRef.Edge() != null)
+            return true;
+
         var ci = objRef.GeometryComponentIndex;
-        return ci.ComponentIndexType == ComponentIndexType.BrepEdge;
+        if (ci.ComponentIndexType == ComponentIndexType.BrepEdge)
+            return true;
+
+        var parentGeometry = objRef.Object()?.Geometry;
+        return objRef.Curve() != null && parentGeometry is Brep;
     }
 
     /// <summary>
@@ -39,15 +48,25 @@ public static class EdgeCurveHelper
     /// <returns>The new RhinoObject for the extracted curve, or null on failure.</returns>
     public static RhinoObject? ExtractEdgeCurve(RhinoDoc doc, Rhino.DocObjects.ObjRef objRef, Color operationColor)
     {
-        var edge = objRef.Edge();
-        if (edge == null) return null;
-
         var parentObj = objRef.Object();
         if (parentObj == null) return null;
 
+        var edge = objRef.Edge();
         var edgeIndex = objRef.GeometryComponentIndex.Index;
-        var duplicatedCurve = edge.DuplicateCurve();
-        if (duplicatedCurve == null) return null;
+        Curve? duplicatedCurve = edge?.DuplicateCurve();
+
+        if (duplicatedCurve == null)
+        {
+            duplicatedCurve = objRef.Curve()?.DuplicateCurve();
+            if (duplicatedCurve == null) return null;
+        }
+
+        if (edgeIndex < 0)
+        {
+            edgeIndex = TryFindMatchingEdgeIndex(parentObj.Geometry as Brep, duplicatedCurve, doc.ModelAbsoluteTolerance);
+        }
+
+        if (edgeIndex < 0) return null;
 
         // Ensure the target layer exists
         var layerIndex = EnsureEdgeCurveLayer(doc);
@@ -65,12 +84,44 @@ public static class EdgeCurveHelper
 
         // Store reference back to source Brep
         attributes.SetUserString(CncOperationSchema.CNC_SOURCE_BREP, parentObj.Id.ToString());
-        attributes.SetUserString(CncOperationSchema.CNC_SOURCE_EDGE_INDEX, edgeIndex.ToString());
+        attributes.SetUserString(CncOperationSchema.CNC_SOURCE_EDGE_INDEX, edgeIndex.ToString(CultureInfo.InvariantCulture));
 
         var curveId = doc.Objects.AddCurve(duplicatedCurve, attributes);
         if (curveId == Guid.Empty) return null;
 
         return doc.Objects.FindId(curveId);
+    }
+
+    /// <summary>
+    /// Resolves a selection into the object that should carry the operation.
+    /// Brep edges are extracted as standalone proxy curves. Standalone curves are used as-is.
+    /// </summary>
+    public static bool TryResolveCurveTarget(RhinoDoc doc, Rhino.DocObjects.ObjRef objRef, Color operationColor, out RhinoObject? targetObj, out Curve? curve)
+    {
+        targetObj = null;
+        curve = null;
+
+        if (IsBrepEdge(objRef))
+        {
+            var extracted = ExtractEdgeCurve(doc, objRef, operationColor);
+            if (extracted == null)
+                return false;
+
+            targetObj = extracted;
+            curve = extracted.Geometry as Curve;
+            return curve != null;
+        }
+
+        var rhinoObj = objRef.Object();
+        if (rhinoObj == null)
+            return false;
+
+        curve = objRef.Curve() ?? rhinoObj.Geometry as Curve;
+        if (curve == null)
+            return false;
+
+        targetObj = rhinoObj;
+        return true;
     }
 
     /// <summary>
@@ -90,7 +141,7 @@ public static class EdgeCurveHelper
         };
 
         // Try to assign a dashed linetype for visual distinction
-        var dashedIndex = doc.Linetypes.Find("Dashed", true);
+        var dashedIndex = doc.Linetypes.FindName("Dashed")?.Index ?? -1;
         if (dashedIndex >= 0)
         {
             layer.LinetypeIndex = dashedIndex;
@@ -121,5 +172,34 @@ public static class EdgeCurveHelper
     {
         if (obj == null) return false;
         return !string.IsNullOrEmpty(obj.Attributes.GetUserString(CncOperationSchema.CNC_SOURCE_BREP));
+    }
+
+    private static int TryFindMatchingEdgeIndex(Brep? brep, Curve curve, double tolerance)
+    {
+        if (brep == null) return -1;
+
+        var sample = curve.PointAtNormalizedLength(0.5);
+        if (!sample.IsValid)
+            sample = curve.PointAtStart;
+
+        foreach (var brepEdge in brep.Edges)
+        {
+            if (brepEdge == null) continue;
+
+            var edgeCurve = brepEdge.EdgeCurve;
+            if (edgeCurve == null) continue;
+
+            if (Math.Abs(edgeCurve.GetLength() - curve.GetLength()) > Math.Max(tolerance, 0.1))
+                continue;
+
+            if (!edgeCurve.ClosestPoint(sample, out var t))
+                continue;
+
+            var closest = edgeCurve.PointAt(t);
+            if (closest.DistanceTo(sample) <= Math.Max(tolerance * 2.0, 0.1))
+                return brepEdge.EdgeIndex;
+        }
+
+        return -1;
     }
 }

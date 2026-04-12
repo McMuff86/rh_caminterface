@@ -48,7 +48,7 @@ public class UserTextMachiningReader
     public IReadOnlyList<Machining> GetAllMachinings(RhinoDoc doc)
     {
         var machinings = new List<Machining>();
-        var objectsWithOperations = CncOperationService.GetAllOperationsInDocument(doc);
+        var objectsWithOperations = CncOperationService.GetEnabledOperationsInDocument(doc);
 
         foreach (var obj in objectsWithOperations)
         {
@@ -118,7 +118,7 @@ public class UserTextMachiningReader
     private Machining? ConvertToMachining(RhinoDoc doc, RhinoObject obj, Plate? plate)
     {
         var operation = CncOperationService.GetOperation(obj);
-        if (operation == null)
+        if (operation == null || !operation.IsEnabled)
             return null;
 
         var layerName = doc.Layers[obj.Attributes.LayerIndex]?.Name ?? "Unknown";

@@ -57,11 +57,26 @@ public static class CamValidator
 
         // Track duplicates: objectId → list of operation types
         var operationsByObject = new Dictionary<Guid, List<string>>();
+        var enabledOperationCount = 0;
 
         foreach (var obj in operations)
         {
             var op = CncOperationService.GetOperation(obj);
             if (op == null) continue;
+
+            if (!op.IsEnabled)
+            {
+                result.Issues.Add(new ValidationIssue
+                {
+                    Severity = Severity.Info,
+                    Message = $"{op.Type}-Operation auf '{GetObjectName(obj)}' ist deaktiviert und wird für Vorschau, Simulation und Export übersprungen.",
+                    ObjectId = obj.Id,
+                    Category = "Status"
+                });
+                continue;
+            }
+
+            enabledOperationCount++;
 
             var objId = obj.Id;
 
@@ -98,6 +113,16 @@ public static class CamValidator
 
         // Check: Duplicate operations on same object
         ValidateDuplicateOperations(result, operationsByObject);
+
+        if (enabledOperationCount == 0)
+        {
+            result.Issues.Add(new ValidationIssue
+            {
+                Severity = Severity.Error,
+                Message = "Keine aktivierten CNC-Operationen vorhanden.",
+                Category = "Operationen"
+            });
+        }
 
         return result;
     }
@@ -300,8 +325,8 @@ public static class CamValidator
                 {
                     result.Issues.Add(new ValidationIssue
                     {
-                        Severity = Severity.Error,
-                        Message = $"{op.Type} erwartet eine Kurve, aber '{GetObjectName(obj)}' ist {geometry.ObjectType}.",
+                        Severity = Severity.Warning,
+                        Message = $"{op.Type} erwartet eine Kurve, aber '{GetObjectName(obj)}' ist {geometry.ObjectType}. Die Operation wird lokal übersprungen, bis die Geometrie korrigiert ist.",
                         ObjectId = obj.Id,
                         Category = "Geometrie"
                     });
@@ -324,8 +349,8 @@ public static class CamValidator
                 {
                     result.Issues.Add(new ValidationIssue
                     {
-                        Severity = Severity.Error,
-                        Message = $"Tasche erwartet eine geschlossene Kurve, aber '{GetObjectName(obj)}' ist {geometry.ObjectType}.",
+                        Severity = Severity.Warning,
+                        Message = $"Tasche erwartet eine geschlossene Kurve, aber '{GetObjectName(obj)}' ist {geometry.ObjectType}. Die Operation wird lokal übersprungen, bis die Geometrie korrigiert ist.",
                         ObjectId = obj.Id,
                         Category = "Geometrie"
                     });
@@ -334,9 +359,8 @@ public static class CamValidator
                 {
                     result.Issues.Add(new ValidationIssue
                     {
-                        Severity = Severity.Error,
-                        Message = $"Taschenkurve '{GetObjectName(obj)}' ist nicht geschlossen. " +
-                                  $"Pockets benötigen geschlossene Konturen.",
+                        Severity = Severity.Warning,
+                        Message = $"Taschenkurve '{GetObjectName(obj)}' ist nicht geschlossen. Pockets benötigen geschlossene Konturen, diese Operation wird daher lokal übersprungen.",
                         ObjectId = obj.Id,
                         Category = "Geometrie"
                     });
@@ -349,8 +373,8 @@ public static class CamValidator
                 {
                     result.Issues.Add(new ValidationIssue
                     {
-                        Severity = Severity.Error,
-                        Message = $"Bohrung erwartet einen Punkt oder Kreis, aber '{GetObjectName(obj)}' ist {geometry.ObjectType}.",
+                        Severity = Severity.Warning,
+                        Message = $"Bohrung erwartet einen Punkt oder Kreis, aber '{GetObjectName(obj)}' ist {geometry.ObjectType}. Die Operation wird lokal übersprungen, bis die Geometrie korrigiert ist.",
                         ObjectId = obj.Id,
                         Category = "Geometrie"
                     });

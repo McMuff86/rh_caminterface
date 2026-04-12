@@ -19,6 +19,7 @@ internal static class UiAutomationIds
 
     public const string PropertyTool = "rhcam.props.tool";
     public const string PropertyDepth = "rhcam.props.depth";
+    public const string PropertyEnabled = "rhcam.props.enabled";
     public const string PropertyStrategy = "rhcam.props.strategy";
     public const string PropertyWidth = "rhcam.props.width";
     public const string PropertyDiameter = "rhcam.props.diameter";

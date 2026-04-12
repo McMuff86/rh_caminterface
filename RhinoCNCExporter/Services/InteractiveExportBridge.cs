@@ -52,11 +52,18 @@ public class InteractiveExportBridge
                 var op = CncOperationService.GetOperation(obj);
                 if (op == null) continue;
 
+                if (!op.IsEnabled)
+                    continue;
+
                 // Guard against malformed UserText
                 if (string.IsNullOrEmpty(op.Type)) continue;
 
                 var machining = ConvertToMachining(doc, obj, op);
-                if (machining == null) continue;
+                if (machining == null)
+                {
+                    RhinoApp.WriteLine($"[ExportBridge] Überspringe ungültige {op.Type}-Operation auf '{GetObjectName(obj, doc)}'.");
+                    continue;
+                }
 
                 // Try to determine plate/source brep
                 var sourceBrepId = obj.Attributes.GetUserString(CncOperationSchema.CNC_SOURCE_BREP);
@@ -601,7 +608,7 @@ public class InteractiveExportBridge
     public static OperationStatistics GetStatistics(RhinoDoc doc, IReadOnlyList<ToolDefinition> tools)
     {
         var stats = new OperationStatistics();
-        var operations = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+        var operations = CncOperationService.GetEnabledOperationsInDocument(doc).ToList();
 
         var toolsUsed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -649,6 +656,15 @@ public class InteractiveExportBridge
             "GROOVE" => 2500.0,
             _ => 2000.0
         };
+    }
+
+    private static string GetObjectName(RhinoObject obj, RhinoDoc doc)
+    {
+        if (!string.IsNullOrWhiteSpace(obj.Name))
+            return obj.Name;
+
+        var layerName = doc.Layers[obj.Attributes.LayerIndex]?.Name ?? "Objekt";
+        return $"{layerName}_{obj.Id.ToString()[..8]}";
     }
 
     private static double GetPathLength(RhinoObject obj)

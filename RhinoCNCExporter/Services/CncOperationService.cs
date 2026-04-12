@@ -22,6 +22,9 @@ public static class CncOperationService
 
         rhinoObject.Attributes.SetUserString(CncOperationSchema.CNC_TYPE, type);
 
+        var hasEnabledFlag = parameters.Keys.Any(key =>
+            key.Equals(CncOperationSchema.CNC_ENABLED, StringComparison.OrdinalIgnoreCase));
+
         foreach (var param in parameters)
         {
             var value = ConvertToString(param.Value);
@@ -29,6 +32,11 @@ public static class CncOperationService
             {
                 rhinoObject.Attributes.SetUserString(param.Key, value);
             }
+        }
+
+        if (!hasEnabledFlag && string.IsNullOrEmpty(rhinoObject.Attributes.GetUserString(CncOperationSchema.CNC_ENABLED)))
+        {
+            rhinoObject.Attributes.SetUserString(CncOperationSchema.CNC_ENABLED, bool.TrueString.ToLowerInvariant());
         }
 
         rhinoObject.CommitChanges();
@@ -46,8 +54,10 @@ public static class CncOperationService
 
         var parameters = new Dictionary<string, string>();
         var userStrings = rhinoObject.Attributes.GetUserStrings();
-        
-        foreach (string key in userStrings.AllKeys)
+        if (userStrings == null)
+            return new MachiningOperation(type, parameters);
+
+        foreach (var key in userStrings.AllKeys.OfType<string>())
         {
             if (key.StartsWith("CNC_", StringComparison.OrdinalIgnoreCase))
             {
@@ -66,9 +76,12 @@ public static class CncOperationService
         if (rhinoObject == null) return;
 
         var userStrings = rhinoObject.Attributes.GetUserStrings();
+        if (userStrings == null)
+            return;
+
         var keysToRemove = new List<string>();
 
-        foreach (string key in userStrings.AllKeys)
+        foreach (var key in userStrings.AllKeys.OfType<string>())
         {
             if (key.StartsWith("CNC_", StringComparison.OrdinalIgnoreCase))
             {
@@ -96,6 +109,15 @@ public static class CncOperationService
 
         return doc.Objects
             .Where(obj => obj != null && !string.IsNullOrEmpty(obj.Attributes.GetUserString(CncOperationSchema.CNC_TYPE)));
+    }
+
+    /// <summary>
+    /// Gets all enabled CNC operation objects in the document.
+    /// </summary>
+    public static IEnumerable<RhinoObject> GetEnabledOperationsInDocument(RhinoDoc doc)
+    {
+        return GetAllOperationsInDocument(doc)
+            .Where(IsOperationEnabled);
     }
 
     /// <summary>
@@ -129,6 +151,29 @@ public static class CncOperationService
     public static void RestoreDefaultColor(RhinoObject rhinoObject)
     {
         rhinoObject.Attributes.ColorSource = ObjectColorSource.ColorFromLayer;
+        rhinoObject.CommitChanges();
+    }
+
+    /// <summary>
+    /// Returns whether the CNC operation on the object is enabled.
+    /// Missing flags default to true for backwards compatibility.
+    /// </summary>
+    public static bool IsOperationEnabled(RhinoObject rhinoObject)
+    {
+        if (rhinoObject == null) return false;
+
+        var value = rhinoObject.Attributes.GetUserString(CncOperationSchema.CNC_ENABLED);
+        return string.IsNullOrWhiteSpace(value) || !bool.TryParse(value, out var enabled) || enabled;
+    }
+
+    /// <summary>
+    /// Enables or disables the CNC operation on an object without removing it.
+    /// </summary>
+    public static void SetOperationEnabled(RhinoObject rhinoObject, bool enabled)
+    {
+        if (rhinoObject == null) throw new ArgumentNullException(nameof(rhinoObject));
+
+        rhinoObject.Attributes.SetUserString(CncOperationSchema.CNC_ENABLED, enabled.ToString().ToLowerInvariant());
         rhinoObject.CommitChanges();
     }
 

@@ -54,8 +54,10 @@ public sealed class ToolpathAnimator : IDisposable
         _t = 0;
         _conduit.ToolPosition = Point3d.Unset;
 
-        var objects = operationObjects?.ToList()
-                      ?? CncOperationService.GetAllOperationsInDocument(doc).ToList();
+        var objects = (operationObjects?.ToList()
+                      ?? CncOperationService.GetEnabledOperationsInDocument(doc).ToList())
+            .Where(CncOperationService.IsOperationEnabled)
+            .ToList();
 
         Point3d? currentSafePoint = null;
 

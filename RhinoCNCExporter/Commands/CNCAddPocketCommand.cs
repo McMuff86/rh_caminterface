@@ -63,29 +63,12 @@ public sealed class CNCAddPocketCommand : Command
                 int count = 0;
                 foreach (var objRef in go.Objects())
                 {
-                    RhinoObject targetObj;
-                    Curve? curve;
+                    var color = CncOperationService.GetOperationColor(CncOperationSchema.TYPE_POCKET);
+                    if (!EdgeCurveHelper.TryResolveCurveTarget(doc, objRef, color, out var targetObj, out var curve) || targetObj == null)
+                        continue;
 
-                    if (EdgeCurveHelper.IsBrepEdge(objRef))
-                    {
-                        var color = CncOperationService.GetOperationColor(CncOperationSchema.TYPE_POCKET);
-                        var extracted = EdgeCurveHelper.ExtractEdgeCurve(doc, objRef, color);
-                        if (extracted == null) continue;
-
-                        targetObj = extracted;
-                        curve = extracted.Geometry as Curve;
-                    }
-                    else
-                    {
-                        var rhinoObj = objRef.Object();
-                        if (rhinoObj == null) continue;
-
-                        curve = objRef.Curve() ?? rhinoObj.Geometry as Curve;
-                        if (curve == null) continue;
-
-                        targetObj = rhinoObj;
+                    if (!EdgeCurveHelper.IsExtractedEdgeCurve(targetObj))
                         CncOperationService.SetOperationColor(targetObj, CncOperationSchema.TYPE_POCKET);
-                    }
 
                     // Verify curve is closed for pocket operations
                     if (curve != null && !curve.IsClosed)

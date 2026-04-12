@@ -67,6 +67,7 @@ public sealed class CamPanel : Panel
     private readonly TextBox _propWidthTextBox;
     private readonly TextBox _propDiameterTextBox;
     private readonly TextBox _propStepoverTextBox;
+    private readonly CheckBox _propEnabledCheckBox;
     private readonly CheckBox _propPeckCheckBox;
     private readonly TextBox _propPeckDepthTextBox;
     private readonly DropDown _propRampEntryDropDown;
@@ -77,6 +78,7 @@ public sealed class CamPanel : Panel
     private readonly TableRow _widthRow;
     private readonly TableRow _diameterRow;
     private readonly TableRow _stepoverRow;
+    private readonly TableRow _enabledRow;
     private readonly TableRow _peckRow;
     private readonly TableRow _peckDepthRow;
     private readonly TableRow _rampEntryRow;
@@ -222,6 +224,7 @@ public sealed class CamPanel : Panel
         _propWidthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Nutbreite in mm", ID = UiAutomationIds.PropertyWidth };
         _propDiameterTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Bohrdurchmesser in mm", ID = UiAutomationIds.PropertyDiameter };
         _propStepoverTextBox = new TextBox { PlaceholderText = "%", Width = 80, ToolTip = "Zustellung in % des Werkzeugdurchmessers", ID = UiAutomationIds.PropertyStepover };
+        _propEnabledCheckBox = new CheckBox { Text = "Operation aktiviert", TextColor = FgText, ToolTip = "Deaktivierte Operationen bleiben erhalten, werden aber für Vorschau, Simulation und Export übersprungen", ID = UiAutomationIds.PropertyEnabled };
 
         _propPeckCheckBox = new CheckBox { Text = "Peck drilling", TextColor = FgText, ToolTip = "Spänebrechendes Bohren ein/aus" };
         _propPeckDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Peck-Tiefe pro Zustellung in mm" };
@@ -242,6 +245,7 @@ public sealed class CamPanel : Panel
         _widthRow = new TableRow(CreateLabel("Width:", 9, false), new TableCell(_propWidthTextBox, true));
         _diameterRow = new TableRow(CreateLabel("Diameter:", 9, false), new TableCell(_propDiameterTextBox, true));
         _stepoverRow = new TableRow(CreateLabel("Stepover:", 9, false), new TableCell(_propStepoverTextBox, true));
+        _enabledRow = new TableRow(new TableCell(_propEnabledCheckBox) { ScaleWidth = true });
         _peckRow = new TableRow(new TableCell(_propPeckCheckBox) { ScaleWidth = true });
         _peckDepthRow = new TableRow(CreateLabel("Peck depth:", 9, false), new TableCell(_propPeckDepthTextBox, true));
         _rampEntryRow = new TableRow(CreateLabel("Ramp entry:", 9, false), new TableCell(_propRampEntryDropDown, true));
@@ -249,7 +253,7 @@ public sealed class CamPanel : Panel
         var propsTable = new TableLayout
         {
             Spacing = new Size(8, 4),
-            Rows = { toolRow, depthRow, _strategyRow, _widthRow, _diameterRow, _stepoverRow, _peckRow, _peckDepthRow, _rampEntryRow }
+            Rows = { toolRow, depthRow, _enabledRow, _strategyRow, _widthRow, _diameterRow, _stepoverRow, _peckRow, _peckDepthRow, _rampEntryRow }
         };
 
         _propertiesPanel = new StackLayout
@@ -643,16 +647,23 @@ public sealed class CamPanel : Panel
                     if (toolDef != null)
                         toolDisplay = $"Ø{toolDef.NominalDiameter:F0} {toolDef.Name}";
                 }
-                else
+                else if (op.IsEnabled)
                 {
                     warnings++;
                 }
 
+                if (!op.IsEnabled)
+                    toolDisplay = string.IsNullOrWhiteSpace(toolDisplay) || toolDisplay == "—" ? "deaktiviert" : $"{toolDisplay} (deaktiviert)";
+
                 var depthStr = op.Depth.HasValue ? $"{op.Depth.Value:F1}mm" : "—";
+                if (!op.IsEnabled)
+                    depthStr = $"{depthStr} ⏸";
+
+                var displayName = op.IsEnabled ? objName : $"⏸ {objName}";
 
                 var childItem = new TreeGridItem
                 {
-                    Values = new object[] { $"  {objName}", toolDisplay, depthStr },
+                    Values = new object[] { $"  {displayName}", toolDisplay, depthStr },
                     Tag = new OperationEntry(obj.Id, op, objName)
                 };
 
@@ -735,6 +746,10 @@ public sealed class CamPanel : Panel
 
         menu.Items.Add(new SeparatorMenuItem());
 
+        var toggleEnabledItem = new ButtonMenuItem { Text = entry.Operation.IsEnabled ? "⏸ Deaktivieren" : "▶ Aktivieren" };
+        toggleEnabledItem.Click += (_, _) => SetOperationEnabled(entry, !entry.Operation.IsEnabled);
+        menu.Items.Add(toggleEnabledItem);
+
         var removeItem = new ButtonMenuItem { Text = "🗑 Entfernen" };
         removeItem.Click += (_, _) => RemoveOperation(entry);
         menu.Items.Add(removeItem);
@@ -746,6 +761,15 @@ public sealed class CamPanel : Panel
             if (doc == null) return;
             var obj = doc.Objects.FindId(entry.ObjectId);
             if (obj == null) return;
+            if (!CncOperationService.IsOperationEnabled(obj))
+            {
+                ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+                ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+                doc.Views.Redraw();
+                RhinoApp.WriteLine($"[CamPanel] {entry.ObjectName} ist deaktiviert, daher wurde nur die Vorschau bereinigt.");
+                return;
+            }
+
             var toolDiam = entry.Operation.Diameter ?? GetToolDiameterByName(entry.Operation.Tool);
             RegenerateToolpath(doc, obj, entry.Operation.Type, toolDiam);
             doc.Views.Redraw();
@@ -862,6 +886,65 @@ public sealed class CamPanel : Panel
         doc.Views.Redraw();
     }
 
+    private void SetOperationEnabled(OperationEntry entry, bool enabled)
+    {
+        var doc = RhinoDoc.ActiveDoc;
+        if (doc == null) return;
+
+        var obj = doc.Objects.FindId(entry.ObjectId);
+        if (obj == null)
+        {
+            RhinoApp.WriteLine("[CamPanel] Objekt nicht gefunden — möglicherweise bereits gelöscht.");
+            RefreshOperationsTree();
+            return;
+        }
+
+        var undoSerial = doc.BeginUndoRecord(enabled ? "CNC Enable Operation" : "CNC Disable Operation");
+
+        try
+        {
+            CncOperationService.SetOperationEnabled(obj, enabled);
+
+            if (!enabled)
+            {
+                ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+                ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+            }
+            else
+            {
+                var op = CncOperationService.GetOperation(obj);
+                var toolDiam = op?.Diameter ?? GetToolDiameterByName(op?.Tool);
+                RegenerateToolpath(doc, obj, entry.Operation.Type, toolDiam);
+
+                if ((_3dPreviewCheckBox.Checked ?? false) && op != null)
+                {
+                    var geometry3D = Generate3DToolpath(obj, entry.Operation.Type, toolDiam, op.Depth ?? 0);
+                    if (geometry3D.Count > 0)
+                        ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, entry.Operation.Type, geometry3D);
+                }
+            }
+
+            doc.EndUndoRecord(undoSerial);
+            doc.Views.Redraw();
+            RefreshOperationsTree();
+
+            if (_selectedOperation?.ObjectId == entry.ObjectId)
+            {
+                var updated = doc.Objects.FindId(entry.ObjectId);
+                var updatedOp = updated != null ? CncOperationService.GetOperation(updated) : null;
+                if (updatedOp != null)
+                    ShowPropertiesForOperation(new OperationEntry(entry.ObjectId, updatedOp, entry.ObjectName));
+            }
+
+            RhinoApp.WriteLine($"[CamPanel] {entry.Operation.Type} auf {entry.ObjectName} {(enabled ? "aktiviert" : "deaktiviert")}.");
+        }
+        catch (Exception ex)
+        {
+            doc.EndUndoRecord(undoSerial);
+            RhinoApp.WriteLine($"[CamPanel] Fehler beim Umschalten des Status: {ex.Message}");
+        }
+    }
+
     private void RemoveOperation(OperationEntry entry)
     {
         var doc = RhinoDoc.ActiveDoc;
@@ -921,6 +1004,7 @@ public sealed class CamPanel : Panel
         SetRowVisibility(_widthRow, false);
         SetRowVisibility(_diameterRow, false);
         SetRowVisibility(_stepoverRow, false);
+        SetRowVisibility(_enabledRow, false);
         SetRowVisibility(_peckRow, false);
         SetRowVisibility(_peckDepthRow, false);
         SetRowVisibility(_rampEntryRow, false);
@@ -934,6 +1018,7 @@ public sealed class CamPanel : Panel
         }
 
         _propertiesPanel.Enabled = true;
+        SetRowVisibility(_enabledRow, true);
 
         // Show type-specific rows
         switch (operationType.ToUpperInvariant())
@@ -966,13 +1051,14 @@ public sealed class CamPanel : Panel
         var op = entry.Operation;
         var type = op.Type;
 
-        _propTypeLabel.Text = $"{GetOperationIcon(type)} {type}";
+        _propTypeLabel.Text = $"{GetOperationIcon(type)} {type}{(op.IsEnabled ? string.Empty : " (deaktiviert)")}";
         _propObjectLabel.Text = entry.ObjectName;
 
         ShowPropertiesForType(type);
 
         // Populate fields
         _propDepthTextBox.Text = op.Depth?.ToString("F1", CultureInfo.InvariantCulture) ?? "";
+        _propEnabledCheckBox.Checked = op.IsEnabled;
 
         // Select current tool in dropdown
         SelectToolInDropDown(op.Tool);
@@ -1017,7 +1103,10 @@ public sealed class CamPanel : Panel
         try
         {
         var op = _selectedOperation.Operation;
-        var parameters = new Dictionary<string, object>();
+        var parameters = new Dictionary<string, object>
+        {
+            [CncOperationSchema.CNC_ENABLED] = _propEnabledCheckBox.Checked ?? true
+        };
 
         // Tool
         var selectedTool = GetSelectedTool();
@@ -1059,8 +1148,27 @@ public sealed class CamPanel : Panel
         // Apply changes
         CncOperationService.SetOperation(obj, op.Type, parameters);
 
-        // Regenerate toolpath for this operation
-        RegenerateToolpath(doc, obj, op.Type, selectedTool?.NominalDiameter ?? 0);
+        var updatedOperation = CncOperationService.GetOperation(obj);
+        var effectiveToolDiameter = updatedOperation?.Diameter ?? selectedTool?.NominalDiameter ?? GetToolDiameterByName(updatedOperation?.Tool);
+
+        if (_propEnabledCheckBox.Checked ?? true)
+        {
+            // Regenerate toolpath for this operation
+            RegenerateToolpath(doc, obj, op.Type, effectiveToolDiameter);
+
+            if ((_3dPreviewCheckBox.Checked ?? false) && updatedOperation != null)
+            {
+                ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+                var geometry3D = Generate3DToolpath(obj, op.Type, effectiveToolDiameter, updatedOperation.Depth ?? 0);
+                if (geometry3D.Count > 0)
+                    ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
+            }
+        }
+        else
+        {
+            ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+            ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+        }
 
         doc.EndUndoRecord(undoSerial);
         doc.Views.Redraw();
@@ -1098,12 +1206,15 @@ public sealed class CamPanel : Panel
                     var op = CncOperationService.GetOperation(obj);
                     if (op == null) continue;
 
-                    var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
-                    if (toolDiam <= 0) continue;
-
                     // Remove existing toolpaths first
                     ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
                     ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+
+                    if (!op.IsEnabled)
+                        continue;
+
+                    var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
+                    if (toolDiam <= 0) continue;
 
                     // Regenerate 2D
                     RegenerateToolpath(doc, obj, op.Type, toolDiam);
@@ -1243,9 +1354,14 @@ public sealed class CamPanel : Panel
         if (_selectedOperation != null)
         {
             var obj = doc.Objects.FindId(_selectedOperation.ObjectId);
-            if (obj != null)
+            if (obj != null && CncOperationService.IsOperationEnabled(obj))
             {
                 _animator.Load(doc, new[] { obj });
+            }
+            else if (obj != null)
+            {
+                RhinoApp.WriteLine("[CamPanel] Die ausgewählte Operation ist deaktiviert und wird nicht simuliert.");
+                return;
             }
             else
             {
@@ -1529,7 +1645,7 @@ public sealed class CamPanel : Panel
         if (result.HasErrors || result.HasWarnings)
         {
             doc.Objects.UnselectAll();
-            foreach (var issue in result.Issues)
+            foreach (var issue in result.Issues.Where(i => i.Severity != Severity.Info))
             {
                 if (issue.ObjectId.HasValue)
                     doc.Objects.Select(issue.ObjectId.Value, true);
@@ -1743,22 +1859,18 @@ public sealed class CamPanel : Panel
                     var op = CncOperationService.GetOperation(obj);
                     if (op == null) continue;
 
+                    ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+
+                    if (!is3D || !op.IsEnabled)
+                        continue;
+
                     var toolDiam = op.Diameter ?? GetToolDiameterByName(op.Tool);
                     if (toolDiam <= 0) continue;
 
                     var depth = op.Depth ?? 0;
-
-                    if (is3D)
-                    {
-                        ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
-                        var geometry3D = Generate3DToolpath(obj, op.Type, toolDiam, depth);
-                        if (geometry3D.Count > 0)
-                            ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
-                    }
-                    else
-                    {
-                        ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
-                    }
+                    var geometry3D = Generate3DToolpath(obj, op.Type, toolDiam, depth);
+                    if (geometry3D.Count > 0)
+                        ToolpathVisualizer.AddToolpath3DToDocument(doc, obj, op.Type, geometry3D);
                 }
                 catch (Exception ex)
                 {

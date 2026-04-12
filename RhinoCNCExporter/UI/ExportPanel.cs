@@ -1360,7 +1360,7 @@ public sealed class ExportPanel : Panel
 
             // Also regenerate toolpaths for UserText-based interactive CAM operations
             // using the unified ToolpathVisualizer (CNC_Toolpaths layer)
-            var interactiveOps = CncOperationService.GetAllOperationsInDocument(doc).ToList();
+            var interactiveOps = CncOperationService.GetEnabledOperationsInDocument(doc).ToList();
             int interactiveCount = 0;
             foreach (var obj in interactiveOps)
             {

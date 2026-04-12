@@ -28,6 +28,7 @@ public class CncOperationSchemaKeyTests
         Assert.Equal("CNC_PeckDepth", CncOperationSchema.CNC_PECK_DEPTH);
         Assert.Equal("CNC_RampEntry", CncOperationSchema.CNC_RAMP_ENTRY);
         Assert.Equal("CNC_GroupIndex", CncOperationSchema.CNC_GROUP_INDEX);
+        Assert.Equal("CNC_Enabled", CncOperationSchema.CNC_ENABLED);
 
         // Edge extraction keys
         Assert.Equal("CNC_SourceBrep", CncOperationSchema.CNC_SOURCE_BREP);
@@ -44,7 +45,7 @@ public class CncOperationSchemaKeyTests
             .Where(f => f.Name.StartsWith("CNC_")) // Only key constants (not TYPE_, STRATEGY_, RAMP_)
             .ToList();
 
-        Assert.True(fields.Count >= 14, $"Expected at least 14 CNC_ key constants, found {fields.Count}");
+        Assert.True(fields.Count >= 15, $"Expected at least 15 CNC_ key constants, found {fields.Count}");
 
         foreach (var field in fields)
         {

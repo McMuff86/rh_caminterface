@@ -180,6 +180,7 @@ Zeigt alle CNC-Operationen im aktuellen Dokument:
 - **Doppelklick** → Zoom auf Objekt
 - **Rechtsklick** → Kontextmenü:
   - ✏️ Bearbeiten… — Dialog mit aktuellen Werten öffnen
+  - ⏸ Deaktivieren / ▶ Aktivieren — Operation temporär ein-/ausschalten
   - 🗑 Entfernen — Operation löschen
   - 🔄 Toolpath neu generieren — Werkzeugbahn erneuern
   - 🎯 Im Viewport selektieren
@@ -188,6 +189,7 @@ Zeigt alle CNC-Operationen im aktuellen Dokument:
 #### 🔧 Eigenschaften
 Wenn eine Operation ausgewählt ist, werden die Parameter angezeigt und können bearbeitet werden:
 - Werkzeug-Dropdown (gefiltert nach Operationstyp)
+- Checkbox `Operation aktiviert` für temporäres Ein-/Ausschalten
 - Tiefe, Vorschub, und typspezifische Parameter
 - `Anwenden` speichert Änderungen + regeneriert Werkzeugbahn
 
@@ -321,7 +323,7 @@ Jedes Profil kommt mit vordefinierten Werkzeugen. Beispiel SCM (Xilog):
 | Werkzeug nicht in Bibliothek | ⚠ Warnung | Werkzeugname nicht gefunden |
 | Tiefe > Materialstärke | ⚠ Warnung | Frästiefe grösser als Platte |
 | Tasche kleiner als Werkzeug | ❌ Fehler | Werkzeug passt nicht in die Tasche |
-| Offene Kurve bei Tasche | ❌ Fehler | Tasche erfordert geschlossene Kurve |
+| Offene Kurve bei Tasche | ⚠ Warnung | Operation wird lokal übersprungen, bis die Kontur geschlossen ist |
 | Vorschub nicht gesetzt | ⚠ Warnung | Standard wird verwendet |
 | Verwaiste Kantenkurve | ⚠ Warnung | Quell-Brep wurde gelöscht |
 | Doppelte Operation | ⚠ Warnung | Gleicher Typ zweimal auf demselben Objekt |
@@ -351,6 +353,7 @@ Das interaktive CAM-System unterstützt die direkte Auswahl von **Brep-Kanten** 
 - Wenn eine Kante ausgewählt wird, wird sie als eigenständige Kurve extrahiert
 - Die extrahierte Kurve liegt auf dem Layer `CNC_EdgeCurves`
 - Die Verbindung zum Quell-Brep wird gespeichert
+- Kontur- und Nut-Operationen hängen damit an der extrahierten Kante statt am ganzen Brep
 - Wenn der Quell-Brep gelöscht wird, können verwaiste Kurven mit `🧹 Bereinigen` aufgeräumt werden
 
 **Vorteil:** Mehrere verschiedene Operationen auf verschiedenen Kanten desselben Breps sind möglich!
@@ -367,6 +370,8 @@ Das interaktive CAM-System unterstützt die direkte Auswahl von **Brep-Kanten** 
 ### Simulation
 
 - `▶ Simulation` zeigt eine Animation des Werkzeugs entlang der Werkzeugbahnen
+- Deaktivierte Operationen werden automatisch übersprungen
+- Ungültige Einzeloperationen blockieren die übrige Vorschau nicht mehr
 - Geschwindigkeit einstellbar: 1×, 2×, 5×, 10×
 - Zeigt: Werkzeugumriss (Kreis), Richtungspfeil, Fadenkreuz
 - Farbcodiert nach Operationstyp
