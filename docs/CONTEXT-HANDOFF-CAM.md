@@ -27,6 +27,9 @@
 - Tool-/Override-Änderungen refreshen den Baum jetzt statusbewusst, ohne die aktuelle Workflow-Auswahl unnötig zu verlieren.
 - Neu im Folge-Slice: Das ExportPanel zeigt jetzt zusätzlich einen `Workflow-Fokus` mit direktem CTA `Nächsten offenen Punkt öffnen`. Damit springt der Nutzer ohne Baum-Suche direkt in die wichtigste offene Zuweisung; das CTA benennt jetzt auch direkt die empfohlene Gruppe (`Bohrungen öffnen`, `Außenkontur öffnen`, ...), Label und CTA behalten dabei ihre stabilen Automation-IDs (`rhcam.export.workflowFocus`, `rhcam.export.workflowFocusAction`).
 - Neue globale Workflow-Summary: Schon ohne Plattenauswahl wird jetzt über alle Workflow-Gruppen hinweg sichtbar, wie viele Gruppen noch `offen` und wie viele bereits `bereit` sind. Solange noch keine Maschine gewählt ist, zeigt die Summary stattdessen explizit `Werkzeugstatus nach Maschinenwahl`.
+- `AddDrill`-Face-Tags tragen jetzt eine stabile `FeatureId` sowie explizite Bohrungsmitte (`CenterX/Y/Z`). `FeatureReader` bevorzugt diese Werte, normalisiert sie mit Plattenkontext in Platten-Koordinaten und dedupliziert identische Drill-Faces, damit ein einziges AddDrill-Feature im Workflow nicht mehrfach als Bohrung auftaucht. Dabei wird die Bearbeitungsseite jetzt auch aus der lokalen Feature-Lage abgeleitet, sodass seitliche oder unterseitige AddDrill-Features im Workflow nicht mehr pauschal als `TOP` erscheinen.
+- `AddDrill` lehnt außerdem jetzt offene Breps früh ab, schließt seinen Undo-Record auch bei Fehlerpfaden sauber und taggt bevorzugt die nicht-planaren neuen Drill-Faces. Dadurch bleiben Fehlversuche stabiler und Blindloch-Bodenflächen landen seltener irrtümlich als eigene Bohr-Features im Workflow.
+- Wichtig zur Einordnung: `CNCAddDrill` ist weiterhin der UserText-/Preview-Befehl für interaktive Bohr-Operationen auf Kurven/Punkten. `AddDrill` ist der separate Boolean-/Face-Tag-Authoring-Befehl für feature-basierte Bohrungen direkt auf Platten-Breps.
 
 
 ### 1.1 Commands (All Implemented ✅)
@@ -118,57 +121,42 @@ The repo now contains much more than command-only experiments:
 - current toolpath planning is still explicitly approximate for visual validation, not a canonical export-truth path source
 
 This means the next productive step is not "add more random buttons", but:
-1. feature-centric UI
+1. feature-centric workflow authoring in the main UI
 2. machining assignment from detected geometry/features
-3. stable UI automation IDs + Windows smoke tests
+3. Windows smoke tests on the new workflow/UI slices
 4. later unification of preview / simulation around one canonical plan
 
-- ⚠️ **No dockable CAM panel** — operations are command-only, no persistent UI showing active operations
-- ⚠️ **No operations tree** — cannot see/select/edit/reorder operations like RhinoCAM
-- ⚠️ **Two separate viz systems** — interactive commands use `ToolpathVisualizer`, export panel uses `ToolpathPreviewService`
-- ⚠️ **No toolpath simulation** — no animation of tool movement
-- ⚠️ **No Z-level display** — toolpath viz is 2D (no depth representation)
-- ⚠️ **Edge selection stores on parent Brep** — UserText goes on the Brep, not the individual edge (could cause issues with multiple operations on different edges of the same Brep)
+Current code reality:
+- ✅ **Dockable CAM panel exists** — `CamPanel` + `CNCPanel` provide an operations tree, properties editor, defaults, validation, export, cleanup and simulation controls
+- ✅ **Toolpath simulation exists** — `ToolpathAnimator` animates interactive operations from the CAM panel
+- ✅ **Depth-aware preview exists** — the CAM panel exposes a 3D preview toggle and `ToolpathVisualizer` has 3D preview builders
+- ⚠️ **Two planning/preview paths still exist** — interactive commands still use `ToolpathVisualizer`, while workflow/export preview uses `ToolpathPreviewService` + `ToolpathPlanner`; `WorkflowSnapshotService` improved consistency, but this is not yet one canonical export-truth path
+- ⚠️ **Feature authoring in the main workflow is still partial** — `ExportPanel` now groups drills/inside/outside contours and offers assignment CTAs, but there is still no full feature table with end-to-end editing/status lifecycle
+- ⚠️ **`AddDrill` is real but still lightly proven** — face-tagged drill features flow into `WorkflowSnapshotService`/`FeatureReader`, yet broader face-tag authoring, persistence across edits and Rhino smoke coverage are not production-proven yet
+- ⚠️ **Edge selection still stores on the parent Brep** — multiple edge-level operations on one Brep can still collide
+- ⚠️ **Preview/simulation stay heuristic** — useful for visual validation, but should not yet be described as proof that exported CNC matches production output
 
 ---
 
 ## 4. Next Steps (Priority Order)
 
-### P1: Dockable CAM Panel 🎯
+### P1: Feature-centric workflow authoring
 
-**Goal:** A persistent dockable panel (like RhinoCAM's "Machining Operations" panel) that shows all CNC operations in the current document.
+**Goal:** Make the workflow UI the primary productive path, not just a grouped overview.
 
-**Reference:** How RhinoCAM / Fusion 360 CAM / MasterCAM organize their UI:
-- **Operations tree** — hierarchical list of all operations on all objects
-- **Per-operation controls** — expand to see/edit parameters
-- **Tool library** sidebar — drag-and-drop tools to operations
-- **Generate all** / **Generate selected** buttons
-- **Status indicators** — which ops have toolpaths generated, which are stale
+Needed next:
+- central feature list / status model (`unassigned`, `ready`, `invalid`, ...)
+- direct editing of machining assignment + depth/tool from that view
+- clear handoff from detected feature → machining choice → preview → validation → export
+- Rhino/FlaUI smoke coverage for the happy path
 
-**Implementation plan:**
-```
-RhinoCNCExporter/UI/
-├── CamPanel.cs                  # New dockable panel (replaces command-only workflow)
-│   ├── Operations TreeView      # Shows all CNC ops in document
-│   ├── Properties sidebar       # Edit selected operation's parameters  
-│   ├── Tool quick-select        # Filtered tool dropdown
-│   ├── Generate/Clear buttons   # Toolpath generation controls
-│   └── Status bar               # Object count, operation count, warnings
-```
+### P2: Canonical planning/preview path
 
-**Key patterns to follow:**
-- See `ExportPanel.cs` for the existing dockable panel pattern (GUID, `Panel` base class, registration)
-- Use `CncOperationService.GetAllOperationsInDocument()` to populate the tree
-- Hook into `RhinoDoc.ActiveDoc.Objects.ObjectAdded/Deleted/Modified` events for live updates
-- Merge `ToolpathVisualizer` and `ToolpathPreviewService` into a single system
-
-### P2: Unify Visualization Systems
-
-Currently two separate systems:
+Currently two separate systems remain:
 1. `ToolpathVisualizer` (interactive commands → `CNC_Toolpaths` layer)
-2. `ToolpathPreviewService` (export panel → `RhinoCNC Preview` layer)
+2. `ToolpathPreviewService` + `ToolpathPlanner` (workflow/export preview → `RhinoCNC Preview` layer)
 
-**Plan:** Merge into one service that handles both interactive and batch visualization. The CAM Panel should be the single source of truth for all visualization.
+**Plan:** keep `WorkflowSnapshotService` as the shared read model, then converge preview/simulation onto one canonical plan source that better matches export semantics.
 
 ### P3: Edge-Level Operations on Breps
 
@@ -213,14 +201,19 @@ RhinoCNCExporter.Core/          # No RhinoCommon dependencies
 ├── Pipeline/                       # Export pipeline, ToolpathPlanner, etc.
 
 RhinoCNCExporter/                # Rhino plugin (RhinoCommon + Eto.Forms)
-├── Commands/                       # Rhino commands (CNCAdd*, CNCRemove*)
+├── Commands/                       # Rhino commands (CNCAdd*, CNCRemove*, AddDrill, ...)
 ├── Services/
 │   ├── CncOperationService.cs      # UserText CRUD for operations
-│   ├── ToolpathVisualizer.cs       # Interactive toolpath viz (fixed ✅)
-│   ├── ToolpathPreviewService.cs   # Export-panel toolpath viz
+│   ├── InteractiveExportBridge.cs  # Interactive CAM → emitter bridge
+│   ├── WorkflowSnapshotService.cs  # Shared workflow read model for blocks, face-tags, UserText ops
+│   ├── FeatureReader.cs            # Face-tagged features → Machining
+│   ├── ToolpathVisualizer.cs       # Interactive toolpath viz (+ 3D helpers)
+│   ├── ToolpathPreviewService.cs   # Workflow/export preview
+│   ├── ToolpathAnimator.cs         # Interactive simulation
 │   └── ToolLibraryStore.cs         # Tool library persistence
 ├── UI/
-│   ├── ExportPanel.cs              # Existing dockable export panel
+│   ├── ExportPanel.cs              # Workflow/export panel
+│   ├── CamPanel.cs                 # Dockable interactive CAM panel
 │   ├── CamOperationDialogBase.cs   # Base dialog for operation params
 │   ├── ContourOperationDialog.cs   # etc.
 │   └── ToolLibraryManagerDialog.cs # Tool CRUD UI

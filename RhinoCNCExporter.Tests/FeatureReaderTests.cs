@@ -6,6 +6,7 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using RhinoCNCExporter.Core.Models;
+using RhinoCNCExporter.Core.PlateDetection;
 using RhinoCNCExporter.Services;
 using Xunit;
 
@@ -59,6 +60,159 @@ public class FeatureReaderTests : IDisposable
         Assert.Equal(15.0, drill.Depth);
         // X, Y should be calculated from face center (we can't easily test exact values)
         Assert.True(drill.X != 0 || drill.Y != 0); // Should have some position
+    }
+
+    [Fact]
+    public void ReadTaggedFeatures_DrillTags_WithTaggedCenter_PrefersTaggedCenter()
+    {
+        // Arrange
+        var box = CreateTestBox();
+        var objectId = _doc.Objects.Add(box);
+        var obj = _doc.Objects.FindId(objectId);
+
+        obj.Attributes.SetUserString("CNC_Face_0_Type", "DRILL");
+        obj.Attributes.SetUserString("CNC_Face_0_Diameter", "8.0");
+        obj.Attributes.SetUserString("CNC_Face_0_Depth", "15.0");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterX", "12.5");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterY", "7.25");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterZ", "0.0");
+        obj.CommitChanges();
+
+        // Act
+        var machinings = FeatureReader.ReadTaggedFeatures(obj);
+
+        // Assert
+        var drill = Assert.IsType<DrillMachining>(Assert.Single(machinings));
+        Assert.Equal(12.5, drill.X, 3);
+        Assert.Equal(7.25, drill.Y, 3);
+    }
+
+    [Fact]
+    public void ReadTaggedFeatures_DrillTags_WithPlate_TransformsCenterToPlateLocalAndInfersEdgeSide()
+    {
+        // Arrange
+        var box = CreateTestBox();
+        var objectId = _doc.Objects.Add(box);
+        var obj = _doc.Objects.FindId(objectId);
+
+        obj.Attributes.SetUserString("CNC_Face_0_Type", "DRILL");
+        obj.Attributes.SetUserString("CNC_Face_0_Diameter", "5.0");
+        obj.Attributes.SetUserString("CNC_Face_0_Depth", "10.0");
+        obj.Attributes.SetUserString("CNC_Face_0_Side", "TOP");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterX", "10.0");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterY", "25.0");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterZ", "5.0");
+        obj.CommitChanges();
+
+        var plate = new Plate
+        {
+            Name = "TestPlate",
+            LengthX = 10,
+            WidthY = 30,
+            Thickness = 10,
+            Origin = CoordinateTransformer.CreateFlatOrigin(10, 20, 0)
+        };
+
+        // Act
+        var machinings = FeatureReader.ReadTaggedFeatures(obj, plate);
+
+        // Assert
+        var drill = Assert.IsType<DrillMachining>(Assert.Single(machinings));
+        Assert.Equal(0.0, drill.X, 3);
+        Assert.Equal(5.0, drill.Y, 3);
+        Assert.Equal(MachiningSide.Left, drill.Side);
+    }
+
+    [Fact]
+    public void ReadTaggedFeatures_DrillTags_WithPlate_InfersBottomFromTaggedCenter()
+    {
+        // Arrange
+        var box = CreateTestBox();
+        var objectId = _doc.Objects.Add(box);
+        var obj = _doc.Objects.FindId(objectId);
+
+        obj.Attributes.SetUserString("CNC_Face_0_Type", "DRILL");
+        obj.Attributes.SetUserString("CNC_Face_0_Diameter", "5.0");
+        obj.Attributes.SetUserString("CNC_Face_0_Depth", "10.0");
+        obj.Attributes.SetUserString("CNC_Face_0_Side", "TOP");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterX", "12.0");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterY", "25.0");
+        obj.Attributes.SetUserString("CNC_Face_0_CenterZ", "10.0");
+        obj.CommitChanges();
+
+        var plate = new Plate
+        {
+            Name = "TestPlate",
+            LengthX = 20,
+            WidthY = 30,
+            Thickness = 10,
+            Origin = CoordinateTransformer.CreateFlatOrigin(10, 20, 0)
+        };
+
+        // Act
+        var machinings = FeatureReader.ReadTaggedFeatures(obj, plate);
+
+        // Assert
+        var drill = Assert.IsType<DrillMachining>(Assert.Single(machinings));
+        Assert.Equal(2.0, drill.X, 3);
+        Assert.Equal(5.0, drill.Y, 3);
+        Assert.Equal(MachiningSide.Bottom, drill.Side);
+    }
+
+    [Fact]
+    public void ReadTaggedFeatures_DrillTags_SharedFeatureId_DeduplicatesFaces()
+    {
+        // Arrange
+        var box = CreateTestBox();
+        var objectId = _doc.Objects.Add(box);
+        var obj = _doc.Objects.FindId(objectId);
+
+        foreach (var faceIndex in new[] { 0, 1 })
+        {
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_Type", "DRILL");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_FeatureId", "feature-123");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_Diameter", "5.0");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_Depth", "10.0");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_CenterX", "2.0");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_CenterY", "3.0");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_CenterZ", "0.0");
+        }
+        obj.CommitChanges();
+
+        // Act
+        var machinings = FeatureReader.ReadTaggedFeatures(obj);
+
+        // Assert
+        Assert.Single(machinings);
+        Assert.IsType<DrillMachining>(machinings[0]);
+    }
+
+    [Fact]
+    public void ReadTaggedFeatures_DrillTags_WithoutFeatureId_DeduplicatesEquivalentFaces()
+    {
+        // Arrange
+        var box = CreateTestBox();
+        var objectId = _doc.Objects.Add(box);
+        var obj = _doc.Objects.FindId(objectId);
+
+        foreach (var faceIndex in new[] { 0, 1 })
+        {
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_Type", "DRILL");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_Diameter", "5.0");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_Depth", "10.0");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_Side", "TOP");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_CenterX", "2.0");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_CenterY", "3.0");
+            obj.Attributes.SetUserString($"CNC_Face_{faceIndex}_CenterZ", "0.0");
+        }
+        obj.CommitChanges();
+
+        // Act
+        var machinings = FeatureReader.ReadTaggedFeatures(obj);
+
+        // Assert
+        Assert.Single(machinings);
+        Assert.IsType<DrillMachining>(machinings[0]);
     }
 
     [Fact]

@@ -137,7 +137,7 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 - [x] `NameService` für truncierte 31-Zeichen-Kollisionen gehärtet (Suffix bleibt erhalten, kein Endlos-Loop bei freien Ebenen) ✅
 - [ ] Fixtures auf weitere komplexe Produktionsplatten (z. B. BladeCut-lastig) erweitern
 - [ ] Rhino Smoke-Tests des neuen ExportPanels
-- [ ] Face-Tagging/Plugin-Commands (`AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`) von ADR zu erster Code-Implementierung bringen
+- [ ] Face-Tagging/Plugin-Commands (`AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`) per Rhino-Smoke-Tests, Workflow-Integration und Persistenz weiter härten (erste Code-Implementierung ist vorhanden)
 
 ---
 

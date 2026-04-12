@@ -109,7 +109,7 @@ public sealed class WorkflowSnapshotService
             var plateObjects = ExportService3D.FindPlateObjects(doc, plate);
             foreach (var obj in plateObjects)
             {
-                var features = FeatureReader.ReadTaggedFeatures(obj);
+                var features = FeatureReader.ReadTaggedFeatures(obj, plate);
                 faceTaggedMachinings.AddRange(features);
             }
         }

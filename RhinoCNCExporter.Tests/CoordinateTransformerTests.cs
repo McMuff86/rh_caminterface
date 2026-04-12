@@ -192,6 +192,43 @@ public class CoordinateTransformerTests
         Assert.Equal(MachiningSide.Top, side);
     }
 
+    // === DetermineFeatureSide Tests ===
+
+    [Fact]
+    public void DetermineFeatureSide_OnTopFace_ReturnsTop()
+    {
+        var side = CoordinateTransformer.DetermineFeatureSide(150, 100, 0, 300, 200, 19);
+        Assert.Equal(MachiningSide.Top, side);
+    }
+
+    [Fact]
+    public void DetermineFeatureSide_OnBottomFace_ReturnsBottom()
+    {
+        var side = CoordinateTransformer.DetermineFeatureSide(150, 100, 19, 300, 200, 19);
+        Assert.Equal(MachiningSide.Bottom, side);
+    }
+
+    [Fact]
+    public void DetermineFeatureSide_OnLeftEdgeMidThickness_ReturnsLeft()
+    {
+        var side = CoordinateTransformer.DetermineFeatureSide(0, 100, 9.5, 300, 200, 19);
+        Assert.Equal(MachiningSide.Left, side);
+    }
+
+    [Fact]
+    public void DetermineFeatureSide_OnBackEdgeMidThickness_ReturnsBack()
+    {
+        var side = CoordinateTransformer.DetermineFeatureSide(150, 200, 9.5, 300, 200, 19);
+        Assert.Equal(MachiningSide.Back, side);
+    }
+
+    [Fact]
+    public void DetermineFeatureSide_InInteriorMidThickness_DefaultsTop()
+    {
+        var side = CoordinateTransformer.DetermineFeatureSide(150, 100, 9.5, 300, 200, 19);
+        Assert.Equal(MachiningSide.Top, side);
+    }
+
     // === CreateOrigin Factory Methods ===
 
     [Fact]

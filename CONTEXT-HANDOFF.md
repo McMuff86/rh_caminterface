@@ -274,8 +274,8 @@ Erster automatisierter Validierungsblock aus Produktionsbefunden umgesetzt:
 
 ### Architektur-Klärung (23.03.2026)
 - `docs/ARCHITECTURE-3D-TO-CNC.md` legt das **künftige** Face-Tagging-/Plugin-Command-Konzept fest
-- **Noch nicht implementiert im Code**: `AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`, Face-Tags und Feature-Erkennung sind aktuell ADR/Future Work
-- **Aktueller produktiver Pfad bleibt**: Layer-/Block-basierte Pipeline mit PlateDetector, BlockScanner, AssignmentResolver, MachiningFactory, EmitterRouter
+- **Mittlerweile im Code vorhanden**: `AddDrill`, `AddPocket`, `AddGroove`, `AddClamex`, Face-Tags und `FeatureReader` existieren als erster Face-Feature-Workflow im Plugin.
+- **Aktueller produktiver Hauptpfad bleibt trotzdem**: Layer-/Block-basierte Pipeline mit PlateDetector, BlockScanner, AssignmentResolver, MachiningFactory, EmitterRouter; Face-Features ergänzen diesen Workflow, ersetzen ihn aber noch nicht vollständig.
 
 **Sprint 3 Dateien:**
 ```

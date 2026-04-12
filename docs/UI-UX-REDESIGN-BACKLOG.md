@@ -121,8 +121,8 @@ Ein Anwender soll jederzeit beantworten können:
 ## Phase E — UI Automation / Smoke Tests
 
 ### E1. Automation-fähige Controls
-- [ ] stabile semantische Control IDs einführen
-- [ ] wichtigste Buttons/Felder/Grids benennen
+- [x] stabile semantische Control IDs einführen
+- [x] wichtigste Buttons/Felder/Grids benennen
 - [ ] Dialogtitel stabilisieren
 
 ### E2. Erste Smoke-Tests auf Windows
@@ -155,6 +155,6 @@ Das ist der erste echte Qualitäts-Massstab. Wenn dieser Flow sauber funktionier
 ## Direkt gestartete Umsetzung (heute)
 - [x] Backlog dokumentiert
 - [x] erster Schritt Richtung automation-fähiges UI begonnen
-- [ ] Workflow-Hinweise im CAM-Panel schärfen
-- [ ] stabile IDs für Primär-Controls fertig verdrahten
+- [x] Workflow-Hinweise im CAM-Panel schärfen
+- [x] stabile IDs für Primär-Controls fertig verdrahten
 - [ ] nächste Codephase: Feature-orientierte Hauptliste vorbereiten

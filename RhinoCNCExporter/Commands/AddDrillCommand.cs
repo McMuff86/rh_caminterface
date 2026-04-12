@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using Rhino;
 using Rhino.Commands;
 using Rhino.DocObjects;
@@ -63,6 +65,12 @@ public sealed class AddDrillCommand : Command
             return Result.Failure;
         }
 
+        if (!brep.IsSolid)
+        {
+            RhinoApp.WriteLine("Please select a face on a closed solid");
+            return Result.Failure;
+        }
+
         // Get the selected face
         var faceComponent = objRef.GeometryComponentIndex;
         if (faceComponent.ComponentIndexType != ComponentIndexType.BrepFace)
@@ -108,29 +116,40 @@ public sealed class AddDrillCommand : Command
     /// <summary>
     /// Create a drill hole by boolean subtraction and tag the resulting cylindrical faces.
     /// </summary>
-    private bool CreateDrillHole(RhinoDoc doc, RhinoObject plateObj, Brep plateBrep, Point3d drillCenter, 
+    private bool CreateDrillHole(RhinoDoc doc, RhinoObject plateObj, Brep plateBrep, Point3d drillCenter,
         BrepFace selectedFace, double diameter, double depth)
     {
-        // Begin undo record
         var undoSerial = doc.BeginUndoRecord("Add Drill");
+        Brep? cylinderBrep = null;
+        Brep[]? booleanResult = null;
+        Brep? adoptedBrep = null;
+        bool replacedObject = false;
 
         try
         {
-            // Calculate drill direction (surface normal, pointing into material)
-            var surface = selectedFace.UnderlyingSurface();
-            double u, v;
-            surface.ClosestPoint(drillCenter, out u, out v);
-            var normal = selectedFace.NormalAt(u, v);
+            if (!selectedFace.ClosestPoint(drillCenter, out var u, out var v))
+            {
+                RhinoApp.WriteLine("Failed to locate drill center on selected face");
+                return false;
+            }
 
-            // Make sure normal points into the material (typically negative Z for top faces)
-            // For safety, we'll use the normal as-is from the face
-            var drillDirection = normal;
+            var normal = selectedFace.NormalAt(u, v);
+            if (!normal.Unitize())
+            {
+                RhinoApp.WriteLine("Failed to determine drill direction");
+                return false;
+            }
+
+            // Brep face normals usually point outward for closed solids.
+            // For drilling we need the tool axis to point into the material.
+            var drillDirection = plateBrep.SolidOrientation == BrepSolidOrientation.Inward
+                ? normal
+                : -normal;
             drillDirection.Unitize();
 
-            // Create cylinder
-            var drillAxis = new Line(drillCenter, drillCenter + drillDirection * depth);
-            var cylinder = new Cylinder(new Circle(drillCenter, diameter / 2.0), depth);
-            var cylinderBrep = cylinder.ToBrep(true, true);
+            // Create the drill body aligned to the picked face normal.
+            var cylinder = new Cylinder(new Circle(new Plane(drillCenter, drillDirection), diameter / 2.0), depth);
+            cylinderBrep = cylinder.ToBrep(true, true);
 
             if (cylinderBrep == null)
             {
@@ -140,44 +159,39 @@ public sealed class AddDrillCommand : Command
 
             // Perform boolean subtraction
             var tolerance = doc.ModelAbsoluteTolerance;
-            var result = Brep.CreateBooleanDifference(plateBrep, cylinderBrep, tolerance);
+            booleanResult = Brep.CreateBooleanDifference(plateBrep, cylinderBrep, tolerance);
 
-            if (result == null || result.Length == 0)
+            if (booleanResult == null || booleanResult.Length == 0)
             {
                 RhinoApp.WriteLine("Boolean subtraction failed");
-                cylinderBrep.Dispose();
                 return false;
             }
 
-            // Find the first valid result
-            Brep newBrep = null;
-            foreach (var brep in result)
+            foreach (var brep in booleanResult)
             {
                 if (brep != null && brep.IsValid)
                 {
-                    newBrep = brep;
+                    adoptedBrep = brep;
                     break;
                 }
             }
 
-            if (newBrep == null)
+            if (adoptedBrep == null)
             {
                 RhinoApp.WriteLine("No valid result from boolean operation");
-                foreach (var brep in result)
-                    brep?.Dispose();
-                cylinderBrep.Dispose();
                 return false;
             }
 
-            // Find new faces created by the boolean operation
-            var newFaceIndices = FaceTagger.FindNewFaces(plateBrep, newBrep, tolerance);
+            var newFaceIndices = FaceTagger.FindNewFaces(plateBrep, adoptedBrep, tolerance);
+            var drillFaceIndices = GetPreferredDrillFaceIndices(adoptedBrep, newFaceIndices, tolerance);
 
-            // Replace the original object with the new one
-            if (!doc.Objects.Replace(plateObj.Id, newBrep))
+            if (!doc.Objects.Replace(plateObj.Id, adoptedBrep))
             {
                 RhinoApp.WriteLine("Failed to replace object");
                 return false;
             }
+
+            replacedObject = true;
             var newObjectId = plateObj.Id;
             var newObject = doc.Objects.FindId(newObjectId);
 
@@ -188,38 +202,70 @@ public sealed class AddDrillCommand : Command
             }
 
             // Tag the new cylindrical faces with CNC_* attributes
+            var featureId = Guid.NewGuid().ToString("N");
             var tags = new Dictionary<string, string>
             {
                 ["Type"] = "DRILL",
-                ["Diameter"] = diameter.ToString("F1"),
-                ["Depth"] = depth.ToString("F1"),
+                ["FeatureId"] = featureId,
+                ["Diameter"] = diameter.ToString("0.###", CultureInfo.InvariantCulture),
+                ["Depth"] = depth.ToString("0.###", CultureInfo.InvariantCulture),
                 ["Side"] = "TOP",
-                ["Description"] = $"Drill_{diameter:F1}x{depth:F1}"
+                ["CenterX"] = drillCenter.X.ToString("0.###", CultureInfo.InvariantCulture),
+                ["CenterY"] = drillCenter.Y.ToString("0.###", CultureInfo.InvariantCulture),
+                ["CenterZ"] = drillCenter.Z.ToString("0.###", CultureInfo.InvariantCulture),
+                ["Description"] = $"Drill_{diameter.ToString("0.###", CultureInfo.InvariantCulture)}x{depth.ToString("0.###", CultureInfo.InvariantCulture)}"
             };
 
-            bool tagSuccess = FaceTagger.TagFaces(doc, newObjectId, newFaceIndices, tags);
+            bool tagSuccess = FaceTagger.TagFaces(doc, newObjectId, drillFaceIndices, tags);
             if (!tagSuccess)
             {
                 RhinoApp.WriteLine("Warning: Failed to tag drill faces");
             }
 
-            // Clean up
-            cylinderBrep.Dispose();
-            foreach (var brep in result)
-            {
-                if (brep != newBrep)
-                    brep?.Dispose();
-            }
-
             doc.Views.Redraw();
-            doc.EndUndoRecord(undoSerial);
             return true;
         }
         catch (Exception ex)
         {
-            doc.EndUndoRecord(undoSerial);
             RhinoApp.WriteLine($"Error in CreateDrillHole: {ex.Message}");
             return false;
         }
+        finally
+        {
+            cylinderBrep?.Dispose();
+
+            if (booleanResult != null)
+            {
+                foreach (var brep in booleanResult)
+                {
+                    if (brep == null)
+                        continue;
+
+                    if (replacedObject && ReferenceEquals(brep, adoptedBrep))
+                        continue;
+
+                    brep.Dispose();
+                }
+            }
+
+            doc.EndUndoRecord(undoSerial);
+        }
+    }
+
+    private static IReadOnlyList<int> GetPreferredDrillFaceIndices(Brep brep, IEnumerable<int> candidateFaceIndices, double tolerance)
+    {
+        var candidates = candidateFaceIndices
+            .Where(index => index >= 0 && index < brep.Faces.Count)
+            .Distinct()
+            .ToList();
+
+        if (candidates.Count == 0)
+            return candidates;
+
+        var nonPlanarFaces = candidates
+            .Where(index => !brep.Faces[index].IsPlanar(tolerance))
+            .ToList();
+
+        return nonPlanarFaces.Count > 0 ? nonPlanarFaces : candidates;
     }
 }

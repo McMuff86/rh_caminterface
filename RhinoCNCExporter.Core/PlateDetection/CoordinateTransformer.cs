@@ -103,6 +103,27 @@ public static class CoordinateTransformer
     }
 
     /// <summary>
+    /// Determine the most likely plate side for a feature point in plate-local coordinates.
+    /// Prefers top/bottom when the point lies on a main face, otherwise falls back to edge-side
+    /// detection for features located mid-thickness but near a plate boundary.
+    /// </summary>
+    public static MachiningSide DetermineFeatureSide(
+        double localX, double localY, double localZ,
+        double plateLengthX, double plateWidthY, double plateThickness,
+        double tolerance = 1.0)
+    {
+        var faceSide = DetermineSide(localZ, plateThickness, tolerance);
+        if (faceSide != MachiningSide.Top)
+            return faceSide;
+
+        if (Math.Abs(localZ) <= tolerance)
+            return MachiningSide.Top;
+
+        var edgeSide = DetermineEdgeSide(localX, localY, plateLengthX, plateWidthY, tolerance);
+        return edgeSide != MachiningSide.Top ? edgeSide : faceSide;
+    }
+
+    /// <summary>
     /// Create a PlateOrigin for a plate lying flat at a given position.
     /// The plate's main face is on the XY plane at the given Z height.
     /// </summary>
