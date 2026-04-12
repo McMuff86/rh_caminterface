@@ -11,6 +11,7 @@ using Rhino.DocObjects;
 using RhinoCNCExporter.Core.Blocks;
 using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Pipeline;
+using CorePlatePreview = RhinoCNCExporter.Core.Models.PlatePreview;
 using RhinoCNCExporter.Core.Profiles;
 using RhinoCNCExporter.Services;
 
@@ -184,9 +185,9 @@ public sealed class ExportPanel : Panel
 
         _toolLibraryLabel = CreateLabel("Werkzeugdatenbank: —", 9, false);
         _strategySummaryLabel = CreateLabel("Strategien: Auto-Heuristik", 9, false);
-        var manageToolsButton = new Button { Text = "Werkzeugmanager", Height = 30 };
+        var manageToolsButton = new Button { Text = "Werkzeugmanager", Height = 30, ID = UiAutomationIds.ExportPanelToolManager };
         manageToolsButton.Click += (_, _) => OpenToolLibraryManager();
-        var strategyButton = new Button { Text = "Werkzeugzuordnung", Height = 30 };
+        var strategyButton = new Button { Text = "Werkzeugzuordnung", Height = 30, ID = UiAutomationIds.ExportPanelToolStrategy };
         strategyButton.Click += (_, _) => OpenToolStrategyDialog();
         var importToolsButton = new Button { Text = "Importieren", Height = 26 };
         importToolsButton.Click += (_, _) => ImportToolLibrary();
@@ -194,9 +195,9 @@ public sealed class ExportPanel : Panel
         exportToolsButton.Click += (_, _) => ExportToolLibrary();
         var resetToolsButton = new Button { Text = "Defaults", Height = 26 };
         resetToolsButton.Click += (_, _) => ResetToolLibrary();
-        var previewButton = new Button { Text = "Vorschau erzeugen", Height = 30 };
+        var previewButton = new Button { Text = "Vorschau erzeugen", Height = 30, ID = UiAutomationIds.ExportPanelGeneratePreview };
         previewButton.Click += (_, _) => GeneratePreview();
-        var clearPreviewButton = new Button { Text = "Vorschau löschen", Height = 30 };
+        var clearPreviewButton = new Button { Text = "Vorschau löschen", Height = 30, ID = UiAutomationIds.ExportPanelClearPreview };
         clearPreviewButton.Click += (_, _) => ClearPreview();
 
         var toolButtons = new StackLayout
@@ -224,7 +225,7 @@ public sealed class ExportPanel : Panel
             Items = { new StackLayoutItem(_exportPathTextBox, true), browseButton }
         };
 
-        var exportButton = new Button { Text = "▶ Export starten", Height = 36 };
+        var exportButton = new Button { Text = "▶ Export starten", Height = 36, ID = UiAutomationIds.ExportPanelRunExport };
         exportButton.Click += (_, _) => RunExport();
 
         var actionsSection = CreateSection(
@@ -252,7 +253,7 @@ public sealed class ExportPanel : Panel
         {
             ReadOnly = true,
             Height = 130,
-            Font = new Font("Consolas", 9),
+            Font = new Eto.Drawing.Font("Consolas", 9),
             Text = "Noch kein Export.\n"
         };
 
@@ -260,7 +261,7 @@ public sealed class ExportPanel : Panel
         {
             ReadOnly = true,
             Height = 160,
-            Font = new Font("Consolas", 9),
+            Font = new Eto.Drawing.Font("Consolas", 9),
             Text = "Bereit.\n"
         };
 
@@ -360,7 +361,7 @@ public sealed class ExportPanel : Panel
         {
             Text = text,
             TextColor = FgText,
-            Font = bold ? new Font(SystemFont.Bold, size) : new Font(SystemFont.Default, size)
+            Font = bold ? new Eto.Drawing.Font(SystemFont.Bold, size) : new Eto.Drawing.Font(SystemFont.Default, size)
         };
     }
 
@@ -472,15 +473,16 @@ public sealed class ExportPanel : Panel
                 _summaryLabel.Text = "Dokument: —";
                 _recommendationLabel.Text = "Empfehlung: —";
                 _capabilityLabel.Text = "Capabilities: —";
-                PopulatePlateTree(Array.Empty<PlatePreview>());
+                PopulatePlateTree(Array.Empty<CorePlatePreview>());
                 return;
             }
 
             _latestAnalysis = ExportService3D.AnalyzeDocument(doc);
             var caps = _latestAnalysis.Capabilities;
 
+            var totalMachinings = _latestAnalysis.Plates.Sum(p => p.MachiningCount);
             _summaryLabel.Text =
-                $"Dokument: {_latestAnalysis.Plates.Count} Platte(n), {_latestAnalysis.TotalBlockCount} Block(s)";
+                $"Dokument: {_latestAnalysis.Plates.Count} Platte(n), {_latestAnalysis.TotalBlockCount} Block(s), {totalMachinings} Bearbeitung(en)";
             _recommendationLabel.Text =
                 $"Empfehlung: {FormatMode(_latestAnalysis.RecommendedMode)}";
             _capabilityLabel.Text =
@@ -564,7 +566,7 @@ public sealed class ExportPanel : Panel
         }
     }
 
-    private void PopulatePlateTree(IReadOnlyList<PlatePreview> previews)
+    private void PopulatePlateTree(IReadOnlyList<CorePlatePreview> previews)
     {
         _plateTreeItems = new TreeGridItemCollection();
 
@@ -592,14 +594,14 @@ public sealed class ExportPanel : Panel
                 }
             };
 
-            if (preview.Blocks.Count == 0)
+            if (preview.Blocks.Count == 0 && preview.FaceFeatureCount == 0 && preview.ManualMachiningCount == 0)
             {
                 plateItem.Children.Add(new TreeGridItem
                 {
                     Values = new object?[]
                     {
                         null,
-                        "(keine Blöcke)",
+                        "(keine Workflow-Features)",
                         string.Empty,
                         string.Empty,
                         "0"
@@ -619,6 +621,36 @@ public sealed class ExportPanel : Panel
                             block.CncType,
                             block.LayerName ?? string.Empty,
                             MachiningCountForBlock(block).ToString(CultureInfo.InvariantCulture)
+                        }
+                    });
+                }
+
+                if (preview.FaceFeatureCount > 0)
+                {
+                    plateItem.Children.Add(new TreeGridItem
+                    {
+                        Values = new object?[]
+                        {
+                            null,
+                            "(Face-Features)",
+                            "FeatureTag",
+                            "Objekt-/Face-Tags",
+                            preview.FaceFeatureCount.ToString(CultureInfo.InvariantCulture)
+                        }
+                    });
+                }
+
+                if (preview.ManualMachiningCount > 0)
+                {
+                    plateItem.Children.Add(new TreeGridItem
+                    {
+                        Values = new object?[]
+                        {
+                            null,
+                            "(Manuelle CAM-Operationen)",
+                            "UserText",
+                            "Interaktive Commands",
+                            preview.ManualMachiningCount.ToString(CultureInfo.InvariantCulture)
                         }
                     });
                 }
@@ -1218,7 +1250,7 @@ public sealed class ExportPanel : Panel
         };
     }
 
-    private IReadOnlyList<PlatePreview> GetSelectedOrAllPreviews(DocumentExportAnalysis analysis)
+    private IReadOnlyList<CorePlatePreview> GetSelectedOrAllPreviews(DocumentExportAnalysis analysis)
     {
         var selectedPlateKeys = new HashSet<string>(GetSelectedPlateKeys(), StringComparer.OrdinalIgnoreCase);
         if (selectedPlateKeys.Count == 0)
@@ -1231,16 +1263,19 @@ public sealed class ExportPanel : Panel
 
     private IReadOnlyList<OperationStrategyItem> BuildOperationStrategyItems(
         ToolLibrary library,
-        IReadOnlyList<PlatePreview> previews,
+        IReadOnlyList<CorePlatePreview> previews,
         ToolpathPlanningOptions baseOptions)
     {
         var items = new List<OperationStrategyItem>();
 
-        foreach (var preview in previews)
+        var doc = RhinoDoc.ActiveDoc;
+        var workflowSnapshots = new WorkflowSnapshotService().BuildSnapshots(doc, previews);
+
+        foreach (var snapshot in workflowSnapshots)
         {
-            var plate = preview.Plate with
+            var plate = snapshot.Plate with
             {
-                Machinings = ExportService3D.BuildMachiningsForPlate(null, preview.Plate, preview.Blocks)
+                Machinings = snapshot.CombinedMachinings
             };
 
             for (var index = 0; index < plate.Machinings.Count; index++)
@@ -1316,12 +1351,12 @@ public sealed class ExportPanel : Panel
             lines.AddRange(result.ExportedFiles.Select(file => Path.GetFileName(file)));
         }
 
-        return string.Join(Environment.NewLine, lines);
+        return string.Join(System.Environment.NewLine, lines);
     }
 
     private void UpdateReport(string text)
     {
-        _reportArea.Text = text + Environment.NewLine;
+        _reportArea.Text = text + System.Environment.NewLine;
     }
 
     private void Log(string message)

@@ -33,7 +33,7 @@ public static class ExportService3D
         var scanner = new BlockScanner();
         var blocks = scanner.ScanDocument(doc);
 
-        var previews = BuildPlatePreviews(plates, blocks);
+        var previews = BuildPlatePreviews(doc, plates, blocks);
         var capabilities = DetectCapabilities(doc, plates, blocks);
         var decision = ExportModeResolver.Decide(capabilities, ExportMode.Automatic);
 
@@ -267,6 +267,7 @@ public static class ExportService3D
     }
 
     private static IReadOnlyList<PlatePreview> BuildPlatePreviews(
+        RhinoDoc doc,
         IReadOnlyList<Plate> plates,
         IReadOnlyList<FittingBlock> blocks)
     {
@@ -275,13 +276,21 @@ public static class ExportService3D
 
         var resolver = new AssignmentResolver();
         var assignments = resolver.ResolveWithProximity(plates, blocks);
+        var workflowSnapshots = new WorkflowSnapshotService();
 
         return assignments
-            .Select(assignment => new PlatePreview
+            .Select(assignment =>
             {
-                Plate = assignment.Plate,
-                Blocks = assignment.Blocks.ToList(),
-                MachiningCount = BuildMachiningsForPlate(null, assignment.Plate, assignment.Blocks).Count
+                var snapshot = workflowSnapshots.BuildSnapshot(doc, assignment.Plate, assignment.Blocks);
+                return new PlatePreview
+                {
+                    Plate = assignment.Plate,
+                    Blocks = assignment.Blocks.ToList(),
+                    MachiningCount = snapshot.CombinedMachinings.Count,
+                    BlockMachiningCount = snapshot.BlockMachinings.Count,
+                    FaceFeatureCount = snapshot.FaceTaggedMachinings.Count,
+                    ManualMachiningCount = snapshot.UserTextMachinings.Count
+                };
             })
             .ToList();
     }
@@ -291,129 +300,15 @@ public static class ExportService3D
         Plate plate,
         IReadOnlyList<FittingBlock> blocks)
     {
-        var machinings = new List<Machining>();
-        var clamexCounter = 0;
-
-        foreach (var block in blocks)
-        {
-            var (localX, localY, localZ) = CoordinateTransformer.WorldToPlateLocal(
-                plate.Origin,
-                block.InsertionPoint.X,
-                block.InsertionPoint.Y,
-                block.InsertionPoint.Z);
-
-            if (IsClamexMacro(block))
-            {
-                clamexCounter++;
-                var machining = ClamexMacroBuilder.CreateMachining(
-                    block,
-                    localX,
-                    localY,
-                    plate.Thickness,
-                    clamexCounter);
-
-                if (machining != null)
-                    machinings.Add(machining);
-
-                continue;
-            }
-
-            machinings.AddRange(MachiningFactory.CreateFromBlock(
-                block,
-                localX,
-                localY,
-                localZ,
-                plate.Thickness));
-        }
-
-        // Add face-tagged features (if document is available)
-        if (doc != null)
-        {
-            var faceTaggedMachinings = ExtractFaceTaggedFeatures(doc, plate);
-            machinings.AddRange(faceTaggedMachinings);
-
-            // Add UserText-based operations from interactive CAM commands
-            var userTextMachinings = ExtractUserTextOperations(doc, plate);
-            machinings.AddRange(userTextMachinings);
-        }
-
-        return machinings;
-    }
-
-    /// <summary>
-    /// Extract face-tagged CNC features from objects on the plate's layer.
-    /// Finds objects that match the plate and reads their face-tagged features.
-    /// </summary>
-    private static List<Machining> ExtractFaceTaggedFeatures(RhinoDoc doc, Plate plate)
-    {
-        var faceTaggedMachinings = new List<Machining>();
-
-        try
-        {
-            // Find objects on the plate's layer that might contain face-tagged features
-            var plateObjects = FindPlateObjects(doc, plate);
-
-            foreach (var obj in plateObjects)
-            {
-                var features = FeatureReader.ReadTaggedFeatures(obj);
-                faceTaggedMachinings.AddRange(features);
-            }
-
-            RhinoApp.WriteLine($"[ExportService3D] Found {faceTaggedMachinings.Count} face-tagged features for plate '{plate.Name}'");
-        }
-        catch (Exception ex)
-        {
-            RhinoApp.WriteLine($"[ExportService3D] Error extracting face-tagged features: {ex.Message}");
-        }
-
-        return faceTaggedMachinings;
-    }
-
-    /// <summary>
-    /// Extract UserText-based CNC operations from objects on the plate's layer.
-    /// These are created by interactive CAM commands (CNCAddContour, CNCAddDrill, etc.).
-    /// </summary>
-    private static List<Machining> ExtractUserTextOperations(RhinoDoc doc, Plate plate)
-    {
-        var userTextMachinings = new List<Machining>();
-
-        try
-        {
-            var reader = new UserTextMachiningReader();
-            
-            // Get UserText operations from the plate's layer
-            if (!string.IsNullOrEmpty(plate.LayerPath))
-            {
-                // Try to extract layer name from full path (e.g., "Korpus::Seite_links" -> "Seite_links")
-                var layerName = plate.LayerPath.Split(new[] { "::" }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? plate.LayerPath;
-                var layerMachinings = reader.GetMachiningsByLayer(doc, layerName);
-                userTextMachinings.AddRange(layerMachinings);
-            }
-            else if (!string.IsNullOrEmpty(plate.Name))
-            {
-                // Fallback: use plate name as layer name
-                var layerMachinings = reader.GetMachiningsByLayer(doc, plate.Name);
-                userTextMachinings.AddRange(layerMachinings);
-            }
-
-            if (userTextMachinings.Count > 0)
-            {
-                RhinoApp.WriteLine($"[ExportService3D] Found {userTextMachinings.Count} UserText operations for plate '{plate.Name}'");
-            }
-        }
-        catch (Exception ex)
-        {
-            RhinoApp.WriteLine($"[ExportService3D] Error extracting UserText operations: {ex.Message}");
-        }
-
-        return userTextMachinings;
+        var snapshot = new WorkflowSnapshotService().BuildSnapshot(doc, plate, blocks);
+        return snapshot.CombinedMachinings.ToList();
     }
 
     /// <summary>
     /// Find Rhino objects that likely belong to the given plate.
     /// Uses layer path and geometric criteria to identify the plate objects.
     /// </summary>
-    private static IEnumerable<RhinoObject> FindPlateObjects(RhinoDoc doc, Plate plate)
+    internal static IEnumerable<RhinoObject> FindPlateObjects(RhinoDoc doc, Plate plate)
     {
         var objects = new List<RhinoObject>();
 
@@ -475,7 +370,7 @@ public static class ExportService3D
     /// Check if a Brep geometry has similar dimensions to the given plate.
     /// Used as a fallback when layer-based matching fails.
     /// </summary>
-    private static bool IsGeometrySimilarToPlate(Brep brep, Plate plate)
+    internal static bool IsGeometrySimilarToPlate(Brep brep, Plate plate)
     {
         try
         {
@@ -505,13 +400,6 @@ public static class ExportService3D
             // Geometry validation can fail on degenerate Breps — treat as non-matching
             return false;
         }
-    }
-
-    private static bool IsClamexMacro(FittingBlock block)
-    {
-        return block.CncType.Equals("MACRO", StringComparison.OrdinalIgnoreCase)
-            && block.MacroName != null
-            && block.MacroName.Equals("SawCut_Lamello", StringComparison.OrdinalIgnoreCase);
     }
 
     private static DocumentCapabilities DetectCapabilities(

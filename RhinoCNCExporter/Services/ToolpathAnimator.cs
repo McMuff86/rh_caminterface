@@ -74,7 +74,7 @@ public sealed class ToolpathAnimator : IDisposable
                 var topPt = center;
                 var bottomPt = new Point3d(center.X, center.Y, center.Z - depth);
                 var plungeCurve = new LineCurve(topPt, bottomPt);
-                _segments.Add(new AnimationSegment(plungeCurve, toolDiameter, type, isDrill: true));
+                _segments.Add(new AnimationSegment(plungeCurve, toolDiameter, type, IsDrill: true));
             }
             else
             {
@@ -87,7 +87,7 @@ public sealed class ToolpathAnimator : IDisposable
 
                 if (curve == null || curve.GetLength() < 0.01) continue;
 
-                _segments.Add(new AnimationSegment(curve, toolDiameter, type, isDrill: false));
+                _segments.Add(new AnimationSegment(curve, toolDiameter, type, IsDrill: false));
             }
         }
     }

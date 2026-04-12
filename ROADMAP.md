@@ -219,6 +219,28 @@ Block detection, starter block definitions, assignment resolver, UI integration:
 
 **Status**: IN ARBEIT 🟡 (24.03.2026) — KRITISCH für professionellen Einsatz
 
+## Neue Fokusphase: Workflow-driven CAM UI + Feature Authoring (12.04.2026)
+
+**Status**: GESTARTET 🟡
+
+Der aktuelle Stand hat bereits interaktive Commands, Toolpath-Vorschau, 3D-Vorschau und Simulation.
+Der grösste produktive Gap ist aber nicht mehr "keine Visualisierung", sondern fehlende klare Bedienlogik:
+
+- Features wie Kreislöcher oder Innenkonturen werden im Hauptworkflow noch nicht sauber als bearbeitbare Einheiten geführt
+- ExportPanel und CAM-Panel folgen unterschiedlichen Bedienlogiken
+- Toolpath-Preview, 3D-Preview und Simulation sind noch nicht auf eine kanonische Workflow-Quelle vereinheitlicht
+- Desktop-UI-Automation braucht stabile semantische Control-IDs
+
+### Fokus-Tasks
+- [ ] Hauptworkflow auf `Geometrie -> Feature -> Bearbeitung -> Toolpath -> Validierung -> Export` ausrichten
+- [ ] Feature-zentrierte Hauptliste einführen (statt rein operation-/panel-zentrierter Sicht)
+- [ ] Bearbeitungszuweisung für erkannte Features wie Kreisloch / Innenkontur / Aussenkontur integrieren
+- [ ] Toolpath-Planung, Vorschau und Simulation schrittweise auf eine gemeinsame kanonische Quelle umstellen
+- [x] erste stabile semantische UI-IDs für Automation / Smoke Tests einführen
+- [ ] FlaUI/UIA3 Smoke-Test-Harness für Windows vorbereiten
+
+**Backlog:** siehe `docs/UI-UX-REDESIGN-BACKLOG.md`
+
 > **Entscheidung 23.03.2026:** Toolpath-Preview und Werkzeug-Datenbank sind nicht optional.
 > Ohne visuelle Kontrolle = Black Box. Kein Schreiner vertraut einer Black Box.
 

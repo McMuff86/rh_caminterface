@@ -2,8 +2,9 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using RhinoCNCExporter.Core.Blocks;
-using RhinoCNCExporter.Core.Models;
 using RhinoCNCExporter.Core.Emitters;
+using RhinoCNCExporter.Core.Models;
+using RhinoCNCExporter.Core.PlateDetection;
 
 namespace RhinoCNCExporter.Services;
 
@@ -19,15 +20,13 @@ public class UserTextMachiningReader
     public IReadOnlyList<Machining> GetMachiningsByLayer(RhinoDoc doc, string layerName)
     {
         var machinings = new List<Machining>();
-        
-        // Find layer
+
         var layer = doc.Layers.FindName(layerName);
         if (layer == null)
             return machinings;
 
         var layerIndex = layer.Index;
 
-        // Get all objects on this layer with CNC operations
         var objectsWithOperations = doc.Objects
             .Where(obj => obj.Attributes.LayerIndex == layerIndex)
             .Where(obj => !string.IsNullOrEmpty(obj.Attributes.GetUserString(CncOperationSchema.CNC_TYPE)))
@@ -35,11 +34,9 @@ public class UserTextMachiningReader
 
         foreach (var obj in objectsWithOperations)
         {
-            var machining = ConvertToMachining(obj);
+            var machining = ConvertToMachining(doc, obj, null);
             if (machining != null)
-            {
                 machinings.Add(machining);
-            }
         }
 
         return machinings;
@@ -51,16 +48,65 @@ public class UserTextMachiningReader
     public IReadOnlyList<Machining> GetAllMachinings(RhinoDoc doc)
     {
         var machinings = new List<Machining>();
-
         var objectsWithOperations = CncOperationService.GetAllOperationsInDocument(doc);
 
         foreach (var obj in objectsWithOperations)
         {
-            var machining = ConvertToMachining(obj);
+            var machining = ConvertToMachining(doc, obj, null);
             if (machining != null)
-            {
                 machinings.Add(machining);
+        }
+
+        return machinings;
+    }
+
+    /// <summary>
+    /// Gets all UserText-based machinings that belong to the given plate.
+    /// Coordinates are transformed into plate-local space.
+    /// </summary>
+    public IReadOnlyList<Machining> GetMachiningsForPlate(RhinoDoc doc, Plate plate)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(plate);
+
+        var machinings = new List<Machining>();
+        var candidateLayerIndexes = new HashSet<int>();
+
+        if (!string.IsNullOrWhiteSpace(plate.LayerPath))
+        {
+            var fullPathIndex = doc.Layers.FindByFullPath(plate.LayerPath, -1);
+            if (fullPathIndex >= 0)
+                candidateLayerIndexes.Add(fullPathIndex);
+
+            var leafName = plate.LayerPath.Split(new[] { "::" }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+            if (!string.IsNullOrWhiteSpace(leafName))
+            {
+                var leafLayer = doc.Layers.FindName(leafName);
+                if (leafLayer != null)
+                    candidateLayerIndexes.Add(leafLayer.Index);
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(plate.Name))
+        {
+            var namedLayer = doc.Layers.FindName(plate.Name);
+            if (namedLayer != null)
+                candidateLayerIndexes.Add(namedLayer.Index);
+        }
+
+        if (candidateLayerIndexes.Count == 0)
+            return machinings;
+
+        var objectsWithOperations = doc.Objects
+            .Where(obj => !string.IsNullOrEmpty(obj.Attributes.GetUserString(CncOperationSchema.CNC_TYPE)))
+            .Where(obj => candidateLayerIndexes.Contains(obj.Attributes.LayerIndex))
+            .ToList();
+
+        foreach (var obj in objectsWithOperations)
+        {
+            var machining = ConvertToMachining(doc, obj, plate);
+            if (machining != null)
+                machinings.Add(machining);
         }
 
         return machinings;
@@ -69,23 +115,25 @@ public class UserTextMachiningReader
     /// <summary>
     /// Converts a RhinoObject with UserText to a Machining object.
     /// </summary>
-    private Machining? ConvertToMachining(RhinoObject obj)
+    private Machining? ConvertToMachining(RhinoDoc doc, RhinoObject obj, Plate? plate)
     {
         var operation = CncOperationService.GetOperation(obj);
         if (operation == null)
             return null;
 
-        var layerName = RhinoDoc.ActiveDoc.Layers[obj.Attributes.LayerIndex]?.Name ?? "Unknown";
-        var objectName = $"{layerName}_{obj.Id.ToString()[..8]}"; // Use layer + short ID as name
+        var layerName = doc.Layers[obj.Attributes.LayerIndex]?.Name ?? "Unknown";
+        var objectName = !string.IsNullOrWhiteSpace(obj.Name)
+            ? obj.Name
+            : $"{layerName}_{obj.Id.ToString()[..8]}";
 
         try
         {
             return operation.Type.ToUpperInvariant() switch
             {
-                CncOperationSchema.TYPE_CONTOUR => CreateContourMachining(obj, operation, objectName),
-                CncOperationSchema.TYPE_POCKET => CreatePocketMachining(obj, operation, objectName),
-                CncOperationSchema.TYPE_DRILL => CreateDrillMachining(obj, operation, objectName),
-                CncOperationSchema.TYPE_GROOVE => CreateGrooveMachining(obj, operation, objectName),
+                CncOperationSchema.TYPE_CONTOUR => CreateContourMachining(obj, operation, objectName, plate),
+                CncOperationSchema.TYPE_POCKET => CreatePocketMachining(obj, operation, objectName, plate),
+                CncOperationSchema.TYPE_DRILL => CreateDrillMachining(obj, operation, objectName, plate),
+                CncOperationSchema.TYPE_GROOVE => CreateGrooveMachining(obj, operation, objectName, plate),
                 _ => null
             };
         }
@@ -96,12 +144,12 @@ public class UserTextMachiningReader
         }
     }
 
-    private Machining? CreateContourMachining(RhinoObject obj, MachiningOperation operation, string name)
+    private Machining? CreateContourMachining(RhinoObject obj, MachiningOperation operation, string name, Plate? plate)
     {
         if (obj.Geometry is not Curve curve)
             return null;
 
-        var points = ExtractCurvePoints(curve);
+        var points = ExtractCurvePoints(curve, plate);
         if (points.Count == 0)
             return null;
 
@@ -120,12 +168,12 @@ public class UserTextMachiningReader
         };
     }
 
-    private Machining? CreatePocketMachining(RhinoObject obj, MachiningOperation operation, string name)
+    private Machining? CreatePocketMachining(RhinoObject obj, MachiningOperation operation, string name, Plate? plate)
     {
         if (obj.Geometry is not Curve curve || !curve.IsClosed)
             return null;
 
-        var points = ExtractCurvePoints(curve);
+        var points = ExtractCurvePoints(curve, plate);
         if (points.Count == 0)
             return null;
 
@@ -135,7 +183,7 @@ public class UserTextMachiningReader
         return new PocketMachining
         {
             Name = name,
-            Loops = new[] { points }, // Single boundary loop
+            Loops = new[] { points },
             Depth = depth,
             ToolDiameter = toolDiameter,
             Source = MachiningSource.Manual,
@@ -143,9 +191,9 @@ public class UserTextMachiningReader
         };
     }
 
-    private Machining? CreateDrillMachining(RhinoObject obj, MachiningOperation operation, string name)
+    private Machining? CreateDrillMachining(RhinoObject obj, MachiningOperation operation, string name, Plate? plate)
     {
-        var center = GetObjectCenter(obj);
+        var center = GetObjectCenter(obj, plate);
         if (center == null)
             return null;
 
@@ -164,16 +212,15 @@ public class UserTextMachiningReader
         };
     }
 
-    private Machining? CreateGrooveMachining(RhinoObject obj, MachiningOperation operation, string name)
+    private Machining? CreateGrooveMachining(RhinoObject obj, MachiningOperation operation, string name, Plate? plate)
     {
         if (obj.Geometry is not Curve curve)
             return null;
 
-        var points = ExtractCurvePoints(curve);
+        var points = ExtractCurvePoints(curve, plate);
         if (points.Count == 0)
             return null;
 
-        var width = operation.Width ?? 5.0;
         var depth = operation.Depth ?? 8.0;
         var toolDiameter = GetToolDiameter(operation.Tool);
 
@@ -183,73 +230,83 @@ public class UserTextMachiningReader
             Points = points,
             Depth = depth,
             ToolDiameter = toolDiameter,
-            IsClosed = false, // Grooves are typically open paths
+            IsClosed = false,
             Source = MachiningSource.Manual,
             TechCode = DetermineRouterTechCode(operation)
         };
     }
 
-    private IReadOnlyList<(double X, double Y)> ExtractCurvePoints(Curve curve)
+    private IReadOnlyList<(double X, double Y)> ExtractCurvePoints(Curve curve, Plate? plate)
     {
         var points = new List<(double X, double Y)>();
 
-        // Sample curve to polyline points
         var polyline = curve.ToPolyline(0, 0, 0.5, 0.1, 0, 0, 0, 0, true);
         if (polyline != null)
         {
             for (int i = 0; i < polyline.PointCount; i++)
             {
                 var pt = polyline.Point(i);
-                points.Add((pt.X, pt.Y));
+                points.Add(ToLocalPoint(pt, plate));
             }
         }
         else
         {
-            // Fallback: use domain sampling
             var domain = curve.Domain;
-            var count = Math.Max(10, (int)(curve.GetLength() / 2.0)); // ~2mm segments
-            
+            var count = Math.Max(10, (int)(curve.GetLength() / 2.0));
+
             for (int i = 0; i <= count; i++)
             {
                 var t = domain.ParameterAt((double)i / count);
                 var pt = curve.PointAt(t);
-                points.Add((pt.X, pt.Y));
+                points.Add(ToLocalPoint(pt, plate));
             }
         }
 
         return points;
     }
 
-    private Point3d? GetObjectCenter(RhinoObject obj)
+    private Point3d? GetObjectCenter(RhinoObject obj, Plate? plate)
     {
         var bbox = obj.Geometry.GetBoundingBox(true);
-        return bbox.IsValid ? bbox.Center : null;
+        if (!bbox.IsValid)
+            return null;
+
+        var center = bbox.Center;
+        if (plate == null)
+            return center;
+
+        var (x, y, _) = CoordinateTransformer.WorldToPlateLocal(plate.Origin, center.X, center.Y, center.Z);
+        return new Point3d(x, y, 0);
+    }
+
+    private static (double X, double Y) ToLocalPoint(Point3d point, Plate? plate)
+    {
+        if (plate == null)
+            return (point.X, point.Y);
+
+        var (x, y, _) = CoordinateTransformer.WorldToPlateLocal(plate.Origin, point.X, point.Y, point.Z);
+        return (x, y);
     }
 
     private double GetToolDiameter(string? toolName)
     {
         if (string.IsNullOrEmpty(toolName))
-            return 6.0; // Default tool diameter
+            return 6.0;
 
-        // Try to extract diameter from tool name (e.g., "Fräser 8mm" -> 8.0)
         var match = System.Text.RegularExpressions.Regex.Match(toolName, @"(\d+(?:\.\d+)?)\s*mm");
         if (match.Success && double.TryParse(match.Groups[1].Value, out var diameter))
-        {
             return diameter;
-        }
 
-        return 6.0; // Fallback
+        return 6.0;
     }
 
     private string DetermineRouterTechCode(MachiningOperation operation)
     {
-        // Use E010 for general routing, could be enhanced with tool-specific logic
         return "E010";
     }
 
     private string DetermineDrillTechCode(double diameter)
     {
-        // Simple heuristic for tech codes based on drill diameter
         return diameter <= 5.0 ? "E013" : "E009";
     }
 }

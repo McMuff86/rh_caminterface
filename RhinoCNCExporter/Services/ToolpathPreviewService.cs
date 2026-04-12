@@ -54,12 +54,13 @@ public sealed class ToolpathPreviewService
 
         var objectCount = 0;
         var operationCount = 0;
+        var workflowSnapshots = new WorkflowSnapshotService().BuildSnapshots(doc, previews);
 
-        foreach (var preview in previews)
+        foreach (var snapshot in workflowSnapshots)
         {
-            var plate = preview.Plate with
+            var plate = snapshot.Plate with
             {
-                Machinings = ExportService3D.BuildMachiningsForPlate(null, preview.Plate, preview.Blocks)
+                Machinings = snapshot.CombinedMachinings
             };
 
             var plan = ToolpathPlanner.PlanPlate(plate, toolLibrary, options);

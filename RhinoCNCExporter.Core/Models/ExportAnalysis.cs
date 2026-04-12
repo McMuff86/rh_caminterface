@@ -37,6 +37,9 @@ public sealed record PlatePreview
     public required Plate Plate { get; init; }
     public IReadOnlyList<FittingBlock> Blocks { get; init; } = Array.Empty<FittingBlock>();
     public int MachiningCount { get; init; }
+    public int BlockMachiningCount { get; init; }
+    public int FaceFeatureCount { get; init; }
+    public int ManualMachiningCount { get; init; }
 }
 
 /// <summary>

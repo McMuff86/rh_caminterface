@@ -13,13 +13,19 @@ Sprint 1 (Foundation)     → Datenmodell + Grundgerüst              ~1 Woche
 Sprint 2 (Block-Scan)     → Starter-Blöcke + UserText-Parsing      ~1.5 Wochen
 Sprint 3 (Plate-Detect)   → Platten-Erkennung + CoordTransform     ~2 Wochen
 Sprint 4 (Multi-Export)   → Multi-Platte Export + UI               ~1.5 Wochen
+
+Stand 12.04.2026:
+- Workflow-UI Refactor gestartet.
+- Gemeinsame Snapshot-Schicht eingeführt, damit Preview, Counts und Export dieselbe Machining-Sicht benutzen.
+- Nächster UI-Schritt: ein echter Hauptscreen, der Geometrie → Features → Toolpath → Validierung → Export in einem Flow führt.
 Sprint 5 (Validation)     → Testing gegen Produktionsdaten         ~1 Woche
 Sprint 6 (Tool Library)   → Werkzeug-/Halter-DB + Manager          läuft
 Sprint 7 (Rough/Finish)   → Preview-Strategien + per-Op Overrides  läuft
 Sprint 8 (Preview)        → Rhino Toolpath-Visualisierung          läuft
+Sprint 9 (Workflow UI)    → Feature-zentriertes CAM-Authoring      gestartet
 ```
 
-Der ursprüngliche Plan umfasste Sprint 1-5. Seit 24.03.2026 wurden Sprint 6-8 als laufender Ausbau ergänzt; Aufwandstabellen und historische Sprint-Tasks unten beziehen sich deshalb bewusst auf den Kernplan 1-5, sofern nicht anders vermerkt.
+Der ursprüngliche Plan umfasste Sprint 1-5. Seit 24.03.2026 wurden Sprint 6-8 als laufender Ausbau ergänzt; seit 12.04.2026 kommt Sprint 9 als UI-/Workflow-Neuschnitt hinzu. Aufwandstabellen und historische Sprint-Tasks unten beziehen sich deshalb bewusst auf den Kernplan 1-5, sofern nicht anders vermerkt.
 
 ---
 
@@ -228,6 +234,28 @@ Der ursprüngliche Plan umfasste Sprint 1-5. Seit 24.03.2026 wurden Sprint 6-8 a
 **Risiko:** Echte Produktionsdaten können Fälle enthalten die wir nicht bedacht haben. Mitigation: Inkrementell testen, Fehler dokumentieren, in nächsten Sprint-Zyklus aufnehmen.
 
 ---
+
+## Sprint 9: Workflow-driven CAM UI + Feature Authoring 🟡 STARTED (12.04.2026)
+
+**Ziel:** Die bestehende CAM-Funktionalität in einen klaren Benutzerworkflow überführen.
+
+### Aufgaben
+
+| # | Task | Modul | Abhängigkeit | Aufwand |
+|---|------|-------|-------------|---------|
+| 9.1 | UI-Backlog + Workflow-Konzept dokumentieren | Docs | Sprint 8 | 2h |
+| 9.2 | Semantische UI-Automation-IDs für Primär-Controls einführen | UI | 9.1 | 2h |
+| 9.3 | CAM-Panel um Workflow-Hinweise und klarere Primäraktionen schärfen | UI | 9.1 | 2h |
+| 9.4 | Feature-zentriertes Datenmodell für erkannte Geometrie entwerfen | Core/UI | 9.1 | 4h |
+| 9.5 | Featureliste im Hauptworkflow einführen | UI | 9.4 | 6h |
+| 9.6 | Bearbeitungszuweisung für Kreisloch / Innenkontur / Aussenkontur | UI/Services | 9.4 | 8h |
+| 9.7 | Vorschau/Simulation schrittweise auf kanonischen ToolpathPlan ausrichten | Core/UI | Sprint 8 | 8h |
+| 9.8 | FlaUI/UIA3 Smoke-Test-Harness für Windows vorbereiten | Tests/UI | 9.2, 9.5 | 6h |
+
+**Erste Deliverables:**
+- `docs/UI-UX-REDESIGN-BACKLOG.md`
+- stabile IDs für Haupt-Controls im CAM-/Export-UI
+- klarerer Einstieg in den Loch-/Feature-Workflow
 
 ## Dependency-Graph
 

@@ -134,12 +134,18 @@ public sealed class CamPanel : Panel
     public CamPanel()
     {
         BackgroundColor = BgDark;
+        ID = UiAutomationIds.CamPanel;
 
         // --- Header ---
         var headerLabel = CreateLabel("🔧 CNC Operations", 13, true);
+        var workflowHintLabel = CreateLabel(
+            "Workflow: 1) Bearbeitung anlegen  2) Parameter setzen  3) Vorschau prüfen  4) Validieren  5) Exportieren",
+            9,
+            false);
+        workflowHintLabel.TextColor = FgDim;
 
         // --- Machine Profile Selector ---
-        _machineDropDown = new DropDown { ToolTip = "CNC-Maschinenprofil wählen — beeinflusst Werkzeuge, Exportformat und Defaults" };
+        _machineDropDown = new DropDown { ToolTip = "CNC-Maschinenprofil wählen — beeinflusst Werkzeuge, Exportformat und Defaults", ID = UiAutomationIds.MachineProfile };
         foreach (var mp in MachineProfiles)
             _machineDropDown.Items.Add(new ListItem { Text = mp.DisplayName, Key = mp.Key });
         _machineDropDown.SelectedIndex = 0;
@@ -159,12 +165,16 @@ public sealed class CamPanel : Panel
 
         // --- Quick-Add Toolbar ---
         var addContourBtn = CreateToolbarButton("+ Contour", AccentContour, "Konturfräsung hinzufügen (CNCAddContour)");
+        addContourBtn.ID = UiAutomationIds.AddContour;
         addContourBtn.Click += (_, _) => RunCommand("CNCAddContour");
         var addPocketBtn = CreateToolbarButton("+ Pocket", AccentPocket, "Taschenfräsung hinzufügen (CNCAddPocket)");
+        addPocketBtn.ID = UiAutomationIds.AddPocket;
         addPocketBtn.Click += (_, _) => RunCommand("CNCAddPocket");
         var addDrillBtn = CreateToolbarButton("+ Drill", AccentDrill, "Bohrung hinzufügen (CNCAddDrill)");
+        addDrillBtn.ID = UiAutomationIds.AddDrill;
         addDrillBtn.Click += (_, _) => RunCommand("CNCAddDrill");
         var addGrooveBtn = CreateToolbarButton("+ Groove", AccentGroove, "Nut hinzufügen (CNCAddGroove)");
+        addGrooveBtn.ID = UiAutomationIds.AddGroove;
         addGrooveBtn.Click += (_, _) => RunCommand("CNCAddGroove");
 
         var toolbar = new StackLayout
@@ -176,11 +186,13 @@ public sealed class CamPanel : Panel
 
         // --- Operations TreeView ---
         _operationsTree = CreateOperationsTree();
+        _operationsTree.ID = UiAutomationIds.OperationsGrid;
 
         // Empty state
         _emptyStateLabel = CreateLabel(
-            "Keine Bearbeitungen vorhanden.\n\nVerwende die CNCAdd*-Befehle oder die Toolbar-Buttons oben,\num Bearbeitungsoperationen hinzuzufügen.",
+            "Keine Bearbeitungen vorhanden.\n\n1. Kontur / Tasche / Bohrung / Nut anlegen\n2. Parameter rechts prüfen\n3. Vorschau erzeugen\n4. Validieren\n5. Exportieren",
             9, false);
+        _emptyStateLabel.ID = UiAutomationIds.OperationsEmptyState;
         _emptyStateLabel.TextColor = FgDim;
         _emptyStateLabel.TextAlignment = TextAlignment.Center;
         _emptyStateLabel.Visible = true;
@@ -198,29 +210,29 @@ public sealed class CamPanel : Panel
         _propObjectLabel = CreateLabel("—", 9, false);
         _propObjectLabel.TextColor = FgDim;
 
-        _propToolDropDown = new DropDown { ToolTip = "Werkzeug für diese Operation auswählen" };
-        _propDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Bearbeitungstiefe in mm" };
+        _propToolDropDown = new DropDown { ToolTip = "Werkzeug für diese Operation auswählen", ID = UiAutomationIds.PropertyTool };
+        _propDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Bearbeitungstiefe in mm", ID = UiAutomationIds.PropertyDepth };
 
-        _propStrategyDropDown = new DropDown { ToolTip = "Bearbeitungsstrategie" };
+        _propStrategyDropDown = new DropDown { ToolTip = "Bearbeitungsstrategie", ID = UiAutomationIds.PropertyStrategy };
         _propStrategyDropDown.Items.Add("Rough");
         _propStrategyDropDown.Items.Add("Finish");
         _propStrategyDropDown.Items.Add("Both");
         _propStrategyDropDown.SelectedIndex = 0;
 
-        _propWidthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Nutbreite in mm" };
-        _propDiameterTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Bohrdurchmesser in mm" };
-        _propStepoverTextBox = new TextBox { PlaceholderText = "%", Width = 80, ToolTip = "Zustellung in % des Werkzeugdurchmessers" };
+        _propWidthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Nutbreite in mm", ID = UiAutomationIds.PropertyWidth };
+        _propDiameterTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Bohrdurchmesser in mm", ID = UiAutomationIds.PropertyDiameter };
+        _propStepoverTextBox = new TextBox { PlaceholderText = "%", Width = 80, ToolTip = "Zustellung in % des Werkzeugdurchmessers", ID = UiAutomationIds.PropertyStepover };
 
         _propPeckCheckBox = new CheckBox { Text = "Peck drilling", TextColor = FgText, ToolTip = "Spänebrechendes Bohren ein/aus" };
         _propPeckDepthTextBox = new TextBox { PlaceholderText = "mm", Width = 80, ToolTip = "Peck-Tiefe pro Zustellung in mm" };
 
-        _propRampEntryDropDown = new DropDown { ToolTip = "Eintauchstrategie für Taschenbearbeitung" };
+        _propRampEntryDropDown = new DropDown { ToolTip = "Eintauchstrategie für Taschenbearbeitung", ID = UiAutomationIds.PropertyRampEntry };
         _propRampEntryDropDown.Items.Add("Straight");
         _propRampEntryDropDown.Items.Add("Spiral");
         _propRampEntryDropDown.Items.Add("Profile");
         _propRampEntryDropDown.SelectedIndex = 0;
 
-        _applyButton = new Button { Text = "✓ Anwenden", Height = 28, ToolTip = "Änderungen auf die ausgewählte Operation anwenden" };
+        _applyButton = new Button { Text = "✓ Anwenden", Height = 28, ToolTip = "Änderungen auf die ausgewählte Operation anwenden", ID = UiAutomationIds.PropertyApply };
         _applyButton.Click += (_, _) => ApplyPropertyChanges();
 
         // Build property rows
@@ -255,11 +267,11 @@ public sealed class CamPanel : Panel
         var propsSection = CreateSection("Eigenschaften", _propertiesPanel, "Ausgewählte Operation", true);
 
         // --- Action Buttons ---
-        var generateAllBtn = new Button { Text = "▶ Alle generieren", Height = 30, ToolTip = "Toolpaths für alle Operationen (neu-)erzeugen" };
+        var generateAllBtn = new Button { Text = "▶ Alle generieren", Height = 30, ToolTip = "Toolpaths für alle Operationen (neu-)erzeugen", ID = UiAutomationIds.GenerateAllToolpaths };
         generateAllBtn.Click += (_, _) => GenerateAllToolpaths();
-        var clearAllBtn = new Button { Text = "✕ Alle löschen", Height = 30, ToolTip = "Alle Toolpath-Vorschaugeometrien entfernen" };
+        var clearAllBtn = new Button { Text = "✕ Alle löschen", Height = 30, ToolTip = "Alle Toolpath-Vorschaugeometrien entfernen", ID = UiAutomationIds.ClearAllToolpaths };
         clearAllBtn.Click += (_, _) => ClearAllToolpaths();
-        var refreshBtn = new Button { Text = "↻ Aktualisieren", Height = 26, ToolTip = "Operationsliste neu laden (F5)" };
+        var refreshBtn = new Button { Text = "↻ Aktualisieren", Height = 26, ToolTip = "Operationsliste neu laden (F5)", ID = UiAutomationIds.RefreshOperations };
         refreshBtn.Click += (_, _) => RefreshOperationsTree();
 
         var actionButtons = new StackLayout
@@ -275,12 +287,13 @@ public sealed class CamPanel : Panel
             Text = "3D Toolpath-Vorschau (mit Tiefe)",
             TextColor = FgText,
             Checked = false,
-            ToolTip = "Toolpaths mit tatsächlicher Schnitttiefe anzeigen (Z-Offset)"
+            ToolTip = "Toolpaths mit tatsächlicher Schnitttiefe anzeigen (Z-Offset)",
+            ID = UiAutomationIds.Preview3dToggle
         };
         _3dPreviewCheckBox.CheckedChanged += (_, _) => OnToggle3DPreview();
 
         // --- Validation Button ---
-        _validateButton = new Button { Text = "✔ Validieren", Height = 30, ToolTip = "Operationen vor dem Export auf Fehler prüfen" };
+        _validateButton = new Button { Text = "✔ Validieren", Height = 30, ToolTip = "Operationen vor dem Export auf Fehler prüfen", ID = UiAutomationIds.Validate };
         _validateButton.Click += (_, _) => RunValidation();
 
         _validationResultLabel = CreateLabel("", 9, false);
@@ -289,7 +302,7 @@ public sealed class CamPanel : Panel
         _validationResultLabel.Wrap = WrapMode.Word;
 
         // --- Export CNC Button ---
-        var exportCncBtn = new Button { Text = "📤 Export CNC", Height = 34, ToolTip = "Interaktive Operationen als CNC-Programm exportieren" };
+        var exportCncBtn = new Button { Text = "📤 Export CNC", Height = 34, ToolTip = "Interaktive Operationen als CNC-Programm exportieren", ID = UiAutomationIds.ExportInteractive };
         exportCncBtn.Click += (_, _) => ExportInteractiveCnc();
 
         var exportRow = new StackLayout
@@ -365,11 +378,11 @@ public sealed class CamPanel : Panel
         var defaultsSection = CreateSection("⚙ Standardwerte", _defaultsPanel, "Vorgabewerte pro Operationstyp", false);
 
         // --- Simulation Controls ---
-        _simulationButton = new Button { Text = "▶ Simulation", Height = 30, ToolTip = "Werkzeug-Simulation starten/stoppen" };
+        _simulationButton = new Button { Text = "▶ Simulation", Height = 30, ToolTip = "Werkzeug-Simulation starten/stoppen", ID = UiAutomationIds.SimulationToggle };
         _simulationButton.Click += (_, _) => ToggleSimulation();
         _animator.RunningChanged += OnAnimatorRunningChanged;
 
-        _simSpeedDropDown = new DropDown { ToolTip = "Simulationsgeschwindigkeit" };
+        _simSpeedDropDown = new DropDown { ToolTip = "Simulationsgeschwindigkeit", ID = UiAutomationIds.SimulationSpeed };
         _simSpeedDropDown.Items.Add(new ListItem { Text = "1×", Key = "1" });
         _simSpeedDropDown.Items.Add(new ListItem { Text = "2×", Key = "2" });
         _simSpeedDropDown.Items.Add(new ListItem { Text = "5×", Key = "5" });
@@ -389,7 +402,7 @@ public sealed class CamPanel : Panel
         };
 
         // --- Cleanup Button ---
-        var cleanupBtn = new Button { Text = "🧹 Bereinigen", Height = 26, ToolTip = "Verwaiste Kantenkurven entfernen (Quell-Brep gelöscht)" };
+        var cleanupBtn = new Button { Text = "🧹 Bereinigen", Height = 26, ToolTip = "Verwaiste Kantenkurven entfernen (Quell-Brep gelöscht)", ID = UiAutomationIds.Cleanup };
         cleanupBtn.Click += (_, _) => RunManualCleanup();
 
         // --- Statistics Panel ---
@@ -413,6 +426,7 @@ public sealed class CamPanel : Panel
                 Items =
                 {
                     headerLabel,
+                    workflowHintLabel,
                     machineRow,
                     toolbar,
                     opsSection,
@@ -1989,7 +2003,7 @@ public sealed class CamPanel : Panel
         {
             Text = text,
             TextColor = FgText,
-            Font = bold ? new Font(SystemFont.Bold, size) : new Font(SystemFont.Default, size)
+            Font = bold ? new Eto.Drawing.Font(SystemFont.Bold, size) : new Eto.Drawing.Font(SystemFont.Default, size)
         };
     }
 

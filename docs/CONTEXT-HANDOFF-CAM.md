@@ -3,11 +3,21 @@
 **Datum:** 27. März 2026  
 **Autor:** Sentinel (Night Session #1 + #2)  
 **Branch:** `feat/interactive-cam-commands`  
-**Status:** ✅ COMPLETE — All interactive CAM features implemented. Ready for Windows testing.
+**Status:** 🟡 Implemented, but UX/workflow redesign now active — commands, preview and simulation exist, however feature-to-machining authoring in the main workflow is still incomplete.
 
 ---
 
 ## 1. Current State of Interactive CAM Features
+
+### 1.0 Workflow-UI Refactor Update (12.04.2026)
+
+- Neuer gemeinsamer `WorkflowSnapshotService` eingeführt.
+- `ExportService3D.AnalyzeDocument()` zählt jetzt nicht nur Block-Machinings, sondern auch:
+  - face-tagged Features
+  - UserText/interaktive CAM-Operationen
+- `ToolpathPreviewService` plant Vorschau jetzt aus demselben Workflow-Snapshot statt aus einer reduzierten Block-only Sicht.
+- `ExportPanel` zeigt dadurch konsistentere Dokument- und Platten-Counts.
+
 
 ### 1.1 Commands (All Implemented ✅)
 
@@ -89,6 +99,19 @@ The existing dockable panel handles the **legacy pipeline** (layer-based) and **
 - ✅ Toolpath preview for 3D pipeline via ToolpathPreviewService
 
 ## 3. What Doesn't Work / Known Gaps
+
+### 3.0 Updated reality check (12.04.2026)
+
+The repo now contains much more than command-only experiments:
+- `ToolpathVisualizer`, `ToolpathPreviewService`, `ToolpathAnimator`, `ToolpathPlanner`, export preview, 3D preview and simulation are all present in code
+- the main weakness is now **workflow clarity** and **feature authoring**, not absence of preview code
+- current toolpath planning is still explicitly approximate for visual validation, not a canonical export-truth path source
+
+This means the next productive step is not "add more random buttons", but:
+1. feature-centric UI
+2. machining assignment from detected geometry/features
+3. stable UI automation IDs + Windows smoke tests
+4. later unification of preview / simulation around one canonical plan
 
 - ⚠️ **No dockable CAM panel** — operations are command-only, no persistent UI showing active operations
 - ⚠️ **No operations tree** — cannot see/select/edit/reorder operations like RhinoCAM
