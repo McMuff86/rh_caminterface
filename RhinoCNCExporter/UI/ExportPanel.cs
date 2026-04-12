@@ -32,10 +32,17 @@ public sealed class ExportPanel : Panel
     private readonly Label _summaryLabel;
     private readonly Label _recommendationLabel;
     private readonly Label _capabilityLabel;
+    private readonly Label _workflowSummaryLabel;
+    private readonly Label _workflowSelectionLabel;
+    private readonly Label _workflowFocusLabel;
     private readonly ListBox _operationsListBox;
     private readonly TreeGridView _plateTreeView;
     private readonly Label _toolLibraryLabel;
     private readonly Label _strategySummaryLabel;
+    private readonly Button _assignDrillsButton;
+    private readonly Button _assignInsideContoursButton;
+    private readonly Button _assignOutsideContourButton;
+    private readonly Button _workflowFocusButton;
     private readonly TextBox _exportPathTextBox;
     private readonly TextBox _stepdownTextBox;
     private readonly TextBox _toleranceTextBox;
@@ -52,6 +59,7 @@ public sealed class ExportPanel : Panel
 
     private TreeGridItemCollection _plateTreeItems = new();
     private DocumentExportAnalysis? _latestAnalysis;
+    private Dictionary<string, PlateWorkflowSnapshot> _latestWorkflowSnapshots = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, MachiningToolOverride> _strategyOverrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly ToolLibraryStore _toolLibraryStore = new();
     private readonly ToolpathPreviewService _toolpathPreviewService = new();
@@ -59,6 +67,10 @@ public sealed class ExportPanel : Panel
     private static readonly Color BgDark = Color.FromArgb(45, 45, 48);
     private static readonly Color FgText = Color.FromArgb(220, 220, 220);
     private const int SidebarWidth = 340;
+    private const string AssignDrillsButtonLabel = "Bohrungen zuordnen";
+    private const string AssignInsideContoursButtonLabel = "Innenkonturen zuordnen";
+    private const string AssignOutsideContourButtonLabel = "Außenkontur zuordnen";
+    private const string WorkflowFocusButtonLabel = "Nächsten offenen Punkt öffnen";
 
     public ExportPanel()
     {
@@ -102,12 +114,14 @@ public sealed class ExportPanel : Panel
         _summaryLabel = CreateLabel("Dokument: —", 10, false);
         _recommendationLabel = CreateLabel("Empfehlung: —", 10, false);
         _capabilityLabel = CreateLabel("Capabilities: —", 9, false);
+        _workflowSummaryLabel = CreateLabel("Workflow: —", 9, false);
+        _workflowSummaryLabel.ID = UiAutomationIds.ExportPanelWorkflowSummary;
         var summarySection = CreateSection(
             "Dokumentanalyse",
             new StackLayout
             {
                 Spacing = 4,
-                Items = { _summaryLabel, _recommendationLabel, _capabilityLabel }
+                Items = { _summaryLabel, _recommendationLabel, _capabilityLabel, _workflowSummaryLabel }
             },
             subtitle: "Auto-Erkennung und Exportempfehlung",
             expanded: true);
@@ -126,6 +140,7 @@ public sealed class ExportPanel : Panel
             expanded: false);
 
         _plateTreeView = CreatePlateTreeView();
+        _plateTreeView.SelectionChanged += (_, _) => UpdateWorkflowAssignmentControls();
         var scanPlatesButton = new Button { Text = "↻ Analyse aktualisieren", Height = 26 };
         scanPlatesButton.Click += (_, _) => RefreshDocumentAnalysis();
         var selectAllButton = new Button { Text = "Alle", Height = 26, Width = 60 };
@@ -140,13 +155,56 @@ public sealed class ExportPanel : Panel
             Items = { scanPlatesButton, selectAllButton, selectNoneButton }
         };
 
-        var plateSection = CreateSection("Platten & Blöcke",
+        _workflowSelectionLabel = CreateLabel("Workflow-Zuordnung: Platte im Baum wählen", 9, false);
+        _workflowFocusLabel = CreateLabel("Workflow-Fokus: —", 9, false);
+        _workflowFocusLabel.ID = UiAutomationIds.ExportPanelWorkflowFocus;
+        _workflowFocusButton = new Button
+        {
+            Text = WorkflowFocusButtonLabel,
+            Height = 28,
+            ID = UiAutomationIds.ExportPanelWorkflowFocusAction,
+            Enabled = false
+        };
+        _workflowFocusButton.Click += (_, _) => OpenRecommendedWorkflowAssignment();
+        _assignDrillsButton = new Button
+        {
+            Text = AssignDrillsButtonLabel,
+            Height = 28,
+            ID = UiAutomationIds.ExportPanelAssignDrills,
+            Enabled = false
+        };
+        _assignDrillsButton.Click += (_, _) => OpenFeatureAssignmentDialog(WorkflowFeatureGroupKind.Drill);
+        _assignInsideContoursButton = new Button
+        {
+            Text = AssignInsideContoursButtonLabel,
+            Height = 28,
+            ID = UiAutomationIds.ExportPanelAssignInsideContours,
+            Enabled = false
+        };
+        _assignInsideContoursButton.Click += (_, _) => OpenFeatureAssignmentDialog(WorkflowFeatureGroupKind.InsideContour);
+        _assignOutsideContourButton = new Button
+        {
+            Text = AssignOutsideContourButtonLabel,
+            Height = 28,
+            ID = UiAutomationIds.ExportPanelAssignOutsideContour,
+            Enabled = false
+        };
+        _assignOutsideContourButton.Click += (_, _) => OpenFeatureAssignmentDialog(WorkflowFeatureGroupKind.OutsideContour);
+
+        var assignmentButtons = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Items = { _assignDrillsButton, _assignInsideContoursButton, _assignOutsideContourButton }
+        };
+
+        var plateSection = CreateSection("Platten & Workflow",
             new StackLayout
             {
                 Spacing = 4,
-                Items = { _plateTreeView, plateActions }
+                Items = { _plateTreeView, plateActions, _workflowSelectionLabel, _workflowFocusLabel, _workflowFocusButton, assignmentButtons }
             },
-            subtitle: "3D-Platten, Blocks und Exportauswahl",
+            subtitle: "3D-Platten, Workflow-Features und Exportauswahl",
             expanded: true);
 
         _stepdownTextBox = new TextBox { PlaceholderText = "Stepdown (mm)", Text = "3.0" };
@@ -401,7 +459,9 @@ public sealed class ExportPanel : Panel
     {
         var view = new TreeGridView
         {
-            Height = 260
+            Height = 260,
+            ID = UiAutomationIds.ExportPanelPlateTree,
+            AllowMultipleSelection = false
         };
 
         view.Columns.Add(new GridColumn
@@ -450,6 +510,7 @@ public sealed class ExportPanel : Panel
         _exportPathTextBox.Text = string.Empty;
         RefreshToolLibrarySummary();
         RefreshStrategySummary();
+        RefreshWorkflowStatusVisuals();
     }
 
     private void OnModeChanged()
@@ -470,14 +531,23 @@ public sealed class ExportPanel : Panel
             if (doc == null)
             {
                 _latestAnalysis = null;
+                _latestWorkflowSnapshots = new Dictionary<string, PlateWorkflowSnapshot>(StringComparer.OrdinalIgnoreCase);
                 _summaryLabel.Text = "Dokument: —";
                 _recommendationLabel.Text = "Empfehlung: —";
                 _capabilityLabel.Text = "Capabilities: —";
+                _workflowSummaryLabel.Text = "Workflow: —";
                 PopulatePlateTree(Array.Empty<CorePlatePreview>());
+                UpdateWorkflowAssignmentControls();
                 return;
             }
 
             _latestAnalysis = ExportService3D.AnalyzeDocument(doc);
+            _latestWorkflowSnapshots = new WorkflowSnapshotService()
+                .BuildSnapshots(doc, _latestAnalysis.Plates)
+                .ToDictionary(
+                    snapshot => BuildPlateSelectionKey(snapshot.Plate.Name, snapshot.Plate.LayerPath),
+                    snapshot => snapshot,
+                    StringComparer.OrdinalIgnoreCase);
             var caps = _latestAnalysis.Capabilities;
 
             var totalMachinings = _latestAnalysis.Plates.Sum(p => p.MachiningCount);
@@ -487,8 +557,10 @@ public sealed class ExportPanel : Panel
                 $"Empfehlung: {FormatMode(_latestAnalysis.RecommendedMode)}";
             _capabilityLabel.Text =
                 $"Legacy={YesNo(caps.HasLegacyPiece)} · Legacy-Layer={YesNo(caps.HasLegacyMachiningLayers)} · 3D={YesNo(caps.Has3DPlates)} · Blocks={YesNo(caps.HasBlocks)}";
+            _workflowSummaryLabel.Text = BuildWorkflowSummary(_latestAnalysis.Plates);
 
             PopulatePlateTree(_latestAnalysis.Plates);
+            UpdateWorkflowAssignmentControls();
             Log($"Dokumentanalyse aktualisiert: {_latestAnalysis.RecommendationReason}");
         }
         catch (Exception ex)
@@ -568,7 +640,9 @@ public sealed class ExportPanel : Panel
 
     private void PopulatePlateTree(IReadOnlyList<CorePlatePreview> previews)
     {
+        var previousSelection = (_plateTreeView.SelectedItem as TreeGridItem)?.Tag as WorkflowTreeSelection;
         _plateTreeItems = new TreeGridItemCollection();
+        var planningContext = TryCreateWorkflowPlanningContext();
 
         if (previews.Count == 0)
         {
@@ -582,6 +656,7 @@ public sealed class ExportPanel : Panel
 
         foreach (var preview in previews.OrderBy(p => p.Plate.Name, StringComparer.OrdinalIgnoreCase))
         {
+            var plateKey = BuildPlateSelectionKey(preview.Plate.Name, preview.Plate.LayerPath);
             var plateItem = new TreeGridItem
             {
                 Values = new object?[]
@@ -591,10 +666,17 @@ public sealed class ExportPanel : Panel
                     $"{preview.Plate.LengthX:F1} × {preview.Plate.WidthY:F1} × {preview.Plate.Thickness:F1}",
                     preview.Plate.LayerPath ?? preview.Plate.Source.ToString(),
                     preview.MachiningCount.ToString(CultureInfo.InvariantCulture)
-                }
+                },
+                Tag = new WorkflowTreeSelection(plateKey, preview.Plate.Name, WorkflowFeatureGroupKind.None)
             };
 
-            if (preview.Blocks.Count == 0 && preview.FaceFeatureCount == 0 && preview.ManualMachiningCount == 0)
+            if (!_latestWorkflowSnapshots.TryGetValue(plateKey, out var workflowSnapshot))
+            {
+                workflowSnapshot = new WorkflowSnapshotService().BuildSnapshot(RhinoDoc.ActiveDoc, preview.Plate, preview.Blocks);
+            }
+
+            var featureGroups = BuildWorkflowFeatureGroups(workflowSnapshot, planningContext);
+            if (featureGroups.Count == 0)
             {
                 plateItem.Children.Add(new TreeGridItem
                 {
@@ -605,61 +687,212 @@ public sealed class ExportPanel : Panel
                         string.Empty,
                         string.Empty,
                         "0"
-                    }
+                    },
+                    Tag = new WorkflowTreeSelection(plateKey, preview.Plate.Name, WorkflowFeatureGroupKind.None)
                 });
             }
             else
             {
-                foreach (var block in preview.Blocks.OrderBy(b => b.BlockName, StringComparer.OrdinalIgnoreCase))
+                foreach (var group in featureGroups)
                 {
-                    plateItem.Children.Add(new TreeGridItem
+                    var groupItem = new TreeGridItem
                     {
                         Values = new object?[]
                         {
                             null,
-                            block.BlockName,
-                            block.CncType,
-                            block.LayerName ?? string.Empty,
-                            MachiningCountForBlock(block).ToString(CultureInfo.InvariantCulture)
-                        }
-                    });
-                }
+                            group.DisplayName,
+                            BuildWorkflowGroupDetail(group),
+                            group.SourceSummary,
+                            group.Items.Count.ToString(CultureInfo.InvariantCulture)
+                        },
+                        Tag = new WorkflowTreeSelection(plateKey, preview.Plate.Name, group.Kind)
+                    };
 
-                if (preview.FaceFeatureCount > 0)
-                {
-                    plateItem.Children.Add(new TreeGridItem
+                    foreach (var item in group.Items)
                     {
-                        Values = new object?[]
+                        groupItem.Children.Add(new TreeGridItem
                         {
-                            null,
-                            "(Face-Features)",
-                            "FeatureTag",
-                            "Objekt-/Face-Tags",
-                            preview.FaceFeatureCount.ToString(CultureInfo.InvariantCulture)
-                        }
-                    });
-                }
+                            Values = new object?[]
+                            {
+                                null,
+                                item.Name,
+                                item.Detail,
+                                BuildWorkflowItemSourceSummary(item),
+                                item.MachiningTypeLabel
+                            },
+                            Tag = new WorkflowTreeSelection(plateKey, preview.Plate.Name, group.Kind)
+                        });
+                    }
 
-                if (preview.ManualMachiningCount > 0)
-                {
-                    plateItem.Children.Add(new TreeGridItem
-                    {
-                        Values = new object?[]
-                        {
-                            null,
-                            "(Manuelle CAM-Operationen)",
-                            "UserText",
-                            "Interaktive Commands",
-                            preview.ManualMachiningCount.ToString(CultureInfo.InvariantCulture)
-                        }
-                    });
+                    groupItem.Expanded = true;
+                    plateItem.Children.Add(groupItem);
                 }
             }
 
+            plateItem.Expanded = true;
             _plateTreeItems.Add(plateItem);
         }
 
         _plateTreeView.DataStore = _plateTreeItems;
+
+        if (previousSelection != null)
+        {
+            var restoredSelection = FindTreeItem(_plateTreeItems, previousSelection);
+            if (restoredSelection != null)
+            {
+                _plateTreeView.SelectedItem = restoredSelection;
+            }
+        }
+    }
+
+    private void UpdateWorkflowAssignmentControls()
+    {
+        if (!TryGetSelectedWorkflowPlate(out _, out var snapshot) || snapshot == null)
+        {
+            _workflowSelectionLabel.Text = "Workflow-Zuordnung: Platte im Baum wählen";
+            SetFeatureAssignmentButtonState(0, 0, false, 0, 0, false, 0, 0, false);
+            UpdateWorkflowFocusControls();
+            return;
+        }
+
+        var featureGroups = BuildWorkflowFeatureGroups(snapshot, TryCreateWorkflowPlanningContext());
+        var drillMetrics = GetWorkflowGroupMetrics(featureGroups, WorkflowFeatureGroupKind.Drill);
+        var insideContourMetrics = GetWorkflowGroupMetrics(featureGroups, WorkflowFeatureGroupKind.InsideContour);
+        var outsideContourMetrics = GetWorkflowGroupMetrics(featureGroups, WorkflowFeatureGroupKind.OutsideContour);
+        var selectedGroup = GetSelectedWorkflowGroupKind();
+        var selectedGroupLabel = selectedGroup is WorkflowFeatureGroupKind.Drill or WorkflowFeatureGroupKind.InsideContour or WorkflowFeatureGroupKind.OutsideContour
+            ? $" · gewählt: {GetFeatureGroupDisplayName(selectedGroup)}"
+            : string.Empty;
+
+        _workflowSelectionLabel.Text =
+            $"Workflow-Zuordnung: {snapshot.Plate.Name} · Bohrungen {BuildAssignmentCountSummary(drillMetrics.TotalCount, drillMetrics.OpenCount, drillMetrics.HasAssignmentStatus)} · Innenkonturen {BuildAssignmentCountSummary(insideContourMetrics.TotalCount, insideContourMetrics.OpenCount, insideContourMetrics.HasAssignmentStatus)} · Außenkontur {BuildAssignmentCountSummary(outsideContourMetrics.TotalCount, outsideContourMetrics.OpenCount, outsideContourMetrics.HasAssignmentStatus)}{selectedGroupLabel}";
+        SetFeatureAssignmentButtonState(
+            drillMetrics.TotalCount,
+            drillMetrics.OpenCount,
+            drillMetrics.HasAssignmentStatus,
+            insideContourMetrics.TotalCount,
+            insideContourMetrics.OpenCount,
+            insideContourMetrics.HasAssignmentStatus,
+            outsideContourMetrics.TotalCount,
+            outsideContourMetrics.OpenCount,
+            outsideContourMetrics.HasAssignmentStatus);
+        UpdateWorkflowFocusControls();
+    }
+
+    private void UpdateWorkflowFocusControls()
+    {
+        if (_latestAnalysis == null)
+        {
+            _workflowFocusLabel.Text = "Workflow-Fokus: —";
+            _workflowFocusButton.Text = WorkflowFocusButtonLabel;
+            _workflowFocusButton.Enabled = false;
+            return;
+        }
+
+        if (!TryGetWorkflowFocusRecommendation(out var recommendation, out var hasKnownAssignmentStatus)
+            || recommendation == null)
+        {
+            _workflowFocusLabel.Text = hasKnownAssignmentStatus
+                ? "Workflow-Fokus: Alle bekannten Gruppen sind bereit"
+                : "Workflow-Fokus: Werkzeugstatus wird nach Maschinenwahl sichtbar";
+            _workflowFocusButton.Text = WorkflowFocusButtonLabel;
+            _workflowFocusButton.Enabled = false;
+            return;
+        }
+
+        _workflowFocusLabel.Text = WorkflowFocusRecommendation.FormatLabel(recommendation);
+        _workflowFocusButton.Text = WorkflowFocusRecommendation.FormatActionLabel(recommendation);
+        _workflowFocusButton.Enabled = true;
+    }
+
+    private bool TryGetWorkflowFocusRecommendation(
+        out WorkflowFocusCandidate? recommendation,
+        out bool hasKnownAssignmentStatus)
+    {
+        recommendation = null;
+        hasKnownAssignmentStatus = false;
+
+        if (_latestAnalysis == null)
+        {
+            return false;
+        }
+
+        var planningContext = TryCreateWorkflowPlanningContext();
+
+        if (TryGetSelectedWorkflowPlate(out var selectedPreview, out var selectedSnapshot)
+            && selectedPreview != null
+            && selectedSnapshot != null)
+        {
+            var selectedPlateKey = BuildPlateSelectionKey(selectedPreview.Plate.Name, selectedPreview.Plate.LayerPath);
+            var selectedGroups = BuildWorkflowFeatureGroups(selectedSnapshot, planningContext);
+            hasKnownAssignmentStatus = selectedGroups.Any(group => group.HasAssignmentStatus);
+
+            recommendation = WorkflowFocusRecommendation.SelectNext(
+                BuildWorkflowFocusCandidates(selectedPlateKey, selectedPreview.Plate.Name, selectedGroups));
+            if (recommendation != null)
+            {
+                return true;
+            }
+        }
+
+        var allCandidates = new List<WorkflowFocusCandidate>();
+        foreach (var preview in _latestAnalysis.Plates)
+        {
+            var plateKey = BuildPlateSelectionKey(preview.Plate.Name, preview.Plate.LayerPath);
+            if (!_latestWorkflowSnapshots.TryGetValue(plateKey, out var snapshot))
+            {
+                snapshot = new WorkflowSnapshotService().BuildSnapshot(RhinoDoc.ActiveDoc, preview.Plate, preview.Blocks);
+            }
+
+            var groups = BuildWorkflowFeatureGroups(snapshot, planningContext);
+            hasKnownAssignmentStatus |= groups.Any(group => group.HasAssignmentStatus);
+            allCandidates.AddRange(BuildWorkflowFocusCandidates(plateKey, preview.Plate.Name, groups));
+        }
+
+        recommendation = WorkflowFocusRecommendation.SelectNext(allCandidates);
+        return recommendation != null;
+    }
+
+    private void SetFeatureAssignmentButtonState(
+        int drillTotalCount,
+        int drillOpenCount,
+        bool drillHasAssignmentStatus,
+        int insideContourTotalCount,
+        int insideContourOpenCount,
+        bool insideContourHasAssignmentStatus,
+        int outsideContourTotalCount,
+        int outsideContourOpenCount,
+        bool outsideContourHasAssignmentStatus)
+    {
+        _assignDrillsButton.Enabled = drillTotalCount > 0;
+        _assignInsideContoursButton.Enabled = insideContourTotalCount > 0;
+        _assignOutsideContourButton.Enabled = outsideContourTotalCount > 0;
+
+        _assignDrillsButton.Text = BuildAssignmentButtonLabel(AssignDrillsButtonLabel, drillTotalCount, drillOpenCount, drillHasAssignmentStatus);
+        _assignInsideContoursButton.Text = BuildAssignmentButtonLabel(AssignInsideContoursButtonLabel, insideContourTotalCount, insideContourOpenCount, insideContourHasAssignmentStatus);
+        _assignOutsideContourButton.Text = BuildAssignmentButtonLabel(AssignOutsideContourButtonLabel, outsideContourTotalCount, outsideContourOpenCount, outsideContourHasAssignmentStatus);
+    }
+
+    private static string BuildAssignmentButtonLabel(string baseLabel, int totalCount, int openCount, bool hasAssignmentStatus)
+    {
+        return totalCount > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"{baseLabel} ({BuildAssignmentCountSummary(totalCount, openCount, hasAssignmentStatus)})")
+            : baseLabel;
+    }
+
+    private static string BuildAssignmentCountSummary(int totalCount, int openCount, bool hasAssignmentStatus)
+    {
+        return hasAssignmentStatus
+            ? WorkflowStatusText.FormatOpenVsTotal(openCount, totalCount)
+            : string.Create(CultureInfo.InvariantCulture, $"{Math.Max(0, totalCount)} gesamt");
+    }
+
+    private WorkflowFeatureGroupKind GetSelectedWorkflowGroupKind()
+    {
+        return _plateTreeView.SelectedItem is TreeGridItem selectedItem
+               && selectedItem.Tag is WorkflowTreeSelection selection
+            ? selection.Kind
+            : WorkflowFeatureGroupKind.None;
     }
 
     private void SetAllPlateSelections(bool selected)
@@ -842,6 +1075,7 @@ public sealed class ExportPanel : Panel
         }
 
         RefreshStrategySummary();
+        RefreshWorkflowStatusVisuals();
     }
 
     private void ImportToolLibrary()
@@ -992,7 +1226,7 @@ public sealed class ExportPanel : Panel
             if (result == null)
                 return;
 
-            _strategyOverrides = result.ToDictionary(item => item.OperationKey, item => item, StringComparer.OrdinalIgnoreCase);
+            ApplyStrategyOverrides(items, result);
             RefreshStrategySummary();
             Log($"✅ Werkzeugzuordnung gespeichert: {_strategyOverrides.Count} Override(s)");
             GeneratePreview();
@@ -1000,6 +1234,93 @@ public sealed class ExportPanel : Panel
         catch (Exception ex)
         {
             Log($"❌ Werkzeugzuordnung fehlgeschlagen: {ex.Message}");
+        }
+    }
+
+    private void OpenRecommendedWorkflowAssignment()
+    {
+        try
+        {
+            EnsureAnalysis();
+            if (!TryGetWorkflowFocusRecommendation(out var recommendation, out _)
+                || recommendation == null)
+            {
+                Log("ℹ Keine offenen Workflow-Zuordnungen gefunden.");
+                return;
+            }
+
+            if (!Enum.TryParse<WorkflowFeatureGroupKind>(recommendation.GroupKey, ignoreCase: true, out var groupKind))
+            {
+                Log($"⚠ Unbekannte Workflow-Gruppe: {recommendation.GroupKey}");
+                return;
+            }
+
+            var target = FindTreeItem(
+                _plateTreeItems,
+                new WorkflowTreeSelection(recommendation.PlateKey, recommendation.PlateName, groupKind));
+            if (target == null)
+            {
+                Log($"⚠ Workflow-Fokus konnte im Baum nicht gefunden werden: {recommendation.PlateName} · {recommendation.GroupDisplayName}");
+                return;
+            }
+
+            _plateTreeView.SelectedItem = target;
+            OpenFeatureAssignmentDialog(groupKind);
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Workflow-Fokus konnte nicht geöffnet werden: {ex.Message}");
+        }
+    }
+
+    private void OpenFeatureAssignmentDialog(WorkflowFeatureGroupKind groupKind)
+    {
+        if (!TryGetCurrentProfile(out var profile, out var error))
+        {
+            Log($"❌ {error}");
+            return;
+        }
+
+        try
+        {
+            EnsureAnalysis();
+            if (!TryGetSelectedWorkflowPlate(out _, out var snapshot) || snapshot == null)
+            {
+                Log("⚠ Für die direkte Zuordnung zuerst eine Platte im Workflow-Baum auswählen.");
+                return;
+            }
+
+            var library = _toolLibraryStore.LoadOrCreate(profile!);
+            var baseOptions = CreatePreviewPlanningOptions(includeOverrides: false);
+            var items = BuildOperationStrategyItems(library, snapshot, baseOptions)
+                .Where(item => MatchesWorkflowFeatureGroup(snapshot, item.Machining, groupKind))
+                .ToList();
+
+            if (items.Count == 0)
+            {
+                Log($"⚠ Keine {GetFeatureGroupDisplayName(groupKind)} für {snapshot.Plate.Name} gefunden.");
+                return;
+            }
+
+            var dialog = new ToolStrategyDialog(
+                library,
+                items,
+                _strategyOverrides.Values.ToArray(),
+                baseOptions,
+                focusMissingAssignments: true);
+
+            var result = dialog.ShowModal(this);
+            if (result == null)
+                return;
+
+            ApplyStrategyOverrides(items, result);
+            RefreshStrategySummary();
+            Log($"✅ {GetFeatureGroupDisplayName(groupKind)} für {snapshot.Plate.Name} gespeichert ({items.Count} Bearbeitung(en)).");
+            GeneratePreview();
+        }
+        catch (Exception ex)
+        {
+            Log($"❌ Workflow-Zuordnung fehlgeschlagen: {ex.Message}");
         }
     }
 
@@ -1130,12 +1451,41 @@ public sealed class ExportPanel : Panel
             }
 
             var removed = _toolpathPreviewService.ClearPreview(doc);
-            Log($"✅ Vorschau gelöscht: {removed} Objekt(e)");
+            var interactiveCleared = ClearInteractivePreview(doc);
+
+            if (interactiveCleared > 0)
+            {
+                Log($"✅ Vorschau gelöscht: {removed} Preview-Objekt(e), {interactiveCleared} interaktive Operation(en) bereinigt");
+            }
+            else
+            {
+                Log($"✅ Vorschau gelöscht: {removed} Objekt(e)");
+            }
         }
         catch (Exception ex)
         {
             Log($"❌ Vorschau konnte nicht gelöscht werden: {ex.Message}");
         }
+    }
+
+    private static int ClearInteractivePreview(RhinoDoc doc)
+    {
+        var cleared = 0;
+        foreach (var obj in CncOperationService.GetAllOperationsInDocument(doc))
+        {
+            var has2DPreview = !string.IsNullOrWhiteSpace(obj.Attributes.GetUserString(CncOperationSchema.CNC_GROUP_INDEX));
+            var has3DPreview = !string.IsNullOrWhiteSpace(obj.Attributes.GetUserString("CNC_GroupIndex3D"));
+
+            ToolpathVisualizer.RemoveToolpathGeometry(doc, obj);
+            ToolpathVisualizer.RemoveToolpath3DGeometry(doc, obj);
+
+            if (has2DPreview || has3DPreview)
+            {
+                cleared++;
+            }
+        }
+
+        return cleared;
     }
 
     private bool TryGetCurrentProfile(out IMachineProfile? profile, out string? error)
@@ -1230,14 +1580,6 @@ public sealed class ExportPanel : Panel
         }
     }
 
-    private static int MachiningCountForBlock(FittingBlock block)
-    {
-        if (block.CncType.Equals("MACRO", StringComparison.OrdinalIgnoreCase))
-            return 1;
-
-        return block.CncType.Equals("DRILLPATTERN", StringComparison.OrdinalIgnoreCase) ? 1 : 1;
-    }
-
     private ToolpathPlanningOptions CreatePreviewPlanningOptions(bool includeOverrides)
     {
         return new ToolpathPlanningOptions
@@ -1266,36 +1608,487 @@ public sealed class ExportPanel : Panel
         IReadOnlyList<CorePlatePreview> previews,
         ToolpathPlanningOptions baseOptions)
     {
-        var items = new List<OperationStrategyItem>();
-
         var doc = RhinoDoc.ActiveDoc;
         var workflowSnapshots = new WorkflowSnapshotService().BuildSnapshots(doc, previews);
 
-        foreach (var snapshot in workflowSnapshots)
-        {
-            var plate = snapshot.Plate with
-            {
-                Machinings = snapshot.CombinedMachinings
-            };
+        return workflowSnapshots
+            .SelectMany(snapshot => BuildOperationStrategyItems(library, snapshot, baseOptions))
+            .ToList();
+    }
 
-            for (var index = 0; index < plate.Machinings.Count; index++)
+    private static IReadOnlyList<OperationStrategyItem> BuildOperationStrategyItems(
+        ToolLibrary library,
+        PlateWorkflowSnapshot snapshot,
+        ToolpathPlanningOptions baseOptions)
+    {
+        var items = new List<OperationStrategyItem>();
+        var plate = snapshot.Plate with
+        {
+            Machinings = snapshot.CombinedMachinings
+        };
+
+        for (var index = 0; index < plate.Machinings.Count; index++)
+        {
+            var machining = plate.Machinings[index];
+            items.Add(new OperationStrategyItem
             {
-                var machining = plate.Machinings[index];
-                items.Add(new OperationStrategyItem
-                {
-                    OperationKey = ToolpathPlanner.BuildOperationKey(plate, machining, index),
-                    PlateName = plate.Name,
-                    OperationName = machining.Name,
-                    MachiningType = ToolpathPlanner.GetMachiningType(machining),
-                    Machining = machining,
-                    AutoStrategy = MachiningStrategy.CreateDefault(machining, library, baseOptions),
-                    SupportsRoughing = baseOptions.EnableRoughingStrategies
-                        && (machining is RoutingMachining or RoutingWithArcsMachining or PocketMachining)
-                });
-            }
+                OperationKey = ToolpathPlanner.BuildOperationKey(plate, machining, index),
+                PlateName = plate.Name,
+                OperationName = machining.Name,
+                MachiningType = ToolpathPlanner.GetMachiningType(machining),
+                Machining = machining,
+                AutoStrategy = MachiningStrategy.CreateDefault(machining, library, baseOptions),
+                SupportsRoughing = baseOptions.EnableRoughingStrategies
+                    && (machining is RoutingMachining or RoutingWithArcsMachining or PocketMachining)
+            });
         }
 
         return items;
+    }
+
+    private void ApplyStrategyOverrides(
+        IReadOnlyList<OperationStrategyItem> scopedItems,
+        IReadOnlyList<MachiningToolOverride> result)
+    {
+        var next = new Dictionary<string, MachiningToolOverride>(_strategyOverrides, StringComparer.OrdinalIgnoreCase);
+        foreach (var operationKey in scopedItems.Select(item => item.OperationKey))
+        {
+            next.Remove(operationKey);
+        }
+
+        foreach (var item in result.Where(static item => item.HasOverride))
+        {
+            next[item.OperationKey] = item;
+        }
+
+        _strategyOverrides = next;
+        RefreshWorkflowStatusVisuals();
+    }
+
+    private void RefreshWorkflowStatusVisuals()
+    {
+        if (_latestAnalysis == null)
+        {
+            UpdateWorkflowAssignmentControls();
+            return;
+        }
+
+        PopulatePlateTree(_latestAnalysis.Plates);
+        UpdateWorkflowAssignmentControls();
+    }
+
+    private bool TryGetSelectedWorkflowPlate(
+        out CorePlatePreview? preview,
+        out PlateWorkflowSnapshot? snapshot)
+    {
+        preview = null;
+        snapshot = null;
+
+        if (_latestAnalysis == null)
+            return false;
+
+        if (_plateTreeView.SelectedItem is not TreeGridItem selectedItem
+            || selectedItem.Tag is not WorkflowTreeSelection selection)
+        {
+            return false;
+        }
+
+        preview = _latestAnalysis.Plates.FirstOrDefault(item =>
+            string.Equals(
+                BuildPlateSelectionKey(item.Plate.Name, item.Plate.LayerPath),
+                selection.PlateKey,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (preview == null)
+            return false;
+
+        return _latestWorkflowSnapshots.TryGetValue(selection.PlateKey, out snapshot);
+    }
+
+    private IReadOnlyList<WorkflowFeatureGroupView> BuildWorkflowFeatureGroups(
+        PlateWorkflowSnapshot snapshot,
+        WorkflowPlanningContext? planningContext)
+    {
+        var plate = snapshot.Plate with
+        {
+            Machinings = snapshot.CombinedMachinings
+        };
+
+        return snapshot.CombinedMachinings
+            .Select((machining, index) =>
+            {
+                var assignmentStatus = EvaluateWorkflowAssignmentStatus(plate, machining, index, planningContext);
+                return new WorkflowFeatureItemView(
+                    ClassifyWorkflowFeatureGroup(snapshot, machining),
+                    machining.Name,
+                    BuildWorkflowFeatureDetail(machining),
+                    GetWorkflowSourceLabel(machining.Source),
+                    assignmentStatus.ItemLabel,
+                    ToolpathPlanner.GetMachiningType(machining).ToString(),
+                    assignmentStatus);
+            })
+            .GroupBy(item => item.Kind)
+            .OrderBy(group => GetWorkflowGroupSortOrder(group.Key))
+            .Select(group =>
+            {
+                var items = group.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
+                var totalCount = items.Count;
+                var knownAssignmentCount = items.Count(item => item.AssignmentStatus.IsKnown);
+                var openCount = items.Count(item => item.AssignmentStatus.IsKnown && !item.AssignmentStatus.IsReady);
+                var overrideCount = items.Count(item => item.AssignmentStatus.HasOverride);
+                var hasAssignmentStatus = knownAssignmentCount > 0;
+
+                return new WorkflowFeatureGroupView(
+                    group.Key,
+                    GetFeatureGroupDisplayName(group.Key),
+                    totalCount,
+                    openCount,
+                    overrideCount,
+                    hasAssignmentStatus,
+                    hasAssignmentStatus
+                        ? WorkflowStatusText.FormatOpenVsTotal(openCount, totalCount)
+                        : string.Create(CultureInfo.InvariantCulture, $"{totalCount} Feature(s)"),
+                    BuildWorkflowAssignmentSummary(items.Select(item => item.AssignmentStatus)),
+                    BuildWorkflowSourceSummary(items.Select(item => item.SourceLabel)),
+                    items);
+            })
+            .ToList();
+    }
+
+    private WorkflowPlanningContext? TryCreateWorkflowPlanningContext()
+    {
+        if (!TryGetCurrentProfile(out var profile, out _)
+            || profile == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return new WorkflowPlanningContext(
+                _toolLibraryStore.LoadOrCreate(profile),
+                CreatePreviewPlanningOptions(includeOverrides: true));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static WorkflowAssignmentStatus EvaluateWorkflowAssignmentStatus(
+        Plate plate,
+        Machining machining,
+        int machiningIndex,
+        WorkflowPlanningContext? planningContext)
+    {
+        if (planningContext == null)
+        {
+            return new WorkflowAssignmentStatus(false, false, false, null);
+        }
+
+        var operationKey = ToolpathPlanner.BuildOperationKey(plate, machining, machiningIndex);
+        var strategyOverride = planningContext.Options.FindOverride(operationKey);
+        var strategy = MachiningStrategy.CreateDefault(
+            machining,
+            planningContext.ToolLibrary,
+            planningContext.Options,
+            strategyOverride);
+
+        if (strategy.FinishingTool == null)
+        {
+            return new WorkflowAssignmentStatus(false, false, true, "ohne Werkzeug");
+        }
+
+        return strategyOverride?.HasOverride == true
+            ? new WorkflowAssignmentStatus(true, true, true, "Override")
+            : new WorkflowAssignmentStatus(true, false, true, "Auto");
+    }
+
+    private static string? BuildWorkflowAssignmentSummary(IEnumerable<WorkflowAssignmentStatus> assignmentStates)
+    {
+        var knownStates = assignmentStates
+            .Where(state => state.IsKnown && !string.IsNullOrWhiteSpace(state.ItemLabel))
+            .ToList();
+
+        if (knownStates.Count == 0)
+        {
+            return null;
+        }
+
+        var overrideCount = knownStates.Count(state => state.HasOverride);
+        return overrideCount > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"{overrideCount} Override(s)")
+            : null;
+    }
+
+    private static string BuildWorkflowGroupDetail(WorkflowFeatureGroupView group)
+    {
+        return string.IsNullOrWhiteSpace(group.AssignmentSummary)
+            ? group.Summary
+            : string.Create(CultureInfo.InvariantCulture, $"{group.Summary} · {group.AssignmentSummary}");
+    }
+
+    private static string BuildWorkflowItemSourceSummary(WorkflowFeatureItemView item)
+    {
+        return string.IsNullOrWhiteSpace(item.AssignmentLabel)
+            ? item.SourceLabel
+            : string.Create(CultureInfo.InvariantCulture, $"{item.SourceLabel} · {item.AssignmentLabel}");
+    }
+
+    private static TreeGridItem? FindTreeItem(
+        TreeGridItemCollection items,
+        WorkflowTreeSelection selection)
+    {
+        foreach (var item in items.OfType<TreeGridItem>())
+        {
+            var match = FindTreeItem(item, selection);
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static TreeGridItem? FindTreeItem(
+        TreeGridItem item,
+        WorkflowTreeSelection selection)
+    {
+        if (item.Tag is WorkflowTreeSelection currentSelection
+            && string.Equals(currentSelection.PlateKey, selection.PlateKey, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(currentSelection.PlateName, selection.PlateName, StringComparison.OrdinalIgnoreCase)
+            && currentSelection.Kind == selection.Kind)
+        {
+            return item;
+        }
+
+        foreach (var child in item.Children.OfType<TreeGridItem>())
+        {
+            var match = FindTreeItem(child, selection);
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static (int TotalCount, int OpenCount, bool HasAssignmentStatus) GetWorkflowGroupMetrics(
+        IReadOnlyList<WorkflowFeatureGroupView> groups,
+        WorkflowFeatureGroupKind kind)
+    {
+        var group = groups.FirstOrDefault(item => item.Kind == kind);
+        return group == null
+            ? (0, 0, false)
+            : (group.TotalCount, group.OpenCount, group.HasAssignmentStatus);
+    }
+
+    private static IReadOnlyList<WorkflowFocusCandidate> BuildWorkflowFocusCandidates(
+        string plateKey,
+        string plateName,
+        IReadOnlyList<WorkflowFeatureGroupView> groups)
+    {
+        return groups
+            .Where(group => group.Kind is WorkflowFeatureGroupKind.Drill or WorkflowFeatureGroupKind.InsideContour or WorkflowFeatureGroupKind.OutsideContour)
+            .Select(group => new WorkflowFocusCandidate(
+                plateKey,
+                plateName,
+                group.Kind.ToString(),
+                group.DisplayName,
+                GetWorkflowGroupSortOrder(group.Kind),
+                group.OpenCount,
+                group.TotalCount,
+                group.HasAssignmentStatus))
+            .ToList();
+    }
+
+    private static bool MatchesWorkflowFeatureGroup(
+        PlateWorkflowSnapshot snapshot,
+        Machining machining,
+        WorkflowFeatureGroupKind kind)
+    {
+        return ClassifyWorkflowFeatureGroup(snapshot, machining) == kind;
+    }
+
+    private static WorkflowFeatureGroupKind ClassifyWorkflowFeatureGroup(
+        PlateWorkflowSnapshot snapshot,
+        Machining machining)
+    {
+        if (machining is DrillMachining or DrillPatternMachining or HorizontalDrillMachining)
+            return WorkflowFeatureGroupKind.Drill;
+
+        if (IsClosedContour(machining))
+        {
+            if (LooksLikeOutsideContour(machining.Name))
+                return WorkflowFeatureGroupKind.OutsideContour;
+
+            if (LooksLikeInsideContour(machining.Name))
+                return WorkflowFeatureGroupKind.InsideContour;
+
+            var outsideContour = FindFallbackOutsideContour(snapshot);
+            return ReferenceEquals(outsideContour, machining)
+                ? WorkflowFeatureGroupKind.OutsideContour
+                : WorkflowFeatureGroupKind.InsideContour;
+        }
+
+        return WorkflowFeatureGroupKind.Other;
+    }
+
+    private static Machining? FindFallbackOutsideContour(PlateWorkflowSnapshot snapshot)
+    {
+        return snapshot.CombinedMachinings
+            .Where(IsClosedContour)
+            .OrderByDescending(GetContourArea)
+            .FirstOrDefault();
+    }
+
+    private static bool IsClosedContour(Machining machining)
+    {
+        return machining switch
+        {
+            RoutingMachining routing => routing.IsClosed,
+            RoutingWithArcsMachining routingWithArcs => routingWithArcs.IsClosed,
+            _ => false
+        };
+    }
+
+    private static bool LooksLikeOutsideContour(string name)
+    {
+        return name.Contains("aussen", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("außen", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("outside", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("outer", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool LooksLikeInsideContour(string name)
+    {
+        return name.Contains("innen", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("inside", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("inner", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static double GetContourArea(Machining machining)
+    {
+        var points = machining switch
+        {
+            RoutingMachining routing => routing.Points,
+            RoutingWithArcsMachining routingWithArcs => BuildRoutingWithArcsPoints(routingWithArcs),
+            _ => Array.Empty<(double X, double Y)>()
+        };
+
+        if (points.Count < 3)
+            return 0;
+
+        double area = 0;
+        for (var index = 0; index < points.Count; index++)
+        {
+            var current = points[index];
+            var next = points[(index + 1) % points.Count];
+            area += (current.X * next.Y) - (next.X * current.Y);
+        }
+
+        return Math.Abs(area) * 0.5;
+    }
+
+    private static IReadOnlyList<(double X, double Y)> BuildRoutingWithArcsPoints(RoutingWithArcsMachining routingWithArcs)
+    {
+        var points = new List<(double X, double Y)> { (routingWithArcs.StartX, routingWithArcs.StartY) };
+        foreach (var segment in routingWithArcs.Segments)
+        {
+            points.Add((segment.EndX, segment.EndY));
+        }
+
+        return points;
+    }
+
+    private static string BuildWorkflowFeatureDetail(Machining machining)
+    {
+        return machining switch
+        {
+            DrillMachining drill => string.Create(
+                CultureInfo.InvariantCulture,
+                $"Ø {drill.Diameter:0.###} · Z {drill.Depth:0.###} · X {drill.X:0.###} / Y {drill.Y:0.###}"),
+            DrillPatternMachining pattern => string.Create(
+                CultureInfo.InvariantCulture,
+                $"Ø {pattern.Diameter:0.###} · {pattern.CountX}×{pattern.CountY} · X {pattern.X:0.###} / Y {pattern.Y:0.###}"),
+            HorizontalDrillMachining horizontal => string.Create(
+                CultureInfo.InvariantCulture,
+                $"Ø {horizontal.Diameter:0.###} · Z {horizontal.Depth:0.###} · Seite {horizontal.DrillSide}"),
+            RoutingMachining routing => string.Create(
+                CultureInfo.InvariantCulture,
+                $"Z {routing.Depth:0.###} · Ø {routing.ToolDiameter:0.###} · {routing.Points.Count} Pt."),
+            RoutingWithArcsMachining routingWithArcs => string.Create(
+                CultureInfo.InvariantCulture,
+                $"Z {routingWithArcs.Depth:0.###} · Ø {routingWithArcs.ToolDiameter:0.###} · {routingWithArcs.Segments.Count} Seg."),
+            PocketMachining pocket => string.Create(
+                CultureInfo.InvariantCulture,
+                $"Pocket · Z {pocket.Depth:0.###} · Ø {pocket.ToolDiameter:0.###}"),
+            GrooveRntMachining groove => string.Create(
+                CultureInfo.InvariantCulture,
+                $"RNT {groove.RntCode} · Z {groove.Depth:0.###} · W {groove.Width:0.###}"),
+            MacroMachining macro => $"Makro · {macro.MacroName}",
+            BladeCutMachining bladeCut => string.Create(
+                CultureInfo.InvariantCulture,
+                $"BladeCut · {bladeCut.Angle:0.###}° · Z {bladeCut.Depth:0.###}"),
+            _ => ToolpathPlanner.GetMachiningType(machining).ToString()
+        };
+    }
+
+    private static string BuildWorkflowSourceSummary(IEnumerable<string> sourceLabels)
+    {
+        var counts = sourceLabels
+            .GroupBy(label => label, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => GetWorkflowSourceSortOrder(group.Key))
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => $"{group.Key}: {group.Count()}");
+
+        return string.Join(" · ", counts);
+    }
+
+    private static string GetWorkflowSourceLabel(MachiningSource source)
+    {
+        return source switch
+        {
+            MachiningSource.BlockDetection => "Block-Ops",
+            MachiningSource.FaceTag => "Face-Feature",
+            MachiningSource.Manual => "Manuell",
+            _ => "Legacy"
+        };
+    }
+
+    private static string GetFeatureGroupDisplayName(WorkflowFeatureGroupKind kind)
+    {
+        return kind switch
+        {
+            WorkflowFeatureGroupKind.Drill => "Bohrungen",
+            WorkflowFeatureGroupKind.InsideContour => "Innenkonturen",
+            WorkflowFeatureGroupKind.OutsideContour => "Außenkontur",
+            _ => "Weitere Workflow-Features"
+        };
+    }
+
+    private static int GetWorkflowGroupSortOrder(WorkflowFeatureGroupKind kind)
+    {
+        return kind switch
+        {
+            WorkflowFeatureGroupKind.Drill => 0,
+            WorkflowFeatureGroupKind.InsideContour => 1,
+            WorkflowFeatureGroupKind.OutsideContour => 2,
+            _ => 3
+        };
+    }
+
+    private static int GetWorkflowSourceSortOrder(string sourceLabel)
+    {
+        return sourceLabel switch
+        {
+            "Block-Ops" => 0,
+            "Face-Feature" => 1,
+            "Manuell" => 2,
+            _ => 3
+        };
     }
 
     private void RefreshStrategySummary()
@@ -1345,6 +2138,9 @@ public sealed class ExportPanel : Panel
             lines.Add($"{result.ExportedFiles.Count} Datei(en) exportiert.");
         }
 
+        if (result.Analysis != null)
+            lines.Add(BuildWorkflowSummary(result.Analysis.Plates));
+
         if (result.ExportedFiles.Count > 0)
         {
             lines.Add("Dateien:");
@@ -1352,6 +2148,52 @@ public sealed class ExportPanel : Panel
         }
 
         return string.Join(System.Environment.NewLine, lines);
+    }
+
+    private string BuildWorkflowSummary(IReadOnlyList<CorePlatePreview> previews)
+    {
+        var blockMachinings = previews.Sum(preview => preview.BlockMachiningCount);
+        var faceFeatures = previews.Sum(preview => preview.FaceFeatureCount);
+        var manualMachinings = previews.Sum(preview => preview.ManualMachiningCount);
+        var planningContext = TryCreateWorkflowPlanningContext();
+        var openGroupCount = 0;
+        var readyGroupCount = 0;
+        var hasKnownAssignmentStatus = false;
+
+        foreach (var preview in previews)
+        {
+            var plateKey = BuildPlateSelectionKey(preview.Plate.Name, preview.Plate.LayerPath);
+            if (!_latestWorkflowSnapshots.TryGetValue(plateKey, out var snapshot))
+            {
+                snapshot = new WorkflowSnapshotService().BuildSnapshot(RhinoDoc.ActiveDoc, preview.Plate, preview.Blocks);
+            }
+
+            foreach (var group in BuildWorkflowFeatureGroups(snapshot, planningContext))
+            {
+                if (!group.HasAssignmentStatus)
+                {
+                    continue;
+                }
+
+                hasKnownAssignmentStatus = true;
+                if (group.OpenCount > 0)
+                {
+                    openGroupCount++;
+                }
+                else
+                {
+                    readyGroupCount++;
+                }
+            }
+        }
+
+        return WorkflowSummaryText.Format(
+            blockMachinings,
+            faceFeatures,
+            manualMachinings,
+            openGroupCount,
+            readyGroupCount,
+            hasKnownAssignmentStatus);
     }
 
     private void UpdateReport(string text)
@@ -1365,3 +2207,48 @@ public sealed class ExportPanel : Panel
         _logArea.Append($"[{timestamp}] {message}\n", true);
     }
 }
+
+internal enum WorkflowFeatureGroupKind
+{
+    None,
+    Drill,
+    InsideContour,
+    OutsideContour,
+    Other
+}
+
+internal sealed record WorkflowTreeSelection(
+    string PlateKey,
+    string PlateName,
+    WorkflowFeatureGroupKind Kind);
+
+internal sealed record WorkflowFeatureItemView(
+    WorkflowFeatureGroupKind Kind,
+    string Name,
+    string Detail,
+    string SourceLabel,
+    string? AssignmentLabel,
+    string MachiningTypeLabel,
+    WorkflowAssignmentStatus AssignmentStatus);
+
+internal sealed record WorkflowFeatureGroupView(
+    WorkflowFeatureGroupKind Kind,
+    string DisplayName,
+    int TotalCount,
+    int OpenCount,
+    int OverrideCount,
+    bool HasAssignmentStatus,
+    string Summary,
+    string? AssignmentSummary,
+    string SourceSummary,
+    IReadOnlyList<WorkflowFeatureItemView> Items);
+
+internal sealed record WorkflowAssignmentStatus(
+    bool IsReady,
+    bool HasOverride,
+    bool IsKnown,
+    string? ItemLabel);
+
+internal sealed record WorkflowPlanningContext(
+    ToolLibrary ToolLibrary,
+    ToolpathPlanningOptions Options);

@@ -7,16 +7,44 @@ on:
       - feat/**
       - fix/**
       - chore/**
+    paths:
+      - .github/workflows/core-ci.yml
+      - RH_caminterface.sln
+      - RhinoCNCExporter.Core/**
+      - RhinoCNCExporter.Tests/**
+      - RhinoCNCExporter/Core/**
+      - RhinoCNCExporter/BlockScanning/**
+      - scripts/test.ps1
   pull_request:
+    paths:
+      - .github/workflows/core-ci.yml
+      - RH_caminterface.sln
+      - RhinoCNCExporter.Core/**
+      - RhinoCNCExporter.Tests/**
+      - RhinoCNCExporter/Core/**
+      - RhinoCNCExporter/BlockScanning/**
+      - scripts/test.ps1
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4

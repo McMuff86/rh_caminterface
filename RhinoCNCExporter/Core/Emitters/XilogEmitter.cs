@@ -248,6 +248,8 @@ public sealed class XilogEmitter : IEmitter
     public string EmitBladeCut(string name, double angle, IReadOnlyList<BladeCutSegment> segments,
         string tech, double depth, SectioningStrategy strategy, string plane = "Top")
     {
+        var operationName = _names.CreateUniquePreservingText(name);
+
         var lines = new List<string>
         {
             F($"SelectWorkplane(\"{plane}\");"),
@@ -263,7 +265,7 @@ public sealed class XilogEmitter : IEmitter
         }
 
         // BladeCut with production format parameters
-        lines.Add(F($"CreateBladeCut(\"{name}\",\"Blade Cut\",TypeOfProcess.GeneralRouting,\"{tech}\",\"-1\",{angle:F2},2,-1,-1,-1,2,true,true,0,{FmtCompact(depth)});"));
+        lines.Add(F($"CreateBladeCut(\"{operationName}\",\"Blade Cut\",TypeOfProcess.GeneralRouting,\"{tech}\",\"-1\",{angle:F2},2,-1,-1,-1,2,true,true,0,{FmtCompact(depth)});"));
         lines.Add("ResetApproachStrategy();");
         lines.Add("ResetRetractStrategy();");
         lines.Add("");

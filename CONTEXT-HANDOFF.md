@@ -13,7 +13,7 @@ Ein **Rhino 8 C#-Plugin** (Yak Package), das aus 2D-Geometrien + Layer-Konventio
 
 Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nuten schneiden.
 
-## Aktueller Stand (zuletzt aktualisiert: 2026-03-24, Sprint 5 Validation + Sprint 6-8 Foundation In Progress)
+## Aktueller Stand (zuletzt aktualisiert: 2026-04-12, Sprint 9 Workflow UI + Night-Factory Cycle)
 
 ### Deep Research + 55-XCS-Analyse abgeschlossen
 - **`docs/RESEARCH-CAM-FORMATS.md`** — 33KB umfassendes Research-Dokument zu:
@@ -41,10 +41,25 @@ Einsatzgebiet: Holzbearbeitung / Möbelindustrie — Platten fräsen, bohren, Nu
 - **DevEx / Automatisierung (12.04.2026)**:
   - `scripts/build.ps1`, `scripts/test.ps1`, `scripts/package.ps1`, `scripts/install.ps1`
   - `scripts/setup-agent-worktrees.ps1` für isolierte Multi-Agent-Worktrees
+  - lokale Build-/Test-Artefakte landen unter `artifacts/` und sind jetzt bewusst gitignored
   - GitHub Actions:
-    - `.github/workflows/core-ci.yml`
-    - `.github/workflows/windows-plugin-build.yml`
+    - `.github/workflows/core-ci.yml` (read-only permissions, concurrency-cancel, clean checkout ohne persistierte Credentials und Trigger nur bei relevanten Core-/Test-/Workflow-Dateien)
+    - `.github/workflows/windows-plugin-build.yml` (self-hosted Windows build nur noch automatisch auf `main`, sonst manuell per `workflow_dispatch`, zusätzlich auf relevante Code-/Script-Pfade begrenzt, dazu concurrency-cancel, Timeout und checkout ohne persistierte Credentials)
+    - `.github/workflows/release-package.yml` (tag-/dispatch-basierter self-hosted Release-Workflow jetzt ebenfalls mit clean checkout ohne persistierte Credentials, concurrency-cancel und Timeout)
   - Multi-Agent-Playbook: `docs/MULTI-AGENT-WORKFLOW.md`
+
+### Night-Factory Cycle (12.04.2026, 02:35 Europe/Zurich)
+- **Test-Suite stabilisiert**: 662 xUnit-Tests grün; brittle enum/schema assertions auf aktuellen Stand gebracht und kleine Workflow-Text-/Fokus-/Summary-Helfer sind jetzt ebenfalls abgesichert ✅
+- **BladeCut/XCS Naming korrigiert**: BladeCut-Namen bleiben im XCS menschenlesbar (Spaces/`/` bleiben erhalten), respektieren aber weiter das 31-Zeichen-Limit und eindeutige Suffixe ✅
+- **CI-Sicherheit gehärtet**: self-hosted Windows Workflow läuft nicht mehr auf `pull_request`; Core CI nutzt minimale `contents: read` Permissions ✅
+- **Sprint-9 Workflow-UI weitergezogen**: `ExportPanel` zeigt jetzt nicht nur die Workflow-Zusammenfassung (`Block-Ops`, `Face-Features`, `Manuell`), sondern auch eine erste feature-zentrierte Workflow-Sicht pro Platte mit Gruppen für Bohrungen, Innenkonturen und Außenkontur; dazu direkte Zuweisungs-Buttons, die den bestehenden Werkzeugdialog auf die gewählte Platte/Feature-Gruppe filtern ✅
+- **UX-Follow-up auf denselben Slice**: Zuweisungs-Buttons zeigen jetzt direkt die Anzahl pro Feature-Gruppe und markieren die aktuell gewählte Gruppe im Statustext; `Vorschau löschen` räumt nun sowohl Workflow-Preview als auch interaktive CNC-Toolpaths konsistent auf ✅
+- **Workflow-Status im Baum sichtbar**: Gruppen im `ExportPanel` zeigen jetzt direkt, ob sie `bereit` sind oder noch Bearbeitungen `ohne Werkzeug` enthalten; einzelne Workflow-Items tragen zusätzlich `Auto`/`Override`/`ohne Werkzeug`, und die aktuelle Auswahl bleibt bei Tool-/Override-Refresh erhalten ✅
+- **Direkter Offene-Punkte-Fokus im Werkzeugdialog**: gruppierte Workflow-CTAs öffnen den `ToolStrategyDialog` jetzt mit aktiviertem `Nur Bearbeitungen ohne Werkzeug zeigen`, solange noch ungelöste Bearbeitungen existieren. Offene Punkte stehen auch ohne Filter oben, der Toggle bleibt für den Wechsel zurück auf die volle Liste verfügbar, und der Filter hat eine stabile UI-Automation-ID ✅
+- **CTA-/Baumtexte priorisieren jetzt offene Lücken sichtbarer**: Workflow-Zuweisungen unterscheiden im ExportPanel jetzt direkt `offen` vs. `gesamt` (`2 offen / 6 gesamt`) statt nur rohe Feature-Counts, damit die nächste sinnvolle Aktion schon vor dem Dialog klar ist ✅
+- **Neuer Workflow-Fokus im ExportPanel**: Das Panel hebt jetzt die aktuell wichtigste offene Zuweisung direkt hervor (`Workflow-Fokus`) und bietet mit `Nächsten offenen Punkt öffnen` einen direkten Einstieg in die passende Platte/Gruppe; das CTA benennt jetzt auch direkt die empfohlene Gruppe (`Bohrungen öffnen`, `Außenkontur öffnen`, ...) und behält dabei stabile Automation-IDs für Label und CTA ✅
+- **CI-Safety Follow-up**: die aktiven Build-/Release-Workflows nutzen jetzt `concurrency`-Schranken, explizite Timeouts und `actions/checkout` ohne persistierte Credentials; zusätzlich reagieren Core-/Windows-Build nur noch auf relevante Code-/Script-Pfade, und der self-hosted Windows-Build läuft automatisch nur noch auf `main` ✅
+- **Globale Workflow-Summary präzisiert**: Das ExportPanel zeigt jetzt schon ohne Plattenauswahl, wie viele Gruppen über alle Platten hinweg noch `offen` vs. bereits `bereit` sind; ohne Maschinenwahl erscheint stattdessen explizit der Hinweis, dass der Werkzeugstatus noch nicht bestimmt werden kann ✅
 
 - **Python-Referenz** (`RH_caminterface_v007.py`): Vollständig funktional, kann .xcs-Dateien erzeugen
 - **Phase 1 (SCM/XCS)** — KOMPLETT:

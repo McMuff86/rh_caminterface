@@ -36,9 +36,17 @@ internal static class UiAutomationIds
     public const string SimulationSpeed = "rhcam.preview.simulationSpeed";
     public const string Cleanup = "rhcam.preview.cleanup";
 
+    public const string ExportPanelPlateTree = "rhcam.export.plateTree";
+    public const string ExportPanelWorkflowSummary = "rhcam.export.workflowSummary";
+    public const string ExportPanelWorkflowFocus = "rhcam.export.workflowFocus";
+    public const string ExportPanelWorkflowFocusAction = "rhcam.export.workflowFocusAction";
+    public const string ExportPanelAssignDrills = "rhcam.export.assignDrills";
+    public const string ExportPanelAssignInsideContours = "rhcam.export.assignInsideContours";
+    public const string ExportPanelAssignOutsideContour = "rhcam.export.assignOutsideContour";
     public const string ExportPanelGeneratePreview = "rhcam.export.preview";
     public const string ExportPanelClearPreview = "rhcam.export.previewClear";
     public const string ExportPanelRunExport = "rhcam.export.batchRun";
     public const string ExportPanelToolManager = "rhcam.export.toolManager";
     public const string ExportPanelToolStrategy = "rhcam.export.toolStrategy";
+    public const string ToolStrategyOnlyMissing = "rhcam.export.toolStrategy.onlyMissing";
 }

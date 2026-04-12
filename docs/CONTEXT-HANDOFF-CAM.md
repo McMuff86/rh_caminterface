@@ -17,6 +17,16 @@
   - UserText/interaktive CAM-Operationen
 - `ToolpathPreviewService` plant Vorschau jetzt aus demselben Workflow-Snapshot statt aus einer reduzierten Block-only Sicht.
 - `ExportPanel` zeigt dadurch konsistentere Dokument- und Platten-Counts.
+- Kleiner Sprint-9 UX-Slice ergänzt: Dokumentanalyse + Export-Report zeigen jetzt explizit die Workflow-Quellen `Block-Ops`, `Face-Features` und `Manuell`; zusätzlich gibt es stabile UI-IDs für Plattenbaum und Workflow-Summary.
+- `ExportPanel` zeigt jetzt erstmals eine echte workflow-zentrierte Hauptsicht pro Platte: gruppierte Featurelisten für `Bohrungen`, `Innenkonturen`, `Außenkontur` und `Weitere Workflow-Features`, gespeist aus `WorkflowSnapshotService` statt nur aus Block-Counts.
+- Direkte Zuweisungs-Einstiege im `ExportPanel` vorhanden: `Bohrungen zuordnen`, `Innenkonturen zuordnen`, `Außenkontur zuordnen`. Diese öffnen den bestehenden `ToolStrategyDialog` gefiltert auf die gewählte Platte und Feature-Gruppe.
+- Die Zuweisungs-Buttons tragen jetzt ihre Live-Counts direkt im Label und unterscheiden dabei offen vs. gesamt (`2 offen / 6 gesamt`), damit die dringendsten Lücken schon vor dem Dialog klarer sind.
+- Der Workflow-Baum zeigt jetzt pro Gruppe auch den effektiven Zuweisungsstatus aus aktueller Werkzeugbibliothek + Overrides (`bereit` oder `ohne Werkzeug`); einzelne Items markieren zusätzlich `Auto`, `Override` oder `ohne Werkzeug` direkt in der Quellen-Spalte.
+- Gruppen-CTAs öffnen den `ToolStrategyDialog` jetzt mit direktem Fokus auf offene Punkte: `Nur Bearbeitungen ohne Werkzeug zeigen` startet aktiviert, wenn es noch ungelöste Bearbeitungen gibt. Offene Einträge stehen auch ohne Filter oben, und der Toggle hat mit `rhcam.export.toolStrategy.onlyMissing` eine stabile Automation-ID.
+- `Vorschau löschen` bereinigt im ExportPanel jetzt konsistent sowohl die Workflow-Vorschau als auch vorhandene interaktive `CNC_Toolpaths`, statt nur die 3D-/Batch-Vorschau zu entfernen.
+- Tool-/Override-Änderungen refreshen den Baum jetzt statusbewusst, ohne die aktuelle Workflow-Auswahl unnötig zu verlieren.
+- Neu im Folge-Slice: Das ExportPanel zeigt jetzt zusätzlich einen `Workflow-Fokus` mit direktem CTA `Nächsten offenen Punkt öffnen`. Damit springt der Nutzer ohne Baum-Suche direkt in die wichtigste offene Zuweisung; das CTA benennt jetzt auch direkt die empfohlene Gruppe (`Bohrungen öffnen`, `Außenkontur öffnen`, ...), Label und CTA behalten dabei ihre stabilen Automation-IDs (`rhcam.export.workflowFocus`, `rhcam.export.workflowFocusAction`).
+- Neue globale Workflow-Summary: Schon ohne Plattenauswahl wird jetzt über alle Workflow-Gruppen hinweg sichtbar, wie viele Gruppen noch `offen` und wie viele bereits `bereit` sind. Solange noch keine Maschine gewählt ist, zeigt die Summary stattdessen explizit `Werkzeugstatus nach Maschinenwahl`.
 
 
 ### 1.1 Commands (All Implemented ✅)

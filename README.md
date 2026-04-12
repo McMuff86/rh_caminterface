@@ -21,6 +21,7 @@ Neben dem bewährten Layer-basierten Export bietet das Plugin jetzt ein **intera
 - **Werkzeugbahn-Simulation:** Animierte Werkzeugbewegung entlang der Bahnen
 - **Werkzeugbibliothek:** Pro Maschinenprofil, mit CRUD-Verwaltung
 - **Pre-Export-Validierung:** 12 automatische Prüfungen (Werkzeug, Tiefe, Geometrie, …)
+- **Workflow-Exportpanel:** gruppierte Platte-zu-Feature-Sicht mit globaler `offen`-/`bereit`-Summary, direktem Workflow-Fokus, kontextbezogenem CTA für den nächsten offenen Punkt und stabilen Automation-IDs für spätere Smoke-Tests
 - **Export-Vorschau:** CNC-Code mit Syntax-Highlighting, Zeilennummern, Kopieren, Editor-Export
 - **Maschinenprofile:** SCM (Xilog), Biesse (CIX), MaestroCadT — profilspezifische Standards
 - **Undo-Support:** Alle Operationen in Rhinos Undo-System integriert
@@ -198,8 +199,9 @@ RhinoCNCExporter/
 - **Philosophie**: Pure Logik testbar ohne Rhino-UI. Geometrienahe Tests können Rhino.Geometry headless nutzen.
 - **Kategorien**: Parser, Naming, Geometry, Emitter, Profile.
 - **CI-Setup**:
-  - `core-ci.yml` auf GitHub Hosted Runnern für Core + Tests
-  - `windows-plugin-build.yml` auf Self-Hosted Windows Runnern mit Rhino 8 für Plugin-Build + Yak-Package
+  - `core-ci.yml` auf GitHub Hosted Runnern für Core + Tests, nur bei relevanten Core-/Test-/Workflow-Änderungen
+  - `windows-plugin-build.yml` auf Self-Hosted Windows Runnern mit Rhino 8 für Plugin-Build + Yak-Package, automatisch nur auf `main` und ebenfalls nur bei relevanten Code-/Script-Pfaden, sonst manuell per `workflow_dispatch`
+  - `release-package.yml` auf demselben Self-Hosted Runner für Tag-Releases, mit clean checkout ohne persistierte Credentials, Concurrency-Schranke und Timeout
 
 ### Ausführung
 - Lokal Tests: `./scripts/test.ps1`
@@ -276,11 +278,14 @@ public void Rnt_Macro_Is_Formatted_As_Specified()
 - **Workflow 2: Windows Plugin Build**
   - Datei: `.github/workflows/windows-plugin-build.yml`
   - Self-hosted Windows Runner mit Label `Rhino8`
+  - läuft aus Sicherheitsgründen nur auf trusted `push` und `workflow_dispatch`, nicht auf `pull_request`
+  - ExportPanel-Workflow-CTAs zeigen offene vs. gesamte Zuweisungen direkt im Label (`2 offen / 6 gesamt`)
   - baut Plugin, führt Tests aus, erzeugt Yak-Package
   - lädt `.yak` und `.rhp` als Artifacts hoch
 - **Workflow 3: Release Package**
   - Datei: `.github/workflows/release-package.yml`
   - läuft bei Tags wie `v0.2.0`
+  - nutzt denselben self-hosted Windows Runner, aber jetzt ebenfalls mit clean checkout ohne persistierte Credentials, Concurrency-Schranke und Timeout
   - erzeugt GitHub Release mit `.yak`, `.rhp` und `manifest.yml`
 - **Scripts**
   - `scripts/build.ps1`

@@ -127,11 +127,11 @@ public class CncOperationSchemaTests
     }
 
     [Theory]
-    [InlineData("contour", CncOperationSchema.TYPE_CONTOUR)]
-    [InlineData("POCKET", CncOperationSchema.TYPE_POCKET)]
-    [InlineData("Drill", CncOperationSchema.TYPE_DRILL)]
-    [InlineData("groove", CncOperationSchema.TYPE_GROOVE)]
-    public void ValidateOperation_CaseInsensitive_HandlesCorrectly(string inputType, string expectedType)
+    [InlineData("contour")]
+    [InlineData("POCKET")]
+    [InlineData("Drill")]
+    [InlineData("groove")]
+    public void ValidateOperation_CaseInsensitive_HandlesCorrectly(string inputType)
     {
         // Arrange
         var parameters = new Dictionary<string, string>

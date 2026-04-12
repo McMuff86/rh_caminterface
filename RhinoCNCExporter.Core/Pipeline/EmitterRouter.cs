@@ -90,7 +90,7 @@ public class EmitterRouter : IEmitterRouter
         HorizontalDrillMachining h => EmitHorizontalDrillMachining(plate, h),
 
         BladeCutMachining b => _emitter.EmitBladeCut(
-            _nameService.CreateUnique(b.Name),
+            b.Name,
             b.Angle, b.Segments,
             b.TechCode ?? _profile.DefaultTech, b.Depth, b.Strategy,
             SideToPlane(b.Side)),

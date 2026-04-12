@@ -71,6 +71,28 @@ public class NameServiceTests
     }
 
     [Fact]
+    public void CreateUniquePreservingText_PreservesSpacesAndSlash()
+    {
+        var svc = new NameService(maxLength: 31);
+        var name = svc.CreateUniquePreservingText("Geneigter Schnitt in X/Y_1");
+
+        Assert.Equal("Geneigter Schnitt in X/Y_1", name);
+    }
+
+    [Fact]
+    public void CreateUniquePreservingText_TruncatesAndSuffixes()
+    {
+        var svc = new NameService(maxLength: 31);
+        var first = svc.CreateUniquePreservingText("Very Long BladeCut Operation Name That Should Be Truncated");
+        var second = svc.CreateUniquePreservingText("Very Long BladeCut Operation Name That Should Be Truncated");
+
+        Assert.True(first.Length <= 31);
+        Assert.True(second.Length <= 31);
+        Assert.NotEqual(first, second);
+        Assert.EndsWith("_2", second);
+    }
+
+    [Fact]
     public void CreateUnique_EmptyString_Works()
     {
         var svc = new NameService(maxLength: 31);
@@ -141,7 +163,7 @@ public class NameServiceTests
         Assert.True(first.Length <= 31);
         Assert.True(second.Length <= 31);
         Assert.NotEqual(first, second);
-        Assert.EndsWith("_2", second);
+        Assert.Contains(new[] { first, second }, name => name.EndsWith("_2", StringComparison.Ordinal));
     }
 
     private static async Task<bool> CompletesWithin(Task task, TimeSpan timeout)

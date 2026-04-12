@@ -17,6 +17,9 @@ Desktop.ini
 # Yak packages
 *.yak
 
+# Local build/test artifacts
+artifacts/
+
 # Python
 __pycache__/
 *.pyc

@@ -25,13 +25,47 @@ public sealed class NameService
     /// Get a unique name, sanitized and truncated to max length.
     /// Matches Python's UniqueNames.get() logic exactly.
     /// </summary>
-    public string CreateUnique(string baseName)
+    public string CreateUnique(string baseName) => CreateUniqueInternal(baseName, Sanitize);
+
+    /// <summary>
+    /// Get a unique name while preserving user-facing characters like spaces or slashes.
+    /// Only characters that would break XCS string literals are replaced.
+    /// Useful for production-facing operation names where Maestro output should remain human-readable.
+    /// </summary>
+    public string CreateUniquePreservingText(string baseName) => CreateUniqueInternal(baseName, PreserveText);
+
+    /// <summary>
+    /// Sanitize: replace non-alphanumeric/underscore with '_', trim to max length.
+    /// Matches Python's UniqueNames.sanitize() exactly.
+    /// </summary>
+    private string Sanitize(string s)
+    {
+        s = SanitizeRegex.Replace(s, "_");
+        return TrimToMaxLength(s);
+    }
+
+    private string PreserveText(string s)
+    {
+        s = (s ?? string.Empty)
+            .Replace('"', '_')
+            .Replace('\r', ' ')
+            .Replace('\n', ' ')
+            .Trim();
+
+        return TrimToMaxLength(s);
+    }
+
+    private string TrimToMaxLength(string s)
+    {
+        return s.Length > _maxLen ? s[.._maxLen] : s;
+    }
+
+    private string CreateUniqueInternal(string baseName, Func<string, string> normalize)
     {
         lock (_sync)
         {
-            var @base = Sanitize(baseName);
+            var @base = normalize(baseName ?? string.Empty);
 
-            // First use — no suffix needed
             if (!_used.Contains(@base) && _counts.GetValueOrDefault(@base, 0) == 0)
             {
                 _used.Add(@base);
@@ -39,8 +73,7 @@ public sealed class NameService
                 return @base;
             }
 
-            // Collision — append _N suffix
-            int n = _counts.GetValueOrDefault(@base, 1) + 1;
+            var n = _counts.GetValueOrDefault(@base, 1) + 1;
             while (true)
             {
                 var candidate = CreateSuffixedCandidate(@base, n);
@@ -50,19 +83,10 @@ public sealed class NameService
                     _counts[@base] = n;
                     return candidate;
                 }
+
                 n++;
             }
         }
-    }
-
-    /// <summary>
-    /// Sanitize: replace non-alphanumeric/underscore with '_', trim to max length.
-    /// Matches Python's UniqueNames.sanitize() exactly.
-    /// </summary>
-    private string Sanitize(string s)
-    {
-        s = SanitizeRegex.Replace(s, "_");
-        return s.Length > _maxLen ? s[.._maxLen] : s;
     }
 
     private string CreateSuffixedCandidate(string sanitizedBase, int index)

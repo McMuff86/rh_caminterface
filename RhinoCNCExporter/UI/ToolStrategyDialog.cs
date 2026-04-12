@@ -14,6 +14,7 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
     private readonly List<ToolHolderDefinition> _holderChoices;
 
     private readonly Label _summaryLabel;
+    private readonly CheckBox _showMissingOnlyCheckBox;
     private readonly GridView _operationGrid;
     private readonly Label _operationLabel;
     private readonly Label _detailsLabel;
@@ -32,7 +33,8 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
         ToolLibrary library,
         IReadOnlyList<OperationStrategyItem> items,
         IReadOnlyList<MachiningToolOverride>? existingOverrides,
-        ToolpathPlanningOptions planningOptions)
+        ToolpathPlanningOptions planningOptions,
+        bool focusMissingAssignments = false)
     {
         _library = library ?? throw new ArgumentNullException(nameof(library));
         _items = items ?? throw new ArgumentNullException(nameof(items));
@@ -55,6 +57,18 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
         {
             Text = string.Empty,
             Font = new Font(SystemFont.Bold, 11)
+        };
+
+        _showMissingOnlyCheckBox = new CheckBox
+        {
+            Text = "Nur Bearbeitungen ohne Werkzeug zeigen",
+            ID = UiAutomationIds.ToolStrategyOnlyMissing,
+            Checked = focusMissingAssignments
+        };
+        _showMissingOnlyCheckBox.CheckedChanged += (_, _) =>
+        {
+            RefreshSummary();
+            ReloadGrid(SelectedItem?.OperationKey);
         };
 
         _operationGrid = CreateOperationGrid();
@@ -87,6 +101,8 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
             Items =
             {
                 CreateHintLabel("Bearbeitungen der aktuell gewählten Platten. Änderungen auf der rechten Seite aktualisieren die Vorschau-Strategie sofort."),
+                CreateHintLabel("Fehlende Werkzeugzuordnungen stehen oben. Mit dem Filter lässt sich die Liste direkt auf offene Punkte eingrenzen."),
+                _showMissingOnlyCheckBox,
                 new StackLayoutItem(_operationGrid, true),
                 new StackLayout
                 {
@@ -171,6 +187,11 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
             }
         };
 
+        if (focusMissingAssignments && !_items.Any(IsMissingToolAssignment))
+        {
+            _showMissingOnlyCheckBox.Checked = false;
+        }
+
         RefreshSummary();
         ReloadGrid();
     }
@@ -202,8 +223,11 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
 
     private void ReloadGrid(string? selectedOperationKey = null)
     {
+        var showMissingOnly = _showMissingOnlyCheckBox.Checked == true;
         _rows = _items
-            .OrderBy(static item => item.PlateName, StringComparer.OrdinalIgnoreCase)
+            .Where(item => !showMissingOnly || IsMissingToolAssignment(item))
+            .OrderBy(item => HasResolvedFinishingTool(item) ? 1 : 0)
+            .ThenBy(static item => item.PlateName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static item => item.MachiningType)
             .ThenBy(static item => item.OperationName, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -223,7 +247,9 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
 
         if (_rows.Count == 0)
         {
-            _operationLabel.Text = "Keine Bearbeitungen für die gewählten Platten.";
+            _operationLabel.Text = showMissingOnly
+                ? "Keine Bearbeitungen ohne Werkzeug in dieser Auswahl."
+                : "Keine Bearbeitungen für die gewählten Platten.";
             _detailsLabel.Text = string.Empty;
             _autoStrategyLabel.Text = string.Empty;
             _resolvedStrategyLabel.Text = string.Empty;
@@ -297,6 +323,11 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
         else
             _overrides.Remove(item.OperationKey);
 
+        if (_showMissingOnlyCheckBox.Checked == true && !_items.Any(IsMissingToolAssignment))
+        {
+            _showMissingOnlyCheckBox.Checked = false;
+        }
+
         RefreshSummary();
         _resolvedStrategyLabel.Text = BuildStrategySummary(ResolveStrategy(item), item.SupportsRoughing);
         ReloadGrid(item.OperationKey);
@@ -322,8 +353,11 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
 
     private void RefreshSummary()
     {
+        var missingCount = _items.Count(IsMissingToolAssignment);
+        var readyCount = _items.Count - missingCount;
+        var filterText = _showMissingOnlyCheckBox.Checked == true ? " · Fokus: nur offene Punkte" : string.Empty;
         _summaryLabel.Text =
-            $"{_items.Count} Bearbeitungen · {_overrides.Count} Override(s) · Maschine: {_library.MachineKey}";
+            $"{_items.Count} Bearbeitungen · {missingCount} ohne Werkzeug · {readyCount} bereit · {_overrides.Count} Override(s) · Maschine: {_library.MachineKey}{filterText}";
     }
 
     private OperationStrategyItem? SelectedItem
@@ -347,6 +381,16 @@ public sealed class ToolStrategyDialog : Dialog<IReadOnlyList<MachiningToolOverr
             _library,
             _planningOptions,
             FindOverride(item.OperationKey));
+    }
+
+    private bool IsMissingToolAssignment(OperationStrategyItem item)
+    {
+        return ResolveStrategy(item).FinishingTool == null;
+    }
+
+    private bool HasResolvedFinishingTool(OperationStrategyItem item)
+    {
+        return !IsMissingToolAssignment(item);
     }
 
     private static void PopulateToolDropDown(

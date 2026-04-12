@@ -69,7 +69,7 @@ public class BladeCutIntegrationTests
         Assert.Contains("SetRetractStrategy(true,true,0,0);", xcsOutput);
         Assert.Contains("CreateSegment(\"seg1\",19.000,354.000,19.000,-187.500);", xcsOutput);
         Assert.Contains("CreateSegment(\"seg2\",628.000,-187.500,628.000,354.000);", xcsOutput);
-        Assert.Contains("CreateBladeCut(\"SchubladenFase_1_0\",\"Blade Cut\",TypeOfProcess.GeneralRouting,\"E015\",\"-1\",45.00,2,-1,-1,-1,2,true,true,0,15);", xcsOutput);
+        Assert.Contains("CreateBladeCut(\"SchubladenFase_1\",\"Blade Cut\",TypeOfProcess.GeneralRouting,\"E015\",\"-1\",45.00,2,-1,-1,-1,2,true,true,0,15);", xcsOutput);
         Assert.Contains("ResetApproachStrategy();", xcsOutput);
         Assert.Contains("ResetRetractStrategy();", xcsOutput);
         Assert.Contains("CreateMacro(\"Wegfahrschritt\",\"XPARK\");", xcsOutput);

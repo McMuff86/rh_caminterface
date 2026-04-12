@@ -337,6 +337,12 @@ public class ModelTests
     [Fact]
     public void MachiningSource_AllValues()
     {
-        Assert.Equal(3, Enum.GetValues<MachiningSource>().Length);
+        var values = Enum.GetValues<MachiningSource>();
+
+        Assert.Equal(4, values.Length);
+        Assert.Contains(MachiningSource.LegacyLayer, values);
+        Assert.Contains(MachiningSource.BlockDetection, values);
+        Assert.Contains(MachiningSource.FaceTag, values);
+        Assert.Contains(MachiningSource.Manual, values);
     }
 }

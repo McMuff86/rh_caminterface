@@ -165,6 +165,15 @@ Prüft:
 - Yak-Package
 - Upload von `.yak` und `.rhp` als Artifacts
 
+**Sicherheitsregel:** Dieser Workflow soll nur auf trusted `push` und `workflow_dispatch` laufen, nicht auf `pull_request`, weil er einen self-hosted Windows Runner mit Rhino 8 nutzt.
+
+### Workflow 3: Release Package
+Datei: `.github/workflows/release-package.yml`
+
+Läuft für Tag-Releases auf demselben **self-hosted Windows Runner** und erzeugt GitHub Releases mit `.yak`, `.rhp` und `manifest.yml`.
+
+**Sicherheitsregel:** Auch dieser Workflow nutzt jetzt clean checkout ohne persistierte Credentials, `concurrency`-Schranke und expliziten Timeout, damit Release-Läufe auf dem öffentlichen Repo defensiv bleiben.
+
 ## Self-hosted Runner Empfehlung
 
 Am besten auf dem Windows-Rechner einrichten, der auch Rhino 8 installiert hat.

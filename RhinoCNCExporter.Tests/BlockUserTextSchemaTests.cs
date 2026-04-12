@@ -239,8 +239,18 @@ public class BlockUserTextSchemaTests
     }
 
     [Fact]
-    public void ValidTypes_Contains7Types()
+    public void ValidTypes_ContainsExpectedTypes()
     {
-        Assert.Equal(7, BlockUserTextSchema.ValidTypes.Count);
+        var validTypes = BlockUserTextSchema.ValidTypes;
+
+        Assert.Equal(8, validTypes.Count);
+        Assert.Contains("DRILL", validTypes);
+        Assert.Contains("DRILLPATTERN", validTypes);
+        Assert.Contains("MACRO", validTypes);
+        Assert.Contains("CUT", validTypes);
+        Assert.Contains("POCKET", validTypes);
+        Assert.Contains("GROOVE", validTypes);
+        Assert.Contains("HDRILL", validTypes);
+        Assert.Contains("BLADECUT", validTypes);
     }
 }

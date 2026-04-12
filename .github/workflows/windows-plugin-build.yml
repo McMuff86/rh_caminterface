@@ -4,15 +4,29 @@ on:
   push:
     branches:
       - main
-      - feat/**
-      - fix/**
-      - chore/**
-  pull_request:
+    paths:
+      - .github/workflows/windows-plugin-build.yml
+      - RH_caminterface.sln
+      - manifest.yml
+      - RhinoCNCExporter/**
+      - RhinoCNCExporter.Core/**
+      - RhinoCNCExporter.Tests/**
+      - scripts/build.ps1
+      - scripts/test.ps1
+      - scripts/package.ps1
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   plugin-build:
     runs-on: [self-hosted, Windows, X64, Rhino8]
+    timeout-minutes: 45
     defaults:
       run:
         shell: pwsh
@@ -20,6 +34,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
